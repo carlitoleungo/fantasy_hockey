@@ -1,0 +1,23 @@
+{
+  "fantasy_content": {
+    "team": {
+      "team_key": "nhl.l.99999.t.1",
+      "team_id": "1",
+      "name": "Team Alpha",
+      "team_stats": {
+        "coverage_type": "week",
+        "week": "1",
+        "stats": {
+          "stat": [
+            {"stat_id": "0", "value": "5"},
+            {"stat_id": "1", "value": "10"},
+            {"stat_id": "2", "value": "25"},
+            {"stat_id": "3", "value": "35"},
+            {"stat_id": "7", "value": "-"},
+            {"stat_id": "99", "value": "999"}
+          ]
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "fantasy_content": {
+    "league": {
+      "teams": {
+        "@count": "2",
+        "team": [
+          {
+            "team_key": "nhl.l.99999.t.1",
+            "team_id": "1",
+            "name": "Team Alpha",
+            "managers": {
+              "manager": {
+                "nickname": "Alice",
+                "manager_id": "1"
+              }
+            }
+          },
+          {
+            "team_key": "nhl.l.99999.t.2",
+            "team_id": "2",
+            "name": "Team Beta",
+            "managers": {
+              "manager": {
+                "nickname": "Bob",
+                "manager_id": "2"
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}
