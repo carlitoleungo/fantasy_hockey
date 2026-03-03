@@ -1,0 +1,8 @@
+.cache/
+.streamlit/secrets.toml
+.streamlit/oauth_token.json
+__pycache__/
+*.pyc
+.DS_Store
+.localhost-key.pem
+.localhost.pem

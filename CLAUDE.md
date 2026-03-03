@@ -186,7 +186,10 @@ client_secret = "your_client_secret"
 - Streamlit reruns the entire script on every interaction — expensive operations must be wrapped in @st.cache_data or guarded with session state checks
 - OAuth redirect URIs must be registered in the Yahoo developer console — localhost and any deployed URL must be registered separately (default Streamlit port is 8501)
 - There are two separate caching layers: @st.cache_data (in-session, in-memory) and .cache/ parquet files (cross-session, on-disk). Keep these concerns separate in the code
-- [Add more here as you discover them during development]
+- When a Yahoo API response collection has exactly 1 item, xmltodict returns a dict instead of a list. Always check `@count` and wrap in a list when needed
+- `stat['value']` from Yahoo API can be `'-'` (player didn't play) — coerce to 0
+- `stat_id == '0'` is games played; `stat_id in ['22', '23']` are GA/GAA — handle these specially in per-game calculations
+- `is_only_display_stat == '1'` marks non-scoring stats; filter these out using `is_enabled`
 
 ## Testing Strategy
 - Save raw API responses as JSON fixtures in tests/fixtures/
@@ -200,6 +203,27 @@ client_secret = "your_client_secret"
 pip install -r requirements.txt
 streamlit run app.py
 ```
+
+## Key Decisions Log
+
+### Auth: yahoo_oauth not used for the OAuth flow (2026-03-03)
+`yahoo_oauth`'s `OAuth2` class assumes interactive terminal input — it opens a browser and waits for the user to paste an authorisation code. Streamlit uses a redirect-based callback: Yahoo sends the user back to `http://localhost:8501/?code=...`. These are incompatible. The auth flow is implemented directly with `requests` instead. The notebook's core pattern (check validity → refresh if needed → return authenticated session) is preserved in `auth/oauth.py`.
+
+### Auth: tokens stored in .streamlit/oauth_token.json, not secrets.toml (2026-03-03)
+Credentials (client_id, client_secret) live in `.streamlit/secrets.toml` as static config. Tokens (access_token, refresh_token, expires_at) are written to `.streamlit/oauth_token.json` at runtime. Writing dynamic tokens back into secrets.toml would mix static config with mutable state and require TOML parsing. Both files are gitignored. The token file format mirrors what yahoo_oauth would produce for compatibility.
+
+### Auth: session state key is "tokens" (dict), not "token" (2026-03-03)
+The full token payload (access_token, refresh_token, expires_at, etc.) is stored under `st.session_state["tokens"]`. Page auth guards should check `"tokens" not in st.session_state`. The CLAUDE.md template showing `"token"` (singular) referred to the concept, not a literal key name.
+
+### Auth: get_session() is the single interface for authenticated API calls (2026-03-03)
+All data/ layer code should call `auth.oauth.get_session()` to get a `requests.Session` with the Bearer token header already set. This function handles loading from session state, falling back to disk, and refreshing transparently. Nothing outside auth/ should touch token storage directly.
+
+### Notebook dead ends: do not port (2026-03-03)
+The following notebook sections are explicitly marked dead ends or are broken and should not be ported without explicit confirmation:
+- "Get matchups for matchup analyser" — incomplete implementation
+- "Get rosters and player stats per roster" — has a variable-shadowing bug, extremely slow (1 API call per player)
+- "Calculating expected stats" — uses deprecated `statsapi.web.nhl.com` URL and removed `df.append()` API
+- "Player Roster & Stats Testing Grounds" — unfinished pagination experiments
 
 ## Out of Scope (for now)
 - User accounts or multi-user support (single user, local use only)
