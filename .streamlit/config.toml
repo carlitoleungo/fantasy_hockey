@@ -1,5 +1,3 @@
-cat >> .streamlit/config.toml << 'EOF'
 [server]
 sslCertFile = "localhost.pem"
 sslKeyFile = "localhost-key.pem"
-EOF
