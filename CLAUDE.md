@@ -230,6 +230,21 @@ Rather than scattering `if int(@count) == 1` checks (as the notebook did for tea
 ### matchups.py: current week is included in delta fetch; won't refresh mid-week (2026-03-03)
 `get_matchups()` fetches up to and including `current_week`. Once that week is cached, the next call finds `last_cached_week == current_week` and fetches nothing new until Yahoo advances `current_week`. Intra-week stat updates are therefore not reflected until the cache is manually cleared. This is acceptable for a daily-use tool; a `force_refresh` flag can be added later if needed.
 
+### leagues.py: patch target is data.leagues._get, not data.client._get (2026-03-03)
+`leagues.py` imports `_get` directly via `from data.client import _get`. This binds the name in `leagues.py`'s own namespace, so patching `data.client._get` in tests has no effect. Tests for `leagues.py` must patch `data.leagues._get`. The same rule applies to any future module that imports `_get` (or other helpers) by name from `data.client` — always patch the name in the importing module's namespace.
+
+### leagues.py: get_user_hockey_leagues() filters by game code, not game name (2026-03-03)
+The Yahoo games endpoint returns a `code` field (e.g. `"nhl"`, `"mlb"`) that is stable across seasons. `get_user_hockey_leagues()` filters on `game_code == "nhl"`. The human-readable `name` field ("Yahoo Fantasy Hockey") is not used for filtering as it could change.
+
+### team_scores.py: avg_ranks uses method='min' for ties (2026-03-03)
+When two teams score identically on a stat in the same week, both receive the lower (better) rank and the next rank is skipped. This matches standard sports ranking convention (two teams tied for 1st → both rank 1, next team ranks 3rd).
+
+### team_scores.py: LOWER_IS_BETTER covers both full name and abbreviation (2026-03-03)
+Yahoo stat column names in the matchups DataFrame are the full `stat_name` strings returned by the API (e.g. "Goals Against Average"), not abbreviations. `LOWER_IS_BETTER` includes both the full names and common abbreviations ("GA", "GAA") for defensive breadth. If a league uses non-standard stat names, callers can pass an explicit `lower_is_better` set to `avg_ranks()`.
+
+### pages/: matchups loaded once per session via session state, not @st.cache_data (2026-03-03)
+`@st.cache_data` can't safely call `get_session()` because that function reads `st.session_state`, which is not available in cached function contexts. Instead, pages load data once per session by guarding with `"matchups_df" not in st.session_state` (invalidated if the league changes). `@st.cache_data` is reserved for pure computations that don't touch session state or the API — e.g. `_compute_avg_ranks(df)` in `01_league_overview.py`.
+
 ### Notebook dead ends: do not port (2026-03-03)
 The following notebook sections are explicitly marked dead ends or are broken and should not be ported without explicit confirmation:
 - "Get matchups for matchup analyser" — incomplete implementation
