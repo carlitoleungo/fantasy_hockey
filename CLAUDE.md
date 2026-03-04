@@ -218,6 +218,18 @@ The full token payload (access_token, refresh_token, expires_at, etc.) is stored
 ### Auth: get_session() is the single interface for authenticated API calls (2026-03-03)
 All data/ layer code should call `auth.oauth.get_session()` to get a `requests.Session` with the Bearer token header already set. This function handles loading from session state, falling back to disk, and refreshing transparently. Nothing outside auth/ should touch token storage directly.
 
+### client.py: unknown and display-only stats silently skipped (2026-03-03)
+The notebook emitted `"Unknown Stat ID: 22"` columns for unrecognised stat IDs and relied on the caller to drop them (`df.drop(columns=['Unknown Stat ID: 22'])`). `client.get_team_week_stats()` instead silently ignores any stat not in the enabled categories lookup. This keeps the DataFrame clean without requiring callers to know which IDs to drop.
+
+### client.py: _as_list() handles the single-item xmltodict gotcha centrally (2026-03-03)
+Rather than scattering `if int(@count) == 1` checks (as the notebook did for teams), a single `_as_list(value)` helper normalises any dict-or-list value to always be a list. Used on: the stat categories list, `stat_position_type` (which can be a list when a stat applies to multiple position types), the teams list, and the per-week stat list.
+
+### matchups.py: delta fetch uses max(week) from cache data, not last_updated timestamp (2026-03-03)
+`cache.last_updated()` returns when something was written (a datetime), not which weeks are present. For the delta fetch pattern, what matters is which week numbers exist in the data. `_last_cached_week()` reads `df['week'].max()` from the cached parquet file. `cache.last_updated()` / `cache.is_stale()` are reserved for time-based staleness checks (e.g. player stats refreshed daily).
+
+### matchups.py: current week is included in delta fetch; won't refresh mid-week (2026-03-03)
+`get_matchups()` fetches up to and including `current_week`. Once that week is cached, the next call finds `last_cached_week == current_week` and fetches nothing new until Yahoo advances `current_week`. Intra-week stat updates are therefore not reflected until the cache is manually cleared. This is acceptable for a daily-use tool; a `force_refresh` flag can be added later if needed.
+
 ### Notebook dead ends: do not port (2026-03-03)
 The following notebook sections are explicitly marked dead ends or are broken and should not be ported without explicit confirmation:
 - "Get matchups for matchup analyser" — incomplete implementation

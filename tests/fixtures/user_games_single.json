@@ -1,0 +1,17 @@
+{
+  "fantasy_content": {
+    "users": {
+      "user": {
+        "games": {
+          "game": {
+            "game_key": "453",
+            "code": "nhl",
+            "season": "2024",
+            "name": "Yahoo Fantasy Hockey",
+            "url": "https://hockey.fantasysports.yahoo.com/hockey"
+          }
+        }
+      }
+    }
+  }
+}

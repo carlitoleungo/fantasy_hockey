@@ -1,0 +1,26 @@
+{
+  "fantasy_content": {
+    "users": {
+      "user": {
+        "games": {
+          "game": [
+            {
+              "game_key": "453",
+              "code": "nhl",
+              "season": "2024",
+              "name": "Yahoo Fantasy Hockey",
+              "url": "https://hockey.fantasysports.yahoo.com/hockey"
+            },
+            {
+              "game_key": "422",
+              "code": "mlb",
+              "season": "2024",
+              "name": "Yahoo Fantasy Baseball",
+              "url": "https://baseball.fantasysports.yahoo.com/baseball"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

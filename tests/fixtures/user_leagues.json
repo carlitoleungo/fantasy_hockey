@@ -1,0 +1,36 @@
+{
+  "fantasy_content": {
+    "users": {
+      "user": {
+        "games": {
+          "game": {
+            "game_key": "453",
+            "leagues": {
+              "@count": "2",
+              "league": [
+                {
+                  "league_key": "nhl.l.12345",
+                  "league_id": "12345",
+                  "name": "Carlin's Hockey League",
+                  "scoring_type": "head",
+                  "start_week": "1",
+                  "start_date": "2024-10-08",
+                  "end_date": "2025-04-13"
+                },
+                {
+                  "league_key": "nhl.l.67890",
+                  "league_id": "67890",
+                  "name": "Friends Hockey League",
+                  "scoring_type": "head",
+                  "start_week": "1",
+                  "start_date": "2024-10-08",
+                  "end_date": "2025-04-13"
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}
