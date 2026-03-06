@@ -86,9 +86,20 @@ selected_week = st.selectbox(
 
 week_df = weekly_scores(df, selected_week)
 
-# Format stat columns to 1 decimal place; team_name as plain text
+# Format: counting stats as integers, rate stats (Average, Percentage, %)
+# with 2 decimal places.
 stat_cols = stat_columns(df)
-format_map = {col: "{:.1f}" for col in stat_cols}
+
+
+def _is_rate_stat(name: str) -> bool:
+    lower = name.lower()
+    return "average" in lower or "percentage" in lower or "%" in name
+
+
+format_map = {
+    col: "{:.2f}" if _is_rate_stat(col) else "{:.0f}"
+    for col in stat_cols
+}
 
 st.dataframe(
     week_df.style.format(format_map),

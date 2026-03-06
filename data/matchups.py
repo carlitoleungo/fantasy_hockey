@@ -55,7 +55,15 @@ def get_matchups(session, league_key: str) -> pd.DataFrame | None:
         if rows:
             cache.append(league_key, "matchups", pd.DataFrame(rows))
 
-    return cache.read(league_key, "matchups")
+    result = cache.read(league_key, "matchups")
+    if result is not None:
+        # Deduplicate: earlier cache corruption (e.g. repeated appends during
+        # development) can leave duplicate rows. Keep the last entry per
+        # team/week pair so the most recent fetch wins.
+        result = result.drop_duplicates(
+            subset=["team_key", "week"], keep="last"
+        ).reset_index(drop=True)
+    return result
 
 
 def _last_cached_week(league_key: str) -> int | None:
