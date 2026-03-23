@@ -54,9 +54,39 @@ def weekly_scores(df: pd.DataFrame, week: int) -> pd.DataFrame:
     )
 
 
+def weekly_scores_ranked(
+    df: pd.DataFrame,
+    week: int,
+    lower_is_better: frozenset[str] | None = None,
+) -> pd.DataFrame:
+    """
+    Return one row per team for the given week with raw stats and an avg_rank
+    column. Sorted by avg_rank ascending (best team first).
+
+    Columns: team_name, {stat_name...}, avg_rank
+
+    Ranks use method='min' for ties (consistent with avg_ranks()).
+    """
+    if lower_is_better is None:
+        lower_is_better = LOWER_IS_BETTER
+
+    stat_cols = stat_columns(df)
+    week_df = df[df["week"] == week].copy()
+    result = week_df[["team_name"] + stat_cols].reset_index(drop=True)
+
+    per_cat_ranks = pd.DataFrame(index=result.index)
+    for col in stat_cols:
+        ascending = col in lower_is_better
+        per_cat_ranks[col] = result[col].rank(method="min", ascending=ascending)
+
+    result["avg_rank"] = per_cat_ranks.mean(axis=1)
+    return result.sort_values("avg_rank").reset_index(drop=True)
+
+
 def avg_ranks(
     df: pd.DataFrame,
     lower_is_better: frozenset[str] | None = None,
+    exclude_weeks: set[int] | None = None,
 ) -> pd.DataFrame:
     """
     Compute each team's average rank per stat category across all weeks.
@@ -65,6 +95,9 @@ def avg_ranks(
     For most stats, highest value = best. Stats listed in lower_is_better
     are ranked the other way (lowest value = rank 1).
     Ties receive the same (minimum) rank.
+
+    exclude_weeks: week numbers to omit from the calculation (e.g. the
+    current in-progress week whose data is partial).
 
     Returns a DataFrame with columns:
         team_name   str
@@ -75,6 +108,8 @@ def avg_ranks(
     """
     if lower_is_better is None:
         lower_is_better = LOWER_IS_BETTER
+    if exclude_weeks:
+        df = df[~df["week"].isin(exclude_weeks)]
 
     stat_cols = stat_columns(df)
     ranked_parts: list[pd.DataFrame] = []

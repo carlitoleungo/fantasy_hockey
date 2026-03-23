@@ -3,10 +3,14 @@ Fetch and cache weekly matchup stats for all teams in a league.
 
 Delta fetch pattern:
 1. Find the highest week already in the cache
-2. Fetch stat categories and team list once (they rarely change mid-season)
-3. For each missing week, fetch every team's stats and collect into rows
+2. Fetch stat categories once (they rarely change mid-season)
+3. For each missing week, fetch ALL teams' stats in a single API call
 4. Append new rows to the cache
 5. Return the full dataset from the cache
+
+Uses the bulk endpoint (/league/{key}/teams/stats;type=week;week={w}) which
+returns every team's stats in one request — 1 API call per week instead of
+N_teams per week.
 
 On first run with an empty cache this fetches all weeks from start_week to
 current_week. On subsequent runs it only fetches weeks that aren't cached yet.
@@ -41,16 +45,13 @@ def get_matchups(session, league_key: str) -> pd.DataFrame | None:
 
     if weeks_to_fetch:
         stat_categories = client.get_stat_categories(session, league_key)
-        teams = client.get_teams(session, league_key)
 
         rows = []
         for week in weeks_to_fetch:
-            for team in teams:
-                row = client.get_team_week_stats(
-                    session, team["team_key"], week, stat_categories
-                )
-                row["team_name"] = team["team_name"]
-                rows.append(row)
+            week_rows = client.get_all_teams_week_stats(
+                session, league_key, week, stat_categories
+            )
+            rows.extend(week_rows)
 
         if rows:
             cache.append(league_key, "matchups", pd.DataFrame(rows))
@@ -64,6 +65,12 @@ def get_matchups(session, league_key: str) -> pd.DataFrame | None:
             subset=["team_key", "week"], keep="last"
         ).reset_index(drop=True)
     return result
+
+
+def get_current_week(session, league_key: str) -> int:
+    """Return the current in-progress week number from Yahoo league settings."""
+    settings = client.get_league_settings(session, league_key)
+    return settings["current_week"]
 
 
 def _last_cached_week(league_key: str) -> int | None:

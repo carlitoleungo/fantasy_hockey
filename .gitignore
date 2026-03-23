@@ -6,3 +6,6 @@ __pycache__/
 .DS_Store
 .localhost-key.pem
 .localhost.pem
+node_modules
+.venv/
+.claude/

@@ -9,6 +9,7 @@ A Streamlit web app that helps fantasy hockey managers make better add/drop deci
 - Existing working notebook: reference/waiver_wire_notebook.ipynb
 - Streamlit docs: https://docs.streamlit.io
 - Streamlit session state: https://docs.streamlit.io/develop/api-reference/caching-and-state/st.session_state
+- Improvements backlog: docs/improvements.md
 
 ## What Already Works
 The existing notebook handles:
@@ -178,6 +179,7 @@ client_secret = "your_client_secret"
 ## API Notes
 - Yahoo Fantasy API uses OAuth 1.0a
 - Rate limits apply — the cache layer is the primary defence against hitting them
+- **Minimise API calls**: always prefer bulk/collection endpoints over per-entity calls. For example, use `/league/{key}/teams/stats;type=week;week={w}` (1 call for all teams) instead of N individual `/team/{key}/stats` calls. When adding new data fetches, check whether a collection endpoint exists before defaulting to a per-item loop.
 - Weekly data is keyed by week number within a season
 - Player stats endpoints differ for season aggregate vs recent (check docs links above)
 - The API returns XML by default; use format=json query param where supported
@@ -187,7 +189,7 @@ client_secret = "your_client_secret"
 - OAuth redirect URIs must be registered in the Yahoo developer console — localhost and any deployed URL must be registered separately (default Streamlit port is 8501)
 - There are two separate caching layers: @st.cache_data (in-session, in-memory) and .cache/ parquet files (cross-session, on-disk). Keep these concerns separate in the code
 - When a Yahoo API response collection has exactly 1 item, xmltodict returns a dict instead of a list. Always check `@count` and wrap in a list when needed
-- `stat['value']` from Yahoo API can be `'-'` (player didn't play) — coerce to 0
+- `stat['value']` from Yahoo API can be `'-'` (player didn't play) or `None` — coerce to 0
 - `stat_id == '0'` is games played; `stat_id in ['22', '23']` are GA/GAA — handle these specially in per-game calculations
 - `is_only_display_stat == '1'` marks non-scoring stats; filter these out using `is_enabled`
 
@@ -203,6 +205,9 @@ client_secret = "your_client_secret"
 pip install -r requirements.txt
 streamlit run app.py
 ```
+
+## Development Workflow
+- Make changes directly in the main working directory (`/Users/carlin/dev/fantasy_hockey`). **Do not use git worktrees** unless explicitly asked — the user runs the app from the main directory and can't easily test changes made in a worktree branch.
 
 ## Key Decisions Log
 
@@ -244,6 +249,12 @@ Yahoo stat column names in the matchups DataFrame are the full `stat_name` strin
 
 ### pages/: matchups loaded once per session via session state, not @st.cache_data (2026-03-03)
 `@st.cache_data` can't safely call `get_session()` because that function reads `st.session_state`, which is not available in cached function contexts. Instead, pages load data once per session by guarding with `"matchups_df" not in st.session_state` (invalidated if the league changes). `@st.cache_data` is reserved for pure computations that don't touch session state or the API — e.g. `_compute_avg_ranks(df)` in `01_league_overview.py`.
+
+### client.py: bulk teams/stats endpoint replaces per-team fetching (2026-03-23)
+`get_all_teams_week_stats()` uses `/league/{key}/teams/stats;type=week;week={w}` to fetch every team's stats for a week in a single API call. This replaces the previous pattern of calling `get_team_week_stats()` once per team per week. For a 12-team league over 20 weeks, this reduces API calls from ~240 to ~20 (plus setup calls). `matchups.py` now uses this bulk endpoint exclusively. The per-team `get_team_week_stats()` is retained in `client.py` for cases where only one team's stats are needed.
+
+### client.py: _coerce() handles None values, not just '-' (2026-03-23)
+The Yahoo API can return `None` for stat values (not just the string `'-'`). `_coerce()` and the `games_played` handler now treat `None` identically to `'-'` — coerced to 0. This fixes the `float() argument must be a string or a real number, not 'NoneType'` error on the league overview page.
 
 ### Notebook dead ends: do not port (2026-03-03)
 The following notebook sections are explicitly marked dead ends or are broken and should not be ported without explicit confirmation:

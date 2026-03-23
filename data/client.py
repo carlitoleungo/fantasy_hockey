@@ -42,12 +42,15 @@ def _as_list(value) -> list:
     return value if isinstance(value, list) else [value]
 
 
-def _coerce(value: str) -> float:
+def _coerce(value) -> float:
     """
-    Coerce a raw stat value string to float.
+    Coerce a raw stat value to float.
     '-' means the team/player had no activity in this period; treat as 0.
+    None can appear when the API omits a value entirely; also treat as 0.
     """
-    return 0.0 if value == "-" else float(value)
+    if value is None or value == "-":
+        return 0.0
+    return float(value)
 
 
 # ---------------------------------------------------------------------------
@@ -113,6 +116,55 @@ def get_teams(session, league_key: str) -> list[dict]:
     ]
 
 
+def get_all_teams_week_stats(
+    session, league_key: str, week: int, stat_categories: list[dict]
+) -> list[dict]:
+    """
+    Return stats for ALL teams in one API call using the teams collection.
+
+    Endpoint: /league/{key}/teams/stats;type=week;week={w}
+    This replaces N individual get_team_week_stats() calls with a single request.
+
+    Returns a list of flat dicts (same shape as get_team_week_stats output):
+        team_key, team_name, week, games_played, {stat_name...}
+    """
+    data = _get(
+        session,
+        f"{BASE_URL}/league/{league_key}/teams/stats;type=week;week={week}",
+    )
+
+    id_to_name = {
+        cat["stat_id"]: cat["stat_name"]
+        for cat in stat_categories
+        if cat["is_enabled"]
+    }
+
+    teams_data = data["fantasy_content"]["league"]["teams"]
+    rows = []
+    for team in _as_list(teams_data["team"]):
+        row: dict = {
+            "team_key": team["team_key"],
+            "team_name": team["name"],
+            "week": week,
+        }
+
+        raw_stats = team["team_stats"]["stats"]["stat"]
+        for stat in _as_list(raw_stats):
+            stat_id = stat["stat_id"]
+            value = stat["value"]
+
+            if stat_id == "0":
+                row["games_played"] = 0 if value in ("-", None) else int(value)
+                continue
+
+            if stat_id in id_to_name:
+                row[id_to_name[stat_id]] = _coerce(value)
+
+        rows.append(row)
+
+    return rows
+
+
 def get_team_week_stats(
     session, team_key: str, week: int, stat_categories: list[dict]
 ) -> dict:
@@ -145,7 +197,7 @@ def get_team_week_stats(
         value = stat["value"]
 
         if stat_id == "0":
-            row["games_played"] = 0 if value == "-" else int(value)
+            row["games_played"] = 0 if value in ("-", None) else int(value)
             continue
 
         if stat_id in id_to_name:

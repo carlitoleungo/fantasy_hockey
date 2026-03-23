@@ -44,15 +44,19 @@ def make_settings(current_week: int, start_week: int = 1) -> dict:
     return {"current_week": current_week, "start_week": start_week, "end_week": 25}
 
 
-def fake_team_week_stats(session, team_key: str, week: int, stat_categories) -> dict:
-    """Deterministic fake stats: Goals = week * 2, Assists = week * 3."""
-    return {
-        "team_key": team_key,
-        "week": week,
-        "games_played": week,
-        "Goals": float(week * 2),
-        "Assists": float(week * 3),
-    }
+def fake_all_teams_week_stats(session, league_key: str, week: int, stat_categories) -> list[dict]:
+    """Deterministic fake stats for all teams: Goals = week * 2, Assists = week * 3."""
+    return [
+        {
+            "team_key": t["team_key"],
+            "team_name": t["team_name"],
+            "week": week,
+            "games_played": week,
+            "Goals": float(week * 2),
+            "Assists": float(week * 3),
+        }
+        for t in TEAMS
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -62,8 +66,8 @@ def fake_team_week_stats(session, team_key: str, week: int, stat_categories) -> 
 def test_fetches_all_weeks_when_cache_empty(monkeypatch):
     monkeypatch.setattr(client, "get_league_settings", lambda s, k: make_settings(current_week=3))
     monkeypatch.setattr(client, "get_stat_categories", lambda s, k: STAT_CATEGORIES)
-    monkeypatch.setattr(client, "get_teams", lambda s, k: TEAMS)
-    monkeypatch.setattr(client, "get_team_week_stats", fake_team_week_stats)
+
+    monkeypatch.setattr(client, "get_all_teams_week_stats", fake_all_teams_week_stats)
 
     result = matchups.get_matchups(None, LEAGUE_KEY)
 
@@ -76,8 +80,8 @@ def test_fetches_all_weeks_when_cache_empty(monkeypatch):
 def test_fetches_from_start_week_when_cache_empty(monkeypatch):
     monkeypatch.setattr(client, "get_league_settings", lambda s, k: make_settings(current_week=3, start_week=2))
     monkeypatch.setattr(client, "get_stat_categories", lambda s, k: STAT_CATEGORIES)
-    monkeypatch.setattr(client, "get_teams", lambda s, k: TEAMS)
-    monkeypatch.setattr(client, "get_team_week_stats", fake_team_week_stats)
+
+    monkeypatch.setattr(client, "get_all_teams_week_stats", fake_all_teams_week_stats)
 
     result = matchups.get_matchups(None, LEAGUE_KEY)
 
@@ -102,14 +106,13 @@ def test_fetches_only_missing_weeks_when_cache_partial(monkeypatch):
 
     fetched_weeks = []
 
-    def tracking_stats(session, team_key, week, stat_categories):
+    def tracking_stats(session, league_key, week, stat_categories):
         fetched_weeks.append(week)
-        return fake_team_week_stats(session, team_key, week, stat_categories)
+        return fake_all_teams_week_stats(session, league_key, week, stat_categories)
 
     monkeypatch.setattr(client, "get_league_settings", lambda s, k: make_settings(current_week=4))
     monkeypatch.setattr(client, "get_stat_categories", lambda s, k: STAT_CATEGORIES)
-    monkeypatch.setattr(client, "get_teams", lambda s, k: TEAMS)
-    monkeypatch.setattr(client, "get_team_week_stats", tracking_stats)
+    monkeypatch.setattr(client, "get_all_teams_week_stats", tracking_stats)
 
     result = matchups.get_matchups(None, LEAGUE_KEY)
 
@@ -131,8 +134,7 @@ def test_does_not_call_api_when_cache_is_current(monkeypatch):
     stats_called = []
     monkeypatch.setattr(client, "get_league_settings", lambda s, k: make_settings(current_week=5))
     monkeypatch.setattr(client, "get_stat_categories", lambda s, k: STAT_CATEGORIES)
-    monkeypatch.setattr(client, "get_teams", lambda s, k: TEAMS)
-    monkeypatch.setattr(client, "get_team_week_stats", lambda *a, **kw: stats_called.append(1))
+    monkeypatch.setattr(client, "get_all_teams_week_stats", lambda *a, **kw: stats_called.append(1))
 
     result = matchups.get_matchups(None, LEAGUE_KEY)
 
@@ -147,8 +149,8 @@ def test_does_not_call_api_when_cache_is_current(monkeypatch):
 def test_result_contains_team_name_column(monkeypatch):
     monkeypatch.setattr(client, "get_league_settings", lambda s, k: make_settings(current_week=1))
     monkeypatch.setattr(client, "get_stat_categories", lambda s, k: STAT_CATEGORIES)
-    monkeypatch.setattr(client, "get_teams", lambda s, k: TEAMS)
-    monkeypatch.setattr(client, "get_team_week_stats", fake_team_week_stats)
+
+    monkeypatch.setattr(client, "get_all_teams_week_stats", fake_all_teams_week_stats)
 
     result = matchups.get_matchups(None, LEAGUE_KEY)
 
@@ -159,8 +161,8 @@ def test_result_contains_team_name_column(monkeypatch):
 def test_stat_values_are_numeric(monkeypatch):
     monkeypatch.setattr(client, "get_league_settings", lambda s, k: make_settings(current_week=1))
     monkeypatch.setattr(client, "get_stat_categories", lambda s, k: STAT_CATEGORIES)
-    monkeypatch.setattr(client, "get_teams", lambda s, k: TEAMS)
-    monkeypatch.setattr(client, "get_team_week_stats", fake_team_week_stats)
+
+    monkeypatch.setattr(client, "get_all_teams_week_stats", fake_all_teams_week_stats)
 
     result = matchups.get_matchups(None, LEAGUE_KEY)
 
@@ -171,8 +173,8 @@ def test_stat_values_are_numeric(monkeypatch):
 def test_week_column_is_integer(monkeypatch):
     monkeypatch.setattr(client, "get_league_settings", lambda s, k: make_settings(current_week=2))
     monkeypatch.setattr(client, "get_stat_categories", lambda s, k: STAT_CATEGORIES)
-    monkeypatch.setattr(client, "get_teams", lambda s, k: TEAMS)
-    monkeypatch.setattr(client, "get_team_week_stats", fake_team_week_stats)
+
+    monkeypatch.setattr(client, "get_all_teams_week_stats", fake_all_teams_week_stats)
 
     result = matchups.get_matchups(None, LEAGUE_KEY)
 
@@ -187,27 +189,41 @@ def test_returns_none_when_season_not_started(monkeypatch):
     """current_week < start_week means no weeks to fetch and an empty cache."""
     monkeypatch.setattr(client, "get_league_settings", lambda s, k: make_settings(current_week=0, start_week=1))
     monkeypatch.setattr(client, "get_stat_categories", lambda s, k: STAT_CATEGORIES)
-    monkeypatch.setattr(client, "get_teams", lambda s, k: TEAMS)
-    monkeypatch.setattr(client, "get_team_week_stats", fake_team_week_stats)
+
+    monkeypatch.setattr(client, "get_all_teams_week_stats", fake_all_teams_week_stats)
 
     result = matchups.get_matchups(None, LEAGUE_KEY)
 
     assert result is None
 
 
-def test_stat_categories_and_teams_fetched_once_per_call(monkeypatch):
-    """Expensive setup calls (categories, teams) happen once, not once per week."""
+def test_stat_categories_fetched_once_per_call(monkeypatch):
+    """Expensive setup call (categories) happens once, not once per week."""
     categories_calls = []
-    teams_calls = []
 
     monkeypatch.setattr(client, "get_league_settings", lambda s, k: make_settings(current_week=3))
     monkeypatch.setattr(client, "get_stat_categories",
                         lambda s, k: categories_calls.append(1) or STAT_CATEGORIES)
-    monkeypatch.setattr(client, "get_teams",
-                        lambda s, k: teams_calls.append(1) or TEAMS)
-    monkeypatch.setattr(client, "get_team_week_stats", fake_team_week_stats)
+    monkeypatch.setattr(client, "get_all_teams_week_stats", fake_all_teams_week_stats)
 
     matchups.get_matchups(None, LEAGUE_KEY)
 
     assert len(categories_calls) == 1
-    assert len(teams_calls) == 1
+
+
+def test_one_api_call_per_week(monkeypatch):
+    """Bulk endpoint should be called once per week, not once per team."""
+    api_calls = []
+
+    def tracking_bulk(session, league_key, week, stat_categories):
+        api_calls.append(week)
+        return fake_all_teams_week_stats(session, league_key, week, stat_categories)
+
+    monkeypatch.setattr(client, "get_league_settings", lambda s, k: make_settings(current_week=3))
+    monkeypatch.setattr(client, "get_stat_categories", lambda s, k: STAT_CATEGORIES)
+    monkeypatch.setattr(client, "get_all_teams_week_stats", tracking_bulk)
+
+    matchups.get_matchups(None, LEAGUE_KEY)
+
+    # 3 weeks = 3 API calls (not 3 weeks × 2 teams = 6)
+    assert api_calls == [1, 2, 3]

@@ -237,3 +237,99 @@ def test_get_team_week_stats_single_stat_handled():
         result = client.get_team_week_stats(SESSION, "nhl.l.99999.t.1", 1, STAT_CATEGORIES)
 
     assert result["Goals"] == 7.0
+
+
+def test_get_team_week_stats_none_coerced_to_zero():
+    """stat value of None (not just '-') should be coerced to 0."""
+    response = {
+        "fantasy_content": {
+            "team": {
+                "team_key": "nhl.l.99999.t.1",
+                "team_stats": {
+                    "stats": {
+                        "stat": [
+                            {"stat_id": "0", "value": None},
+                            {"stat_id": "1", "value": None},
+                            {"stat_id": "2", "value": "15"},
+                        ]
+                    }
+                }
+            }
+        }
+    }
+    with patch("data.client._get", return_value=response):
+        result = client.get_team_week_stats(SESSION, "nhl.l.99999.t.1", 1, STAT_CATEGORIES)
+
+    assert result["games_played"] == 0
+    assert result["Goals"] == 0.0
+    assert result["Assists"] == 15.0
+
+
+# ---------------------------------------------------------------------------
+# get_all_teams_week_stats()
+# ---------------------------------------------------------------------------
+
+def test_get_all_teams_week_stats_returns_all_teams():
+    with patch("data.client._get", return_value=load("league_teams_stats_week.json")):
+        result = client.get_all_teams_week_stats(SESSION, LEAGUE_KEY, 1, STAT_CATEGORIES)
+
+    assert len(result) == 2
+    names = {r["team_name"] for r in result}
+    assert names == {"Team Alpha", "Team Beta"}
+
+
+def test_get_all_teams_week_stats_values():
+    with patch("data.client._get", return_value=load("league_teams_stats_week.json")):
+        result = client.get_all_teams_week_stats(SESSION, LEAGUE_KEY, 1, STAT_CATEGORIES)
+
+    alpha = next(r for r in result if r["team_name"] == "Team Alpha")
+    assert alpha["Goals"] == 10.0
+    assert alpha["Assists"] == 25.0
+    assert alpha["games_played"] == 5
+    assert alpha["Shots on Goal"] == 0.0  # '-' coerced
+
+    beta = next(r for r in result if r["team_name"] == "Team Beta")
+    assert beta["Goals"] == 8.0
+    assert beta["Shots on Goal"] == 120.0
+
+
+def test_get_all_teams_week_stats_excludes_display_stats():
+    with patch("data.client._get", return_value=load("league_teams_stats_week.json")):
+        result = client.get_all_teams_week_stats(SESSION, LEAGUE_KEY, 1, STAT_CATEGORIES)
+
+    for row in result:
+        assert "Points" not in row
+
+
+def test_get_all_teams_week_stats_single_team():
+    with patch("data.client._get", return_value=load("league_teams_stats_week_single.json")):
+        result = client.get_all_teams_week_stats(SESSION, LEAGUE_KEY, 1, STAT_CATEGORIES)
+
+    assert len(result) == 1
+    assert result[0]["team_name"] == "Team Alpha"
+
+
+def test_get_all_teams_week_stats_none_values():
+    with patch("data.client._get", return_value=load("league_teams_stats_week_nulls.json")):
+        result = client.get_all_teams_week_stats(SESSION, LEAGUE_KEY, 1, STAT_CATEGORIES)
+
+    assert result[0]["games_played"] == 0
+    assert result[0]["Goals"] == 0.0
+    assert result[0]["Assists"] == 15.0
+
+
+def test_get_all_teams_week_stats_calls_correct_url():
+    with patch("data.client._get", return_value=load("league_teams_stats_week.json")) as mock_get:
+        client.get_all_teams_week_stats(SESSION, LEAGUE_KEY, 3, STAT_CATEGORIES)
+
+    url = mock_get.call_args[0][1]
+    assert f"/league/{LEAGUE_KEY}/teams/stats" in url
+    assert "week=3" in url
+
+
+def test_get_all_teams_week_stats_includes_week_in_rows():
+    with patch("data.client._get", return_value=load("league_teams_stats_week.json")):
+        result = client.get_all_teams_week_stats(SESSION, LEAGUE_KEY, 5, STAT_CATEGORIES)
+
+    for row in result:
+        assert row["week"] == 5
