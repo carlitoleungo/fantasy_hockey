@@ -241,6 +241,70 @@ def test_no_double_counting_overlapping_responses():
 # Multiple games per team
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Yahoo → NHL abbreviation normalisation
+# ---------------------------------------------------------------------------
+
+def test_yahoo_two_letter_la_normalised():
+    """Yahoo 'LA' → NHL 'LAK'; result keyed by original Yahoo abbr."""
+    resp = _make_response({
+        "2026-03-24": [
+            {"id": 1, "gameType": 2, "gameState": "FUT",
+             "awayTeam": {"abbrev": "LAK"}, "homeTeam": {"abbrev": "EDM"}},
+        ]
+    })
+    with patch("data.schedule._nhl_get", return_value=resp):
+        result = schedule.get_remaining_games(["LA", "EDM"], FROM, TO)
+
+    assert result["LA"] == 1    # Yahoo abbr in, Yahoo abbr out
+    assert result["EDM"] == 1
+    assert "LAK" not in result  # NHL abbr must not leak into output
+
+
+def test_yahoo_two_letter_tb_normalised():
+    """Yahoo 'TB' → NHL 'TBL'."""
+    resp = _make_response({
+        "2026-03-24": [
+            {"id": 1, "gameType": 2, "gameState": "FUT",
+             "awayTeam": {"abbrev": "TBL"}, "homeTeam": {"abbrev": "BOS"}},
+        ]
+    })
+    with patch("data.schedule._nhl_get", return_value=resp):
+        result = schedule.get_remaining_games(["TB", "BOS"], FROM, TO)
+
+    assert result["TB"] == 1
+    assert result["BOS"] == 1
+
+
+def test_yahoo_two_letter_nj_normalised():
+    """Yahoo 'NJ' → NHL 'NJD'."""
+    resp = _make_response({
+        "2026-03-24": [
+            {"id": 1, "gameType": 2, "gameState": "FUT",
+             "awayTeam": {"abbrev": "NJD"}, "homeTeam": {"abbrev": "NYR"}},
+        ]
+    })
+    with patch("data.schedule._nhl_get", return_value=resp):
+        result = schedule.get_remaining_games(["NJ"], FROM, TO)
+
+    assert result["NJ"] == 1
+
+
+def test_three_letter_abbrs_unchanged():
+    """Standard 3-letter Yahoo abbrs (e.g. BOS, EDM) pass through unchanged."""
+    resp = _make_response({
+        "2026-03-24": [
+            {"id": 1, "gameType": 2, "gameState": "FUT",
+             "awayTeam": {"abbrev": "BOS"}, "homeTeam": {"abbrev": "EDM"}},
+        ]
+    })
+    with patch("data.schedule._nhl_get", return_value=resp):
+        result = schedule.get_remaining_games(["BOS", "EDM"], FROM, TO)
+
+    assert result["BOS"] == 1
+    assert result["EDM"] == 1
+
+
 def test_multiple_games_accumulated():
     resp = _make_response({
         "2026-03-24": [

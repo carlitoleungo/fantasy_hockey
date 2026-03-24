@@ -17,6 +17,15 @@ _FINAL_STATES = frozenset({"FINAL", "OFF", "CRIT"})
 # Only regular season (2) and playoff (3) games count; skip preseason (1)
 _COUNTED_GAME_TYPES = frozenset({2, 3})
 
+# Yahoo Fantasy uses 2-letter abbreviations for some teams; the NHL API uses 3-letter codes.
+# Map Yahoo abbrs → NHL API abbrs before querying, then map results back.
+_YAHOO_TO_NHL: dict[str, str] = {
+    "LA": "LAK",   # Los Angeles Kings
+    "NJ": "NJD",   # New Jersey Devils
+    "SJ": "SJS",   # San Jose Sharks (historical; team is now Utah)
+    "TB": "TBL",   # Tampa Bay Lightning
+}
+
 
 def _nhl_get(url: str) -> dict:
     """Plain HTTP GET — the NHL public API requires no auth."""
@@ -51,8 +60,11 @@ def get_remaining_games(
     Returns:
         {team_abbr: count} — every input abbr is present; value is 0 if no games
     """
-    abbr_set = set(team_abbrs)
-    counts: dict[str, int] = {abbr: 0 for abbr in abbr_set}
+    # Normalise Yahoo 2-letter abbrs to NHL API 3-letter abbrs.
+    # yahoo_to_nhl maps each input abbr to the abbr used in the API response.
+    yahoo_to_nhl = {a: _YAHOO_TO_NHL.get(a, a) for a in team_abbrs}
+    nhl_abbr_set = set(yahoo_to_nhl.values())
+    nhl_counts: dict[str, int] = {nhl: 0 for nhl in nhl_abbr_set}
 
     fetch_dates = [from_date]
     if (to_date - from_date).days >= 7:
@@ -80,8 +92,9 @@ def get_remaining_games(
                 if game.get("gameState") in _FINAL_STATES:
                     continue
                 for side in ("awayTeam", "homeTeam"):
-                    abbr = game.get(side, {}).get("abbrev", "")
-                    if abbr in abbr_set:
-                        counts[abbr] += 1
+                    nhl_abbr = game.get(side, {}).get("abbrev", "")
+                    if nhl_abbr in nhl_abbr_set:
+                        nhl_counts[nhl_abbr] += 1
 
-    return counts
+    # Return results keyed by the original input abbrs (Yahoo format).
+    return {yahoo: nhl_counts[yahoo_to_nhl[yahoo]] for yahoo in team_abbrs}
