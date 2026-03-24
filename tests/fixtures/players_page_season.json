@@ -1,0 +1,49 @@
+{
+  "fantasy_content": {
+    "leagues": {
+      "league": {
+        "players": {
+          "@count": "2",
+          "player": [
+            {
+              "player_key": "nhl.p.1",
+              "name": {"full": "Morgan Geekie"},
+              "editorial_team_abbr": "BOS",
+              "display_position": "C",
+              "status": "",
+              "player_stats": {
+                "stats": {
+                  "stat": [
+                    {"stat_id": "0", "value": "69"},
+                    {"stat_id": "1", "value": "34"},
+                    {"stat_id": "2", "value": "27"},
+                    {"stat_id": "3", "value": "61"},
+                    {"stat_id": "7", "value": "-"},
+                    {"stat_id": "99", "value": "999"}
+                  ]
+                }
+              }
+            },
+            {
+              "player_key": "nhl.p.2",
+              "name": {"full": "Will Smith"},
+              "editorial_team_abbr": "SJS",
+              "display_position": "C",
+              "status": "GTD",
+              "player_stats": {
+                "stats": {
+                  "stat": [
+                    {"stat_id": "0", "value": "55"},
+                    {"stat_id": "1", "value": "5"},
+                    {"stat_id": "2", "value": "10"},
+                    {"stat_id": "7", "value": "80"}
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

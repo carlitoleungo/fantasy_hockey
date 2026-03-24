@@ -1,0 +1,35 @@
+{
+  "fantasy_content": {
+    "players": {
+      "@count": "2",
+      "player": [
+        {
+          "player_key": "nhl.p.1",
+          "player_stats": {
+            "stats": {
+              "stat": [
+                {"stat_id": "0", "value": "13"},
+                {"stat_id": "1", "value": "2"},
+                {"stat_id": "2", "value": "5"},
+                {"stat_id": "7", "value": "40"}
+              ]
+            }
+          }
+        },
+        {
+          "player_key": "nhl.p.2",
+          "player_stats": {
+            "stats": {
+              "stat": [
+                {"stat_id": "0", "value": "8"},
+                {"stat_id": "1", "value": "1"},
+                {"stat_id": "2", "value": "3"},
+                {"stat_id": "7", "value": "20"}
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}
