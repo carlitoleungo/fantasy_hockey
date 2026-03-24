@@ -30,24 +30,51 @@ UI should offer:
 - Goalies only (G)
 - Individual position checkboxes as a stretch goal
 
-### Fetching available players: sort + paginate
-The API supports `status=A` (available/unrostered) and `sort=OR` (overall rank). Use:
+### Fetching available players: two calls per page
 
-```
-/league/{key}/players;status=A;sort=OR;start={n};out=stats;stats_type={type}
-```
+`out=stats` on the league players endpoint **always returns season stats** regardless of
+`sort_type`. This was confirmed via validate_api.py: Morgan Geekie showed 34 goals
+season, 2 goals lastmonth — the inline stats never changed.
 
-Fetch pages of 25 until we have enough depth (target: ~100 players, i.e. 4 pages). Stop early if the last player on a page has an overall rank much worse than the top of the list (configurable threshold). Available players change constantly — never cache this response.
+The correct parameter for lastmonth stats is `type=lastmonth` on the individual
+`/player/{key}/stats` endpoint (not `date=lastmonth` or `week=lastmonth`, both of which
+return season totals).
 
-The `out=stats` param returns season stats inline, avoiding a second API call per player.
+**Two-call pattern per page:**
 
-### 30-day stats
-The Yahoo API supports `type=lastmonth` for the `stats_type` param (equivalent to "last 30 days"). Season stats use `type=season`. The notebook's `sort=60` (60-day sort) is a sort key, not a stats type — don't conflate the two.
+1. Fetch player list with season stats inline:
+   ```
+   /leagues;league_keys={key}/players;status=A;sort=OR;sort_type=season;out=stats;start={n};count=25
+   ```
+   → yields player keys, metadata, and season stat values
 
-For the toggle between "season" and "recent" ranking, fetch both stat types upfront and swap the source DataFrame on toggle. Two API calls on page load (once per session), not per interaction.
+2. Fetch lastmonth stats for the same player keys as a batch:
+   ```
+   /players;player_keys={key1,key2,...}/stats;type=lastmonth
+   ```
+   → yields lastmonth stat values to merge with step 1
+
+   **Note:** The batch form of this call (`player_keys=...`) still needs to be confirmed
+   working. If it doesn't, fall back to individual `/player/{key}/stats;type=lastmonth`
+   calls — but that's 25 calls per page and too slow for production use.
+
+Fetch 4 pages (100 players total). Stop when `players_node is None` (confirmed behaviour
+at end of results). Available players change constantly — never cache this response.
+
+### 30-day stats — confirmed working
+- `type=lastmonth` on `/player/{key}/stats` returns the last 30 days ✓
+- `date=lastmonth` returns season totals (wrong)
+- `week=lastmonth` returns season totals (wrong)
+- `out=stats` inline on the league players endpoint always returns season totals (wrong)
+- `sort_type=lastmonth` controls player ordering only, not what stats are returned
+
+For the toggle between "season" and "recent" ranking: store both DataFrames in session
+state on page load, swap the source on toggle. The fetch happens once per session.
 
 ### Team context: deferred
-The idea of pre-highlighting which categories the user's team is weak in (to guide the multi-select) is explicitly out of scope for this iteration. The multi-select is purely manual. Revisit later.
+The idea of pre-highlighting which categories the user's team is weak in (to guide the
+multi-select) is explicitly out of scope for this iteration. The multi-select is purely
+manual. Revisit later.
 
 ## Files to create
 
@@ -55,21 +82,26 @@ The idea of pre-highlighting which categories the user's team is weak in (to gui
 Fetches available player lists and their stats. No Streamlit dependencies.
 
 ```python
-def get_available_players(session, league_key, stats_type="season", max_players=100) -> list[dict]:
+def get_available_players(session, league_key, max_players=100) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
-    Fetch available (unrostered) players sorted by overall rank.
-    stats_type: "season" | "lastmonth"
-    Returns a list of flat dicts with player metadata + stat values.
+    Fetch available (unrostered) players and return (season_df, lastmonth_df).
+
+    Each DataFrame has the same rows (players) with columns:
+        player_key, player_name, team_abbr, display_position, status,
+        <stat_name...>  (float, coerced — one col per enabled scoring category)
+
+    Two API calls per page of 25:
+      1. League players endpoint (season stats inline)
+      2. /players;player_keys={keys}/stats;type=lastmonth (lastmonth stats)
     """
 ```
 
-Each player dict should include:
-- `player_key`, `player_name`, `team_abbr`, `display_position`, `status` (injury flag if any)
-- One key per enabled stat category (float, coerced same as team stats)
+Pagination: loop `start=0, 25, 50, ...` until `max_players` reached or `players_node is None`.
 
-Pagination: loop `start=0, 25, 50, 75` until `max_players` reached or API returns fewer than 25 results.
+Use `_as_list()`, `_coerce()`, and `_get` from `data/client.py`.
 
-Use `_as_list()` and `_coerce()` from `data/client.py`. Import `_get` from there too (or move to a shared helper — check what's cleanest).
+Stat names should match the enabled stat categories from `get_stat_categories()` so column
+names are consistent with the matchups DataFrame used elsewhere.
 
 ### `analysis/waiver_ranking.py`
 Pure pandas — no API calls, no Streamlit.
@@ -99,7 +131,7 @@ if "tokens" not in st.session_state:
     st.warning("Please log in first.")
     st.stop()
 
-# Load players once per session (two fetches: season + lastmonth)
+# Load players once per session (two DataFrames: season + lastmonth)
 if "players_season" not in st.session_state:
     ...fetch and store both DataFrames...
 
@@ -120,25 +152,31 @@ Display columns: player name, team, position, selected stat values + composite r
 ## API endpoint reference
 
 ```
-# Available players with season stats, sorted by overall rank, page 1
-/league/{key}/players;status=A;sort=OR;start=0;out=stats;stats_type=season
+# Page 1: available players with season stats inline, sorted by overall rank
+/leagues;league_keys={key}/players;status=A;sort=OR;sort_type=season;out=stats;start=0;count=25
 
-# Same but last-30-day stats
-/league/{key}/players;status=A;sort=OR;start=0;out=stats;stats_type=lastmonth
+# Page 2, 3, ...
+/leagues;league_keys={key}/players;status=A;sort=OR;sort_type=season;out=stats;start=25;count=25
 
-# Next page
-/league/{key}/players;status=A;sort=OR;start=25;out=stats;stats_type=season
+# Lastmonth stats for a batch of player keys (to be confirmed working in batch form)
+/players;player_keys={key1},{key2},...,{keyN}/stats;type=lastmonth
+
+# Fallback: individual player lastmonth stats (confirmed working, but slow at scale)
+/player/{key}/stats;type=lastmonth
 ```
 
-These endpoints are not in the existing `data/client.py` — they need to be added to `data/players.py` rather than bolting onto `client.py`, which currently only handles team-level data.
+Note: the league players URL uses the plural form (`/leagues;league_keys=`) not
+`/league/{key}/players` — this is what validate_api.py tested and confirmed working.
 
-## What to verify first (before building)
+## What to verify before building
 
-- [ ] Confirm `stats_type=lastmonth` returns the right data (vs. `type=lastweek` etc.) — test with a known player
-- [ ] Confirm `out=stats` actually includes stat values inline in the players response
-- [ ] Confirm `status=A` correctly filters to only unrostered players
-- [ ] Check what `display_position` looks like in the response for multi-position players (e.g. `"C,LW"`)
-- [ ] Confirm page size is 25 and `start` is 0-indexed
+- [x] `sort=OR` works on the league players endpoint
+- [x] `out=stats` returns season stat values inline
+- [x] `status=A` filters to available players
+- [x] `position=F/D/G` filtering works
+- [x] Pagination: `players_node is None` at end of results
+- [x] `type=lastmonth` on `/player/{key}/stats` returns lastmonth stats
+- [x] `/players;player_keys={keys}/stats;type=lastmonth` works as a **batch** call
 
 ## Out of scope for this iteration
 - Team weakness context (pre-highlighting weak categories)

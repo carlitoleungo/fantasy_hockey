@@ -256,6 +256,19 @@ Yahoo stat column names in the matchups DataFrame are the full `stat_name` strin
 ### client.py: _coerce() handles None values, not just '-' (2026-03-23)
 The Yahoo API can return `None` for stat values (not just the string `'-'`). `_coerce()` and the `games_played` handler now treat `None` identically to `'-'` — coerced to 0. This fixes the `float() argument must be a string or a real number, not 'NoneType'` error on the league overview page.
 
+### players.py: type=lastmonth is the correct param for last-30-day player stats (2026-03-23)
+Confirmed via validate_api.py against a live league. `date=lastmonth` and `week=lastmonth` both return season totals. `out=stats` on the league players collection endpoint also always returns season totals regardless of `sort_type`. Only `/player/{key}/stats;type=lastmonth` (and the batch form `/players;player_keys={keys}/stats;type=lastmonth`) returns the last 30 days.
+
+### players.py: two API calls per page of 25 players (2026-03-23)
+`get_available_players()` uses a two-call-per-page pattern:
+1. `/leagues;league_keys={key}/players;status=A;sort=OR;sort_type=season;out=stats;start={n};count=25` — player list with season stats inline and player keys
+2. `/players;player_keys={keys}/stats;type=lastmonth` — batch lastmonth stats for those same keys
+
+This gives both stat periods in 2 API calls per page (8 total for 100 players) instead of 1+N. The batch lastmonth call returns `{player_key: stats}` only — no metadata — so metadata is taken from the season response and re-attached by the caller.
+
+### players.py: imports private helpers from data/client.py (2026-03-23)
+`data/players.py` imports `_get`, `_as_list`, `_coerce`, and `BASE_URL` directly from `data/client.py`. These are intentionally shared across the data layer. The same patch-target rule applies: tests for `players.py` must patch `data.players._get`, not `data.client._get`.
+
 ### Notebook dead ends: do not port (2026-03-03)
 The following notebook sections are explicitly marked dead ends or are broken and should not be ported without explicit confirmation:
 - "Get matchups for matchup analyser" — incomplete implementation

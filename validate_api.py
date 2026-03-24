@@ -1,7 +1,7 @@
 """
 API validation script for waiver wire feature.
 
-Tests five assumptions about the Yahoo Fantasy API batch players endpoint
+Tests assumptions about the Yahoo Fantasy API batch players endpoint
 before we commit to the implementation in data/players.py.
 
 Run from the project root:
@@ -12,6 +12,15 @@ NHL one automatically.
 
 Requirements: tokens must already exist in .streamlit/oauth_token.json
 (i.e. you must have logged in via the Streamlit app at least once).
+
+Parameter reference (from yahoo-fantasy-node-docs.vercel.app/collection/players/leagues):
+  sort       — stat_id | NAME | OR | AR | PTS
+  sort_type  — season | date | week | lastweek | lastmonth
+  status     — A (available) | FA (free agents) | W (waivers) | T (taken) | K (keepers)
+  start      — pagination offset
+  count      — page size
+  position   — position code filter (e.g. F, D, G)
+  out        — comma-separated subresources (e.g. stats)
 """
 
 import json
@@ -24,7 +33,7 @@ import requests
 import xmltodict
 
 # ---------------------------------------------------------------------------
-# Auth helpers (standalone versions of auth/oauth.py, no Streamlit dependency)
+# Auth helpers (standalone — no Streamlit dependency)
 # ---------------------------------------------------------------------------
 
 TOKEN_FILE = ".streamlit/oauth_token.json"
@@ -82,7 +91,7 @@ def build_session() -> requests.Session:
 
 
 # ---------------------------------------------------------------------------
-# API helpers (mirrors data/client.py)
+# API helpers
 # ---------------------------------------------------------------------------
 
 def _get(session, url: str) -> dict:
@@ -95,8 +104,51 @@ def _as_list(value) -> list:
     return value if isinstance(value, list) else [value]
 
 
+def _extract_players_node(data: dict) -> dict | None:
+    """
+    Pull the players node out of a leagues/players response.
+    Returns None if the node is absent or empty (end of pagination).
+    """
+    node = (
+        data
+        .get("fantasy_content", {})
+        .get("leagues", {})
+        .get("league", {})
+        .get("players")
+    )
+    if node is None:
+        return None
+    if int(node.get("@count", 0)) == 0:
+        return None
+    return node
+
+
+def _parse_players(players_node: dict) -> list[dict]:
+    """Return a list of player dicts from a players node."""
+    return _as_list(players_node["player"])
+
+
+def _player_stats(player: dict) -> dict[str, str]:
+    """Extract {stat_id: value} from inline player_stats, or {} if absent."""
+    raw = player.get("player_stats", {}).get("stats", {}).get("stat", [])
+    if not raw:
+        return {}
+    return {s["stat_id"]: s["value"] for s in _as_list(raw)}
+
+
+def _has_real_stats(stats: dict) -> bool:
+    """Return True if any stat value is a real number (not '-' or None)."""
+    for v in stats.values():
+        if v not in ("-", None, ""):
+            try:
+                float(v)
+                return True
+            except (ValueError, TypeError):
+                pass
+    return False
+
+
 def get_league_key(session) -> str:
-    """Fetch the first available NHL league key for the authenticated user."""
     data = _get(session, f"{BASE_URL}/users;use_login=1/games;game_codes=nhl/leagues")
     games = data["fantasy_content"]["users"]["user"]["games"]["game"]
     for game in _as_list(games):
@@ -109,7 +161,6 @@ def get_league_key(session) -> str:
 
 
 def get_first_enabled_stat_id(session, league_key: str) -> tuple[str, str]:
-    """Return (stat_id, stat_name) for the first enabled scoring stat."""
     data = _get(session, f"{BASE_URL}/league/{league_key}/settings")
     raw_stats = data["fantasy_content"]["league"]["settings"]["stat_categories"]["stats"]["stat"]
     for stat in _as_list(raw_stats):
@@ -121,217 +172,340 @@ def get_first_enabled_stat_id(session, league_key: str) -> tuple[str, str]:
 
 
 # ---------------------------------------------------------------------------
-# Test helpers
+# Output helpers
 # ---------------------------------------------------------------------------
 
 def section(title: str):
     print(f"\n{'=' * 60}")
     print(f"  {title}")
-    print('=' * 60)
+    print("=" * 60)
 
 
-def ok(msg: str):
-    print(f"  [PASS] {msg}")
-
-
-def warn(msg: str):
-    print(f"  [WARN] {msg}")
-
-
-def fail(msg: str):
-    print(f"  [FAIL] {msg}")
-
-
-def show(label: str, value):
-    print(f"  {label}: {value}")
+def ok(msg: str):   print(f"  [PASS] {msg}")
+def warn(msg: str): print(f"  [WARN] {msg}")
+def fail(msg: str): print(f"  [FAIL] {msg}")
+def show(label: str, value): print(f"  {label}: {value}")
 
 
 # ---------------------------------------------------------------------------
-# The five tests
+# Tests
 # ---------------------------------------------------------------------------
 
 def test_sort_by_stat_id(session, league_key, stat_id, stat_name):
     """
-    Assumption 1: sort={stat_id} works on the batch players endpoint.
-    Fetch top 3 players sorted by the given stat_id and show the result.
+    Test 1: sort={stat_id} works on the batch players endpoint.
     """
-    section(f"Test 1: sort={stat_id} ({stat_name}) on batch players endpoint")
+    section(f"Test 1: sort={stat_id} ({stat_name}) with sort_type=season")
     url = (
         f"{BASE_URL}/leagues;league_keys={league_key}/players"
-        f";status=A;sort={stat_id};sort_type=season;out=stats;start=0;count=3"
+        f";status=A;sort={stat_id};sort_type=season;out=stats;start=0;count=5"
     )
     show("URL", url)
     try:
         data = _get(session, url)
-        players_node = data["fantasy_content"]["leagues"]["league"]["players"]
-        count = int(players_node.get("@count", 0))
-        show("Player count returned", count)
-        if count == 0:
-            fail("No players returned — sort by stat_id may not be supported")
-            return None
-        players = _as_list(players_node["player"])
+        players_node = _extract_players_node(data)
+        if players_node is None:
+            fail("No players returned")
+            return
+        players = _parse_players(players_node)
+        show("Player count returned", len(players))
         print(f"  Top {len(players)} players:")
         for p in players:
             name = p["name"]["full"]
-            print(f"    - {name}")
+            stats = _player_stats(p)
+            val = stats.get(stat_id, "n/a")
+            print(f"    - {name}  (stat {stat_id} = {val})")
         ok("sort={stat_id} works and returns players")
-        return data
-    except Exception as e:
-        fail(f"Request failed: {e}")
-        return None
-
-
-def test_sort_type_lastmonth(session, league_key, stat_id, stat_name):
-    """
-    Assumption 2: sort_type=lastmonth works on the batch players endpoint.
-    Compare the top 3 players with sort_type=season vs sort_type=lastmonth.
-    Different order → lastmonth sorting is working.
-    """
-    section(f"Test 2: sort_type=lastmonth on batch players endpoint")
-
-    def fetch_top3(sort_type):
-        url = (
-            f"{BASE_URL}/leagues;league_keys={league_key}/players"
-            f";status=A;sort={stat_id};sort_type={sort_type};out=stats;start=0;count=3"
-        )
-        data = _get(session, url)
-        players_node = data["fantasy_content"]["leagues"]["league"]["players"]
-        players = _as_list(players_node["player"])
-        return [p["name"]["full"] for p in players]
-
-    try:
-        season_names = fetch_top3("season")
-        lastmonth_names = fetch_top3("lastmonth")
-        show("Top 3 by season", season_names)
-        show("Top 3 by lastmonth", lastmonth_names)
-        if season_names != lastmonth_names:
-            ok("sort_type=lastmonth returns a different order than season — param is working")
-        else:
-            warn("Same order for season and lastmonth — sorting may not differ (or few available players)")
     except Exception as e:
         fail(f"Request failed: {e}")
 
 
-def test_out_stats_reflects_sort_type(session, league_key, stat_id, stat_name):
+def test_sort_or(session, league_key):
     """
-    Assumption 3: out=stats returns stats matching the active sort_type.
-    Fetch the same player with season and lastmonth, compare the stat values.
-    If they differ → the stats in the response match the sort_type.
-    If identical → out=stats always returns season stats regardless.
+    Test 2: sort=OR (overall rank) works — this is what data/players.py will use.
     """
-    section("Test 3: out=stats reflects sort_type (season vs lastmonth)")
-
-    def fetch_first_player_stats(sort_type):
-        url = (
-            f"{BASE_URL}/leagues;league_keys={league_key}/players"
-            f";status=A;sort={stat_id};sort_type={sort_type};out=stats;start=0;count=1"
-        )
-        data = _get(session, url)
-        player = _as_list(
-            data["fantasy_content"]["leagues"]["league"]["players"]["player"]
-        )[0]
-        name = player["name"]["full"]
-        raw_stats = player.get("player_stats", {}).get("stats", {}).get("stat", [])
-        stats = {s["stat_id"]: s["value"] for s in _as_list(raw_stats)} if raw_stats else {}
-        return name, stats
-
+    section("Test 2: sort=OR (overall rank)")
+    url = (
+        f"{BASE_URL}/leagues;league_keys={league_key}/players"
+        f";status=A;sort=OR;sort_type=season;out=stats;start=0;count=5"
+    )
+    show("URL", url)
     try:
-        season_name, season_stats = fetch_first_player_stats("season")
-        lastmonth_name, lastmonth_stats = fetch_first_player_stats("lastmonth")
+        data = _get(session, url)
+        players_node = _extract_players_node(data)
+        if players_node is None:
+            fail("No players returned — sort=OR may not be supported")
+            return
+        players = _parse_players(players_node)
+        print(f"  Top {len(players)} by overall rank:")
+        for p in players:
+            print(f"    - {p['name']['full']}")
+        ok("sort=OR works")
+    except Exception as e:
+        fail(f"Request failed: {e}")
 
-        show("Player (season fetch)", season_name)
-        show("Player (lastmonth fetch)", lastmonth_name)
 
-        # Find the sorted stat_id's value in each response
-        season_val = season_stats.get(stat_id, "not found")
-        lastmonth_val = lastmonth_stats.get(stat_id, "not found")
+def test_lastmonth_stats(session, league_key, stat_id):
+    """
+    Test 3: Getting lastmonth stats.
 
-        show(f"  stat {stat_id} value in season response", season_val)
-        show(f"  stat {stat_id} value in lastmonth response", lastmonth_val)
-
-        if season_val != lastmonth_val:
-            ok("Stat values differ between sort_type=season and sort_type=lastmonth")
-            ok("out=stats DOES return stats matching the active sort_type")
+    3a: Try type=lastmonth directly in the league players URL (long shot).
+    3b: Fetch player keys via the league players endpoint, then call
+        /players;player_keys={keys}/stats;type=lastmonth separately.
+        Compare those values against the season stats from the first call
+        to confirm they actually differ.
+    """
+    section("Test 3a: type=lastmonth inline in league players URL (long shot)")
+    url_inline = (
+        f"{BASE_URL}/leagues;league_keys={league_key}/players"
+        f";status=A;sort={stat_id};sort_type=season;out=stats;type=lastmonth;start=0;count=5"
+    )
+    show("URL", url_inline)
+    try:
+        data = _get(session, url_inline)
+        node = _extract_players_node(data)
+        if node is None:
+            fail("No players returned")
         else:
-            warn("Stat values are identical — out=stats may always return season stats")
-            warn("Check the full stat dicts below to confirm:")
-            print(f"  season stats:    {pformat(season_stats)}")
-            print(f"  lastmonth stats: {pformat(lastmonth_stats)}")
+            players = _parse_players(node)
+            # Compare first player's stats to a plain season fetch of the same player
+            p = players[0]
+            inline_stats = _player_stats(p)
+            show(f"  First player", p["name"]["full"])
+            show(f"  stat {stat_id} value", inline_stats.get(stat_id, "n/a"))
+            show(f"  Full stats", pformat(inline_stats))
+            # We can't tell definitively here whether these are season or lastmonth
+            # without a comparison — result will become clear in Test 3b
+            warn("Can't confirm if these are lastmonth or season without comparison — see Test 3b")
+    except Exception as e:
+        fail(f"Request failed: {e}")
+
+    section("Test 3b: date=lastmonth vs type=lastmonth on /player/{key}/stats")
+    try:
+        # Get a player key and their season stats to compare against
+        url_season = (
+            f"{BASE_URL}/leagues;league_keys={league_key}/players"
+            f";status=A;sort={stat_id};sort_type=season;out=stats;start=0;count=10"
+        )
+        data = _get(session, url_season)
+        node = _extract_players_node(data)
+        if node is None:
+            fail("No players returned — can't run Test 3b")
+            return
+
+        # Pick first player with real stats as test subject
+        test_player = None
+        test_season_stats = None
+        for p in _parse_players(node):
+            stats = _player_stats(p)
+            if _has_real_stats(stats):
+                test_player = p
+                test_season_stats = stats
+                break
+
+        if test_player is None:
+            fail("No player with real stats found")
+            return
+
+        player_key = test_player["player_key"]
+        player_name = test_player["name"]["full"]
+        show("Test player", f"{player_name} ({player_key})")
+        show(f"Season stat {stat_id}", test_season_stats.get(stat_id, "n/a"))
+
+        # Try each URL pattern and compare against season
+        candidates = [
+            ("date=lastmonth", f"{BASE_URL}/player/{player_key}/stats;date=lastmonth"),
+            ("type=lastmonth", f"{BASE_URL}/player/{player_key}/stats;type=lastmonth"),
+            ("week=lastmonth", f"{BASE_URL}/player/{player_key}/stats;week=lastmonth"),
+        ]
+
+        for label, url in candidates:
+            print()
+            show(f"  Trying {label}", url)
+            try:
+                r = _get(session, url)
+                p = r.get("fantasy_content", {}).get("player", {})
+                lm_stats = _player_stats(p) if p else {}
+                lm_val = lm_stats.get(stat_id, "n/a")
+                season_val = test_season_stats.get(stat_id, "n/a")
+                show(f"  stat {stat_id} ({label})", lm_val)
+                if not _has_real_stats(lm_stats):
+                    warn(f"  {label}: response has no real stat values")
+                elif lm_val != season_val:
+                    ok(f"  {label} returns DIFFERENT value ({lm_val}) than season ({season_val}) — THIS IS THE RIGHT PATTERN")
+                    show(f"  Full lastmonth stats", pformat(lm_stats))
+                else:
+                    show(f"  Full stats", pformat(lm_stats))
+                    warn(f"  {label}: values match season — may be correct or still wrong param")
+            except requests.HTTPError as e:
+                fail(f"  {label}: HTTP {e.response.status_code} — URL pattern not supported")
+            except Exception as e:
+                fail(f"  {label}: {e}")
+
     except Exception as e:
         fail(f"Request failed: {e}")
 
 
 def test_pagination_termination(session, league_key, stat_id):
     """
-    Assumption 4: What does an exhausted page look like?
-    Fetch a page starting far past the end of available players.
-    We want to know if we get: empty player list, @count=0, error, or something else.
+    Test 4: What does an exhausted page look like?
+    Checks both the None-node case (start=9999) and the natural end of pagination.
     """
-    section("Test 4: Pagination termination — what happens past the end?")
+    section("Test 4: Pagination termination")
+
+    # 4a: Far past the end
     url = (
         f"{BASE_URL}/leagues;league_keys={league_key}/players"
-        f";status=A;sort={stat_id};sort_type=lastmonth;out=stats;start=9999;count=25"
+        f";status=A;sort={stat_id};sort_type=season;out=stats;start=9999;count=25"
     )
     show("URL (start=9999)", url)
     try:
         data = _get(session, url)
-        players_node = data["fantasy_content"]["leagues"]["league"]["players"]
-        count = int(players_node.get("@count", -1))
-        show("@count in response", count)
-
-        if count == 0:
-            ok("Empty page returns @count=0 with no player key — use `count == 0` as loop termination")
-        elif "player" not in players_node:
-            ok("Empty page has no 'player' key — use `'player' not in players_node` as loop termination")
+        players_node = _extract_players_node(data)
+        if players_node is None:
+            ok("start=9999 → players node is None or @count=0 — _extract_players_node handles this")
         else:
-            warn("Unexpected response structure — inspect below:")
+            players = _parse_players(players_node)
+            warn(f"Unexpectedly got {len(players)} players at start=9999 — check response:")
             print(f"  players_node keys: {list(players_node.keys())}")
     except requests.HTTPError as e:
         if e.response.status_code == 404:
-            warn("Returns 404 on exhausted page — catch HTTPError with 404 as termination condition")
+            warn("Returns 404 — catch HTTPError(404) as termination condition instead")
         else:
             fail(f"Unexpected HTTP error: {e}")
     except Exception as e:
         fail(f"Request failed: {e}")
 
+    # 4b: Walk pages until empty to confirm count<25 is also a valid stop condition
+    print()
+    show("Walking pages until empty (count=25 per page)...", "")
+    start = 0
+    page_num = 0
+    try:
+        while True:
+            url = (
+                f"{BASE_URL}/leagues;league_keys={league_key}/players"
+                f";status=A;sort={stat_id};sort_type=season;out=stats;start={start};count=25"
+            )
+            data = _get(session, url)
+            players_node = _extract_players_node(data)
+            if players_node is None:
+                show(f"  Page {page_num} (start={start})", "→ empty (players node None/@count=0) — stop here")
+                break
+            players = _parse_players(players_node)
+            show(f"  Page {page_num} (start={start})", f"→ {len(players)} players")
+            if len(players) < 25:
+                show(f"  Page {page_num} (start={start})", f"→ {len(players)} players (< 25) — also a valid stop condition")
+                break
+            start += 25
+            page_num += 1
+            if page_num > 20:
+                warn("Stopped after 20 pages to avoid rate limits")
+                break
+        ok("Pagination termination confirmed — use `players_node is None` as primary stop condition")
+    except Exception as e:
+        fail(f"Pagination walk failed: {e}")
+
 
 def test_position_filter(session, league_key, stat_id):
     """
-    Assumption 5: Does position=F return all forwards (C+LW+RW)?
-    Fetch top 5 with position=F and show their eligible positions.
+    Test 5: position=F returns all forwards (C, LW, RW).
+    Also tests position=D and position=G for completeness.
     """
-    section("Test 5: position=F — does it include C, LW, RW?")
-    url = (
-        f"{BASE_URL}/leagues;league_keys={league_key}/players"
-        f";status=A;sort={stat_id};sort_type=lastmonth;out=stats;position=F;start=0;count=5"
-    )
-    show("URL", url)
+    section("Test 5: Position filtering (F, D, G)")
+    for position in ("F", "D", "G"):
+        url = (
+            f"{BASE_URL}/leagues;league_keys={league_key}/players"
+            f";status=A;sort={stat_id};sort_type=season;out=stats;position={position};start=0;count=5"
+        )
+        try:
+            data = _get(session, url)
+            players_node = _extract_players_node(data)
+            if players_node is None:
+                warn(f"position={position}: no players returned")
+                continue
+            players = _parse_players(players_node)
+            all_positions: set[str] = set()
+            for p in players:
+                pos_data = p.get("eligible_positions", {}).get("position", [])
+                all_positions.update(_as_list(pos_data))
+            print(f"  position={position}: {len(players)} players, positions seen: {sorted(all_positions)}")
+            ok(f"position={position} works")
+        except Exception as e:
+            fail(f"position={position} failed: {e}")
+
+
+def test_batch_lastmonth(session, league_key, stat_id):
+    """
+    Test 6: /players;player_keys={keys}/stats;type=lastmonth as a batch call.
+
+    Fetches a page of players (season stats inline), then requests lastmonth
+    stats for all their keys in a single call. Confirms:
+    - The batch call succeeds and returns one entry per player
+    - The lastmonth values differ from the season values for at least one player
+    """
+    section("Test 6: Batch /players;player_keys/stats;type=lastmonth")
     try:
+        # Step 1: get a page of players with season stats
+        url = (
+            f"{BASE_URL}/leagues;league_keys={league_key}/players"
+            f";status=A;sort=OR;sort_type=season;out=stats;start=0;count=25"
+        )
         data = _get(session, url)
-        players_node = data["fantasy_content"]["leagues"]["league"]["players"]
-        count = int(players_node.get("@count", 0))
-        show("Player count returned", count)
-        if count == 0:
-            fail("No players returned — position=F may not be valid; try position=C")
+        node = _extract_players_node(data)
+        if node is None:
+            fail("No players returned in step 1")
+            return
+        players = _parse_players(node)
+        season_by_key = {
+            p["player_key"]: (p["name"]["full"], _player_stats(p))
+            for p in players
+            if _has_real_stats(_player_stats(p))
+        }
+        show("Players with real season stats", len(season_by_key))
+        if not season_by_key:
+            fail("No players with real season stats — can't compare")
             return
 
-        players = _as_list(players_node["player"])
-        print(f"  Top {len(players)} players and their eligible positions:")
-        for p in players:
-            name = p["name"]["full"]
-            pos_data = p.get("eligible_positions", {}).get("position", [])
-            positions = _as_list(pos_data)
-            print(f"    - {name}: {positions}")
+        # Step 2: batch lastmonth call for all keys at once
+        keys_param = ",".join(season_by_key.keys())
+        url_batch = f"{BASE_URL}/players;player_keys={keys_param}/stats;type=lastmonth"
+        show("Batch URL", url_batch)
+        lm_data = _get(session, url_batch)
 
-        all_positions = set()
-        for p in players:
-            pos_data = p.get("eligible_positions", {}).get("position", [])
-            all_positions.update(_as_list(pos_data))
+        raw = lm_data.get("fantasy_content", {}).get("players", {})
+        lm_count = int(raw.get("@count", 0))
+        show("Players returned in batch response", lm_count)
 
-        if {"C", "LW", "RW"} & all_positions:
-            ok(f"position=F returns forwards — positions seen: {sorted(all_positions)}")
+        if lm_count == 0:
+            fail("Batch call returned no players — batch form not supported")
+            return
+
+        lastmonth_by_key = {}
+        for p in _as_list(raw["player"]):
+            lastmonth_by_key[p["player_key"]] = _player_stats(p)
+
+        # Check at least one player has differing season vs lastmonth values
+        diffs = 0
+        for key, (name, season_stats) in season_by_key.items():
+            lm_stats = lastmonth_by_key.get(key, {})
+            if season_stats.get(stat_id) != lm_stats.get(stat_id):
+                diffs += 1
+
+        show("Players where season ≠ lastmonth for stat", f"{diffs}/{len(season_by_key)}")
+        if diffs > 0:
+            ok("Batch call works and returns lastmonth stats that differ from season")
+            ok("Two-call-per-page architecture confirmed — ready to build data/players.py")
         else:
-            warn(f"Unexpected positions: {sorted(all_positions)} — may need separate C/LW/RW calls")
+            warn("Batch call succeeded but all values match season — may be early in season")
+            warn("Inspect a sample player manually to confirm:")
+            sample_key = next(iter(lastmonth_by_key))
+            sample_name, season_stats = season_by_key[sample_key]
+            show(f"  {sample_name} season", pformat(season_stats))
+            show(f"  {sample_name} lastmonth", pformat(lastmonth_by_key[sample_key]))
+
+    except requests.HTTPError as e:
+        fail(f"HTTP {e.response.status_code} — batch call may not be supported")
     except Exception as e:
         fail(f"Request failed: {e}")
 
@@ -341,13 +515,12 @@ def test_position_filter(session, league_key, stat_id):
 # ---------------------------------------------------------------------------
 
 def main():
-    print("Yahoo Fantasy API — Waiver Wire Assumption Validator")
+    print("Yahoo Fantasy API — Waiver Wire Validator")
     print("Authenticating...")
 
     session = build_session()
     print("  Session ready.")
 
-    # Get or accept league_key
     if len(sys.argv) > 1:
         league_key = sys.argv[1]
         print(f"  Using league_key from argument: {league_key}")
@@ -356,20 +529,19 @@ def main():
         league_key = get_league_key(session)
         print(f"  Found league_key: {league_key}")
 
-    # Get a real stat_id to use in tests
     stat_id, stat_name = get_first_enabled_stat_id(session, league_key)
     print(f"  Using stat: {stat_name} (id={stat_id}) for sort tests")
 
-    # Run tests
     test_sort_by_stat_id(session, league_key, stat_id, stat_name)
-    test_sort_type_lastmonth(session, league_key, stat_id, stat_name)
-    test_out_stats_reflects_sort_type(session, league_key, stat_id, stat_name)
+    test_sort_or(session, league_key)
+    test_lastmonth_stats(session, league_key, stat_id)
     test_pagination_termination(session, league_key, stat_id)
     test_position_filter(session, league_key, stat_id)
+    test_batch_lastmonth(session, league_key, stat_id)
 
     print(f"\n{'=' * 60}")
     print("  Done. Review [PASS] / [WARN] / [FAIL] above.")
-    print('=' * 60)
+    print("=" * 60)
 
 
 if __name__ == "__main__":
