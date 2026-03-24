@@ -269,6 +269,18 @@ This gives both stat periods in 2 API calls per page (8 total for 100 players) i
 ### players.py: imports private helpers from data/client.py (2026-03-23)
 `data/players.py` imports `_get`, `_as_list`, `_coerce`, and `BASE_URL` directly from `data/client.py`. These are intentionally shared across the data layer. The same patch-target rule applies: tests for `players.py` must patch `data.players._get`, not `data.client._get`.
 
+### pages/03_waiver_wire.py: player fetch deferred until categories are selected (2026-03-23)
+Player data (8 API calls) is not fetched on page load. The fetch triggers only once the user has selected at least one stat category, then caches both DataFrames in session state for the rest of the session. An empty state message is shown before any selection. This avoids unnecessary API calls for a view that wouldn't be useful without categories selected anyway.
+
+### pages/03_waiver_wire.py: table shows stat values, not per-category ranks (2026-03-23)
+The waiver wire table shows raw stat values for selected categories alongside `composite_rank` (the sum of per-category ranks). Individual per-category ranks are internal to `rank_players()` and not surfaced in the UI. This keeps the table readable and gives the user the actual numbers to reason about.
+
+### pages/03_waiver_wire.py: category multi-select shows all scoring stats (2026-03-23)
+The multi-select always shows all enabled scoring categories regardless of the position filter. No position-aware filtering of the category list. Simplest approach — revisit if the UX feels cluttered.
+
+### pages/03_waiver_wire.py: selected-only columns with "Show all stats" checkbox (2026-03-23)
+The table shows metadata + selected stat columns + composite_rank by default. A "Show all stats" checkbox reveals all stat columns. Keeps the table focused on the user's decision without hiding data entirely.
+
 ### Notebook dead ends: do not port (2026-03-03)
 The following notebook sections are explicitly marked dead ends or are broken and should not be ported without explicit confirmation:
 - "Get matchups for matchup analyser" — incomplete implementation

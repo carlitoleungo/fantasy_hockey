@@ -1,0 +1,185 @@
+"""
+Page 3 — Waiver Wire
+
+Ranks available (unrostered) players by composite score across user-selected
+stat categories. Supports position filtering and toggling between season and
+last-30-day stats.
+
+Data is fetched on first category selection (not page load) and cached in
+session state for the rest of the session. Two API calls per page × 4 pages
+= 8 calls total, so deferring until the user actually wants results avoids
+unnecessary network traffic.
+"""
+
+import streamlit as st
+
+from analysis.team_scores import stat_columns
+from analysis.waiver_ranking import filter_by_position, rank_players
+from auth.oauth import clear_session, get_session
+from data import matchups
+from data.players import get_available_players
+
+# ---------------------------------------------------------------------------
+# Guards
+# ---------------------------------------------------------------------------
+
+if "tokens" not in st.session_state:
+    st.warning("Please log in first.")
+    st.stop()
+
+league_key = st.session_state.get("league_key")
+if not league_key:
+    st.warning("Please select a league on the home page.")
+    st.stop()
+
+# We need the stat category names from the matchups DataFrame to drive the
+# multi-select. Load matchups if not already in session (same pattern as other pages).
+if (
+    "matchups_df" not in st.session_state
+    or st.session_state.get("matchups_league_key") != league_key
+):
+    session = get_session()
+    if session is None:
+        st.error("Your session has expired. Please log in again.")
+        clear_session()
+        st.stop()
+
+    with st.spinner("Loading league data…"):
+        try:
+            df_matchups = matchups.get_matchups(session, league_key)
+        except Exception as e:
+            st.error(f"Failed to load league data: {e}")
+            st.stop()
+
+    st.session_state["matchups_df"] = df_matchups
+    st.session_state["matchups_league_key"] = league_key
+
+df_matchups = st.session_state.get("matchups_df")
+if df_matchups is None or df_matchups.empty:
+    st.info("No league data available yet — the season may not have started.")
+    st.stop()
+
+all_stat_cols = stat_columns(df_matchups)
+
+# ---------------------------------------------------------------------------
+# Page layout
+# ---------------------------------------------------------------------------
+
+st.title("Waiver Wire")
+
+# ---------------------------------------------------------------------------
+# Controls
+# ---------------------------------------------------------------------------
+
+ctrl_col1, ctrl_col2, ctrl_col3 = st.columns([2, 2, 1])
+
+with ctrl_col1:
+    position_group = st.selectbox(
+        "Position",
+        options=["All", "Skaters", "Forwards", "Defence", "Goalies"],
+        key="ww_position",
+    )
+
+with ctrl_col2:
+    ranking_period = st.radio(
+        "Rank by",
+        options=["Season", "Last 30 days"],
+        horizontal=True,
+        key="ww_period",
+    )
+
+with ctrl_col3:
+    st.write("")  # vertical alignment spacer
+    refresh = st.button("↻ Refresh", key="ww_refresh")
+
+selected_cats = st.multiselect(
+    "Stat categories to improve",
+    options=all_stat_cols,
+    key="ww_categories",
+)
+
+if not selected_cats:
+    st.info("Select one or more stat categories above to rank available players.")
+    st.stop()
+
+# ---------------------------------------------------------------------------
+# Fetch player data (deferred until categories are selected)
+# Invalidate cache on league change or manual refresh.
+# ---------------------------------------------------------------------------
+
+players_stale = (
+    "players_season" not in st.session_state
+    or st.session_state.get("players_league_key") != league_key
+    or refresh
+)
+
+if players_stale:
+    session = get_session()
+    if session is None:
+        st.error("Your session has expired. Please log in again.")
+        clear_session()
+        st.stop()
+
+    with st.spinner("Fetching available players…"):
+        try:
+            season_df, lastmonth_df = get_available_players(session, league_key)
+        except Exception as e:
+            st.error(f"Failed to fetch player data: {e}")
+            st.stop()
+
+    st.session_state["players_season"] = season_df
+    st.session_state["players_lastmonth"] = lastmonth_df
+    st.session_state["players_league_key"] = league_key
+
+season_df = st.session_state["players_season"]
+lastmonth_df = st.session_state["players_lastmonth"]
+
+# ---------------------------------------------------------------------------
+# Filter, rank, display
+# ---------------------------------------------------------------------------
+
+base_df = lastmonth_df if ranking_period == "Last 30 days" else season_df
+filtered_df = filter_by_position(base_df, position_group)
+ranked_df = rank_players(filtered_df, selected_cats)
+
+if ranked_df.empty:
+    st.info("No available players match the selected position filter.")
+    st.stop()
+
+# Columns to show: metadata + selected stats + composite_rank.
+# "Show all stats" checkbox reveals all stat columns.
+show_all = st.checkbox("Show all stats", value=False, key="ww_show_all")
+
+meta_cols = ["player_name", "team_abbr", "display_position", "status"]
+if ranking_period == "Last 30 days" and "games_played" in ranked_df.columns:
+    meta_cols = ["player_name", "team_abbr", "display_position", "status", "games_played"]
+
+if show_all:
+    stat_cols_to_show = [c for c in ranked_df.columns if c in all_stat_cols]
+else:
+    stat_cols_to_show = [c for c in selected_cats if c in ranked_df.columns]
+
+display_cols = meta_cols + stat_cols_to_show + ["composite_rank"]
+display_df = ranked_df[[c for c in display_cols if c in ranked_df.columns]]
+
+# Format stat columns as integers or 2dp for rate stats
+def _is_rate_stat(name: str) -> bool:
+    lower = name.lower()
+    return "average" in lower or "percentage" in lower or "%" in name
+
+format_map = {}
+for col in stat_cols_to_show:
+    format_map[col] = "{:.2f}" if _is_rate_stat(col) else "{:.0f}"
+format_map["composite_rank"] = "{:.0f}"
+
+st.caption(
+    f"{len(display_df)} available players · "
+    f"ranked by **{', '.join(selected_cats)}** · "
+    f"{'last 30 days' if ranking_period == 'Last 30 days' else 'season'} stats"
+)
+
+st.dataframe(
+    display_df.style.format(format_map),
+    use_container_width=True,
+    hide_index=True,
+)
