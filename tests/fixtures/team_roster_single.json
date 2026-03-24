@@ -1,0 +1,19 @@
+{
+  "fantasy_content": {
+    "team": {
+      "team_key": "nhl.l.99999.t.1",
+      "roster": {
+        "players": {
+          "@count": "1",
+          "player": {
+            "player_key": "nhl.p.1",
+            "name": {"full": "Connor McDavid"},
+            "editorial_team_abbr": "EDM",
+            "display_position": "C",
+            "selected_position": {"position": "C"}
+          }
+        }
+      }
+    }
+  }
+}

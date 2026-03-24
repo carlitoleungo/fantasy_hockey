@@ -1,0 +1,25 @@
+{
+  "fantasy_content": {
+    "league": {
+      "scoreboard": {
+        "week": "20",
+        "matchups": {
+          "@count": "1",
+          "matchup": {
+            "week": "20",
+            "week_start": "2026-03-23",
+            "week_end": "2026-03-29",
+            "status": "midevent",
+            "teams": {
+              "@count": "2",
+              "team": [
+                {"team_key": "nhl.l.99999.t.1", "name": "Team Alpha"},
+                {"team_key": "nhl.l.99999.t.2", "name": "Team Beta"}
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

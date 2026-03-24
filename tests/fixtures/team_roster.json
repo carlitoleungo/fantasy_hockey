@@ -1,0 +1,49 @@
+{
+  "fantasy_content": {
+    "team": {
+      "team_key": "nhl.l.99999.t.1",
+      "roster": {
+        "players": {
+          "@count": "5",
+          "player": [
+            {
+              "player_key": "nhl.p.1",
+              "name": {"full": "Connor McDavid"},
+              "editorial_team_abbr": "EDM",
+              "display_position": "C",
+              "selected_position": {"position": "C"}
+            },
+            {
+              "player_key": "nhl.p.2",
+              "name": {"full": "Brad Marchand"},
+              "editorial_team_abbr": "BOS",
+              "display_position": "LW",
+              "selected_position": {"position": "LW"}
+            },
+            {
+              "player_key": "nhl.p.3",
+              "name": {"full": "Roman Josi"},
+              "editorial_team_abbr": "NSH",
+              "display_position": "D",
+              "selected_position": {"position": "D"}
+            },
+            {
+              "player_key": "nhl.p.4",
+              "name": {"full": "William Nylander"},
+              "editorial_team_abbr": "TOR",
+              "display_position": "RW",
+              "selected_position": {"position": "BN"}
+            },
+            {
+              "player_key": "nhl.p.5",
+              "name": {"full": "Jake Sanderson"},
+              "editorial_team_abbr": "OTT",
+              "display_position": "D",
+              "selected_position": {"position": "IR+"}
+            }
+          ]
+        }
+      }
+    }
+  }
+}

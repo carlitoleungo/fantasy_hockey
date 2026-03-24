@@ -412,3 +412,67 @@ def test_get_available_players_two_full_pages():
     assert mock_get.call_count == 5
     assert len(season_df) == 50
     assert len(lm_df) == 50
+
+
+# ---------------------------------------------------------------------------
+# get_players_lastmonth_stats
+# ---------------------------------------------------------------------------
+
+def test_get_players_lastmonth_stats_returns_dict():
+    with patch("data.players.get_stat_categories", return_value=STAT_CATEGORIES):
+        with patch("data.players._get", return_value=load("players_page_lastmonth.json")):
+            result = players.get_players_lastmonth_stats(SESSION, LEAGUE_KEY, ["nhl.p.1", "nhl.p.2"])
+
+    assert "nhl.p.1" in result
+    assert "nhl.p.2" in result
+
+
+def test_get_players_lastmonth_stats_values():
+    with patch("data.players.get_stat_categories", return_value=STAT_CATEGORIES):
+        with patch("data.players._get", return_value=load("players_page_lastmonth.json")):
+            result = players.get_players_lastmonth_stats(SESSION, LEAGUE_KEY, ["nhl.p.1", "nhl.p.2"])
+
+    assert result["nhl.p.1"]["Goals"] == 2.0
+    assert result["nhl.p.1"]["games_played"] == 13
+
+
+def test_get_players_lastmonth_stats_empty_keys_returns_empty():
+    with patch("data.players.get_stat_categories", return_value=STAT_CATEGORIES):
+        with patch("data.players._get") as mock_get:
+            result = players.get_players_lastmonth_stats(SESSION, LEAGUE_KEY, [])
+
+    mock_get.assert_not_called()
+    assert result == {}
+
+
+def test_get_players_lastmonth_stats_chunks_at_25():
+    """27 player keys → two _get calls (chunk of 25 + chunk of 2)."""
+    keys = [f"nhl.p.{i}" for i in range(27)]
+
+    lm_resp = load("players_page_lastmonth.json")
+
+    with patch("data.players.get_stat_categories", return_value=STAT_CATEGORIES):
+        with patch("data.players._get", return_value=lm_resp) as mock_get:
+            players.get_players_lastmonth_stats(SESSION, LEAGUE_KEY, keys)
+
+    assert mock_get.call_count == 2
+
+
+def test_get_players_lastmonth_stats_merges_chunks():
+    """Results from multiple chunks are merged into a single dict."""
+    keys_chunk1 = [f"nhl.p.{i}" for i in range(25)]
+    keys_chunk2 = ["nhl.p.25", "nhl.p.26"]
+    all_keys = keys_chunk1 + keys_chunk2
+
+    def side_effect(session, url):
+        # First call: return p.1 and p.2; second call: return empty
+        if "nhl.p.0" in url:
+            return load("players_page_lastmonth.json")
+        return {"fantasy_content": {"players": {"@count": "0"}}}
+
+    with patch("data.players.get_stat_categories", return_value=STAT_CATEGORIES):
+        with patch("data.players._get", side_effect=side_effect):
+            result = players.get_players_lastmonth_stats(SESSION, LEAGUE_KEY, all_keys)
+
+    # Results from first chunk are present
+    assert "nhl.p.1" in result

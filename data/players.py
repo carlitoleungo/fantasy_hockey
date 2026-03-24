@@ -76,6 +76,41 @@ def get_available_players(
     return pd.DataFrame(season_rows), pd.DataFrame(lastmonth_rows)
 
 
+def get_players_lastmonth_stats(
+    session,
+    league_key: str,
+    player_keys: list[str],
+) -> dict[str, dict]:
+    """
+    Fetch last-30-day stats for an explicit list of player keys (e.g. a roster).
+
+    Unlike get_available_players(), this does not paginate through waiver wire
+    players — it fetches stats for a known set of keys in batches of 25.
+
+    Returns:
+        {player_key: {stat_name: float, ..., games_played: int}}
+        Players with no API response map to {}.
+    """
+    if not player_keys:
+        return {}
+
+    stat_categories = get_stat_categories(session, league_key)
+    id_to_name = {
+        cat["stat_id"]: cat["stat_name"]
+        for cat in stat_categories
+        if cat["is_enabled"]
+    }
+
+    result: dict[str, dict] = {}
+    chunk_size = 25
+    for i in range(0, len(player_keys), chunk_size):
+        chunk = player_keys[i : i + chunk_size]
+        batch = _fetch_page_lastmonth(session, chunk, id_to_name)
+        result.update(batch)
+
+    return result
+
+
 # ---------------------------------------------------------------------------
 # Private helpers
 # ---------------------------------------------------------------------------
