@@ -11,12 +11,14 @@ session state for the rest of the session. Two API calls per page × 4 pages
 unnecessary network traffic.
 """
 
+from datetime import date
+
 import streamlit as st
 
 from analysis.team_scores import stat_columns
 from analysis.waiver_ranking import filter_by_position, rank_players
 from auth.oauth import clear_session, get_session
-from data import matchups
+from data import matchups, schedule as schedule_module, scoreboard as scoreboard_module
 from data.players import get_available_players
 
 # ---------------------------------------------------------------------------
@@ -123,6 +125,13 @@ if players_stale:
     with st.spinner("Fetching available players…"):
         try:
             season_df, lastmonth_df = get_available_players(session, league_key)
+
+            current_week = int(df_matchups["week"].max())
+            sb = scoreboard_module.get_current_matchup(session, league_key, current_week)
+            week_end = date.fromisoformat(sb["week_end"])
+            from_date = max(date.today(), date.fromisoformat(sb["week_start"]))
+            all_abbrs = list(set(season_df["team_abbr"].dropna().unique()))
+            games_remaining_map = schedule_module.get_remaining_games(all_abbrs, from_date, week_end)
         except Exception as e:
             st.error(f"Failed to fetch player data: {e}")
             st.stop()
@@ -130,9 +139,11 @@ if players_stale:
     st.session_state["players_season"] = season_df
     st.session_state["players_lastmonth"] = lastmonth_df
     st.session_state["players_league_key"] = league_key
+    st.session_state["players_games_remaining"] = games_remaining_map
 
 season_df = st.session_state["players_season"]
 lastmonth_df = st.session_state["players_lastmonth"]
+games_remaining_map = st.session_state.get("players_games_remaining", {})
 
 # ---------------------------------------------------------------------------
 # Filter, rank, display
@@ -150,9 +161,13 @@ if ranked_df.empty:
 # "Show all stats" checkbox reveals all stat columns.
 show_all = st.checkbox("Show all stats", value=False, key="ww_show_all")
 
-meta_cols = ["player_name", "team_abbr", "display_position", "status"]
+ranked_df["games_remaining"] = ranked_df["team_abbr"].map(
+    lambda a: games_remaining_map.get(a, 0)
+)
+
+meta_cols = ["player_name", "team_abbr", "display_position", "status", "games_remaining"]
 if ranking_period == "Last 30 days" and "games_played" in ranked_df.columns:
-    meta_cols = ["player_name", "team_abbr", "display_position", "status", "games_played"]
+    meta_cols = ["player_name", "team_abbr", "display_position", "status", "games_remaining", "games_played"]
 
 if show_all:
     stat_cols_to_show = [c for c in ranked_df.columns if c in all_stat_cols]
@@ -167,7 +182,7 @@ def _is_rate_stat(name: str) -> bool:
     lower = name.lower()
     return "average" in lower or "percentage" in lower or "%" in name
 
-format_map = {}
+format_map = {"games_remaining": "{:.0f}"}
 for col in stat_cols_to_show:
     format_map[col] = "{:.2f}" if _is_rate_stat(col) else "{:.0f}"
 format_map["composite_rank"] = "{:.0f}"

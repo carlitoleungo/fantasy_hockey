@@ -283,14 +283,49 @@ styled = (
 st.dataframe(styled, use_container_width=True, hide_index=True)
 
 # ---------------------------------------------------------------------------
-# Games remaining summary
+# Per-team player breakdown
 # ---------------------------------------------------------------------------
 
-with st.expander("Games remaining by NHL team"):
-    gr = pair_data["games_remaining"]
-    all_roster_abbrs = sorted({
-        p["team_abbr"] for p in pair_data["my_roster"] + pair_data["opp_roster"]
-        if p["team_abbr"]
-    })
-    gr_rows = [{"NHL Team": abbr, "Games Remaining": gr.get(abbr, 0)} for abbr in all_roster_abbrs]
-    st.dataframe(pd.DataFrame(gr_rows), hide_index=True, use_container_width=True)
+def _player_breakdown(roster, lastmonth_stats, games_remaining, stat_categories):
+    """Build a per-player projection breakdown DataFrame for one team."""
+    enabled = [c["stat_name"] for c in stat_categories if c["is_enabled"]]
+    rows = []
+    for player in roster:
+        remaining = games_remaining.get(player["team_abbr"], 0)
+        lm = lastmonth_stats.get(player["player_key"], {})
+        gp = lm.get("games_played", 0)
+        row = {
+            "Player": player["player_name"],
+            "Slot": player["roster_slot"],
+            "Games Left": remaining,
+        }
+        for stat in enabled:
+            row[stat] = (lm.get(stat, 0.0) / gp * remaining) if gp > 0 else 0.0
+        rows.append(row)
+    df = pd.DataFrame(rows)
+    return df.sort_values("Games Left", ascending=False)
+
+
+breakdown_fmt = {s: "{:.1f}" for s in enabled_stats}
+breakdown_fmt["Games Left"] = "{:.0f}"
+
+st.subheader("Projection breakdown")
+tab_my, tab_opp = st.tabs([my_team_name, opponent_name])
+
+with tab_my:
+    bd = _player_breakdown(
+        pair_data["my_roster"],
+        pair_data["lastmonth_stats"],
+        pair_data["games_remaining"],
+        stat_categories,
+    )
+    st.dataframe(bd.style.format(breakdown_fmt), use_container_width=True, hide_index=True)
+
+with tab_opp:
+    bd = _player_breakdown(
+        pair_data["opp_roster"],
+        pair_data["lastmonth_stats"],
+        pair_data["games_remaining"],
+        stat_categories,
+    )
+    st.dataframe(bd.style.format(breakdown_fmt), use_container_width=True, hide_index=True)
