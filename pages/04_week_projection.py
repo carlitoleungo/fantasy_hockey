@@ -221,66 +221,70 @@ sim_rows = [
 sim_df = pd.DataFrame(sim_rows)
 counts = tally(sim_df, my_team_name, opponent_name)
 
-tcol1, tcol2, tcol3 = st.columns(3)
-tcol1.metric(my_team_name, f"{counts[my_team_name]} projected wins")
-tcol2.metric("Tied", str(counts["Tie"]))
-tcol3.metric(opponent_name, f"{counts[opponent_name]} projected wins")
+tcol1, tcol2 = st.columns(2)
+with tcol1:
+    st.markdown(f"### {my_team_name}")
+    st.markdown(f"## {counts[my_team_name]}")
+with tcol2:
+    st.markdown(f"### {opponent_name}")
+    st.markdown(f"## {counts[opponent_name]}")
 
 # ---------------------------------------------------------------------------
 # Projection table
 # ---------------------------------------------------------------------------
 
+my_now_col = f"{my_team_name} now"
+my_proj_col = f"{my_team_name} proj"
+opp_proj_col = f"{opponent_name} proj"
+opp_now_col = f"{opponent_name} now"
+
 rows = []
 for r in comparison:
     stat = r["category"]
-    result_label = (
-        "Win" if r["winner"] == "team_a"
-        else ("Loss" if r["winner"] == "team_b" else "Tie")
-    )
     rows.append({
         "Category": stat,
-        f"{my_team_name} now": my_current.get(stat, 0.0),
-        f"{my_team_name} proj": r["team_a"],
-        f"{opponent_name} now": opp_current.get(stat, 0.0),
-        f"{opponent_name} proj": r["team_b"],
-        "Result": result_label,
+        my_now_col: my_current.get(stat, 0.0),
+        my_proj_col: r["team_a"],
+        opp_proj_col: r["team_b"],
+        opp_now_col: opp_current.get(stat, 0.0),
+        "_winner": r["winner"],
     })
 
-display_df = pd.DataFrame(rows)
+raw_df = pd.DataFrame(rows)
+winners = raw_df["_winner"]
+display_df = raw_df.drop(columns=["_winner"])
 
-my_proj_col = f"{my_team_name} proj"
-opp_proj_col = f"{opponent_name} proj"
 
-
-def _highlight_result(row):
+def _highlight_winner(row):
     styles = [""] * len(row)
-    green = "background-color: rgba(0, 180, 0, 0.15)"
-    red = "background-color: rgba(220, 50, 50, 0.15)"
-    result = row["Result"]
-    if result == "Win":
-        col_idx = list(row.index).index(my_proj_col)
-        styles[col_idx] = green
-    elif result == "Loss":
-        col_idx = list(row.index).index(my_proj_col)
-        styles[col_idx] = red
+    green = "background-color: rgba(0, 180, 0, 0.25)"
+    cols = list(row.index)
+    winner = winners.iloc[row.name]
+    if winner == "team_a":
+        styles[cols.index(my_proj_col)] = green
+    elif winner == "team_b":
+        styles[cols.index(opp_proj_col)] = green
     return styles
 
 
 format_map = {
-    f"{my_team_name} now": "{:.0f}",
-    f"{my_team_name} proj": "{:.1f}",
-    f"{opponent_name} now": "{:.0f}",
-    f"{opponent_name} proj": "{:.1f}",
+    my_now_col: "{:.0f}",
+    my_proj_col: "{:.1f}",
+    opp_proj_col: "{:.1f}",
+    opp_now_col: "{:.0f}",
 }
+
+n_rows = len(display_df)
+table_height = n_rows * 35 + 38
 
 styled = (
     display_df
     .style
-    .apply(_highlight_result, axis=1)
+    .apply(_highlight_winner, axis=1)
     .format(format_map)
 )
 
-st.dataframe(styled, use_container_width=True, hide_index=True)
+st.dataframe(styled, use_container_width=True, hide_index=True, height=table_height)
 
 # ---------------------------------------------------------------------------
 # Per-team player breakdown
