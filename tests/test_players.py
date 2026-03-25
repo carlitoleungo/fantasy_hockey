@@ -290,6 +290,64 @@ def test_parse_stats_games_played_dash_coerced_to_zero():
     assert result["games_played"] == 0
 
 
+GAA_ID_TO_NAME = {**ID_TO_NAME, "22": "Goals Against", "23": "Goals Against Average"}
+
+
+def test_parse_stats_lastmonth_gaa_computed_from_ga_and_gp():
+    """Yahoo returns season GAA for stat_id 23; we recompute from raw GA (22) / GP (0)."""
+    player = {
+        "player_stats": {
+            "stats": {
+                "stat": [
+                    {"stat_id": "0",  "value": "8"},   # GP
+                    {"stat_id": "22", "value": "22"},  # raw GA
+                    {"stat_id": "23", "value": "2.9"}, # season GAA (should be ignored)
+                ]
+            }
+        }
+    }
+    result = players._parse_stats(player, GAA_ID_TO_NAME, include_games_played=True)
+
+    import pytest
+    assert result["games_played"] == 8
+    assert result["Goals Against"] == pytest.approx(22.0)    # raw GA stored normally
+    assert result["Goals Against Average"] == pytest.approx(22.0 / 8)  # recomputed, not 2.9
+
+
+def test_parse_stats_gaa_zero_when_no_games_played():
+    """If GP is 0, computed GAA should be 0.0 (no division by zero)."""
+    player = {
+        "player_stats": {
+            "stats": {
+                "stat": [
+                    {"stat_id": "0",  "value": "0"},
+                    {"stat_id": "22", "value": "0"},
+                    {"stat_id": "23", "value": "2.9"},
+                ]
+            }
+        }
+    }
+    result = players._parse_stats(player, GAA_ID_TO_NAME, include_games_played=True)
+    assert result["Goals Against Average"] == 0.0
+
+
+def test_parse_stats_season_gaa_unchanged_when_not_lastmonth():
+    """Without include_games_played, Yahoo's season GAA value is stored as-is."""
+    player = {
+        "player_stats": {
+            "stats": {
+                "stat": [
+                    {"stat_id": "23", "value": "2.9"},
+                ]
+            }
+        }
+    }
+    result = players._parse_stats(player, GAA_ID_TO_NAME)
+
+    import pytest
+    assert result["Goals Against Average"] == pytest.approx(2.9)
+
+
 # ---------------------------------------------------------------------------
 # get_available_players (integration)
 # ---------------------------------------------------------------------------

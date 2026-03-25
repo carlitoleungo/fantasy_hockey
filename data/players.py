@@ -205,6 +205,8 @@ def _parse_stats(
         return {}
 
     stats = {}
+    ga_raw: float | None = None  # raw goals-against count (stat_id "22")
+
     for s in _as_list(raw):
         stat_id = s["stat_id"]
         value = s["value"]
@@ -212,4 +214,14 @@ def _parse_stats(
             stats["games_played"] = 0 if value in ("-", None) else int(value)
         elif stat_id in id_to_name:
             stats[id_to_name[stat_id]] = _coerce(value)
+        # Always capture raw GA even if not a scoring stat — needed to recompute GAA below.
+        if include_games_played and stat_id == "22":
+            ga_raw = _coerce(value)
+
+    # Yahoo returns the *season* GAA for stat_id "23" even when type=lastmonth.
+    # Recompute the correct last-30-day GAA ourselves from raw GA / games_played.
+    if include_games_played and "23" in id_to_name and ga_raw is not None:
+        gp = stats.get("games_played", 0)
+        stats[id_to_name["23"]] = ga_raw / gp if gp > 0 else 0.0
+
     return stats

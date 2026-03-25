@@ -11,6 +11,17 @@ from __future__ import annotations
 from analysis.team_scores import LOWER_IS_BETTER
 
 
+_RATE_STAT_ABBRS: frozenset[str] = frozenset({"GAA", "SV%", "GSAA"})
+
+
+def _is_rate_stat(name: str) -> bool:
+    """Return True for stats that are already a per-game rate (e.g. GAA, SV%)."""
+    if name in _RATE_STAT_ABBRS:
+        return True
+    lower = name.lower()
+    return "average" in lower or "percentage" in lower or "%" in lower
+
+
 def project_team_stats(
     current_stats: dict[str, float],
     roster: list[dict],
@@ -39,6 +50,11 @@ def project_team_stats(
     enabled = [c["stat_name"] for c in stat_categories if c["is_enabled"]]
     projected = {stat: float(current_stats.get(stat, 0.0)) for stat in enabled}
 
+    # Rate stats (GAA, SV%) need a weighted average, not a sum.
+    # Accumulate numerator (rate × weight) and total weight separately.
+    rate_numerator: dict[str, float] = {s: 0.0 for s in enabled if _is_rate_stat(s)}
+    rate_weight: dict[str, float] = {s: 0.0 for s in enabled if _is_rate_stat(s)}
+
     for player in roster:
         remaining = games_remaining.get(player["team_abbr"], 0)
         if remaining == 0:
@@ -50,8 +66,20 @@ def project_team_stats(
             continue
 
         for stat in enabled:
-            per_game = lm.get(stat, 0.0) / gp
-            projected[stat] += per_game * remaining
+            if stat in rate_numerator:
+                rate = lm.get(stat, 0.0)
+                if rate != 0.0:  # skip players with no data for this rate stat
+                    rate_numerator[stat] += rate * remaining
+                    rate_weight[stat] += remaining
+            else:
+                per_game = lm.get(stat, 0.0) / gp
+                projected[stat] += per_game * remaining
+
+    # Resolve rate stats: weighted average across contributing players.
+    # If no players contributed, leave the current value unchanged.
+    for stat in rate_numerator:
+        if rate_weight[stat] > 0:
+            projected[stat] = rate_numerator[stat] / rate_weight[stat]
 
     return projected
 

@@ -91,6 +91,16 @@ class TestRankPlayers:
         ranks = result["composite_rank"].tolist()
         assert ranks == sorted(ranks)
 
+    def test_lower_is_better_zero_ranks_last(self):
+        """Non-goalies coerced to 0.0 GAA must not outrank goalies with real values."""
+        df = make_df([
+            {"player_name": "Goalie", "display_position": "G",  "Goals Against Average": 2.5},
+            {"player_name": "Skater", "display_position": "C",  "Goals Against Average": 0.0},
+        ])
+        result = rank_players(df, ["Goals Against Average"])
+        assert result.iloc[0]["player_name"] == "Goalie"
+        assert result.iloc[-1]["player_name"] == "Skater"
+
     def test_custom_lower_is_better(self):
         df = make_df([
             {"player_name": "A", "Penalty Minutes": 50.0},

@@ -55,7 +55,15 @@ def rank_players(
     rank_sum = pd.Series(0.0, index=result.index)
     for col in selected_categories:
         ascending = col in lower_is_better
-        rank_sum += result[col].rank(method="min", ascending=ascending)
+        col_values = result[col]
+        if ascending:
+            # A coerced 0.0 (from '-', i.e. non-goalies in GAA) must not
+            # outrank players with real values. Replace 0.0 with NaN and
+            # push NaN to the bottom of the ranking.
+            col_values = col_values.replace(0.0, float("nan"))
+            rank_sum += col_values.rank(method="min", ascending=True, na_option="bottom")
+        else:
+            rank_sum += col_values.rank(method="min", ascending=False)
 
     result["composite_rank"] = rank_sum
     return result.sort_values("composite_rank").reset_index(drop=True)

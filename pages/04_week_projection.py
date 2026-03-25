@@ -17,7 +17,7 @@ import pandas as pd
 import streamlit as st
 
 from analysis.matchup_sim import tally
-from analysis.projection import compare_projections, project_team_stats
+from analysis.projection import _is_rate_stat, compare_projections, project_team_stats
 from auth.oauth import clear_session, get_session
 from data import client, players as players_module, roster as roster_module
 from data import schedule as schedule_module
@@ -300,7 +300,11 @@ def _player_breakdown(roster, lastmonth_stats, games_remaining, stat_categories)
             "Games Left": remaining,
         }
         for stat in enabled:
-            row[stat] = (lm.get(stat, 0.0) / gp * remaining) if gp > 0 else 0.0
+            if _is_rate_stat(stat):
+                # Rate stats (GAA, SV%) are already per-game — show the lastmonth rate directly.
+                row[stat] = lm.get(stat, 0.0)
+            else:
+                row[stat] = (lm.get(stat, 0.0) / gp * remaining) if gp > 0 else 0.0
         rows.append(row)
     df = pd.DataFrame(rows)
     return df.sort_values("Games Left", ascending=False)

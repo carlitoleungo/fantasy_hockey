@@ -27,7 +27,9 @@ def test_projection_basic_math():
 
     assert result["Goals"] == pytest.approx(5.0 + 2.0)    # 5 + (10/10 * 2)
     assert result["Assists"] == pytest.approx(8.0 + 4.0)  # 8 + (20/10 * 2)
-    assert result["GAA"] == pytest.approx(2.5 + 0.4)      # 2.5 + (2.0/10 * 2)
+    # GAA is a rate stat: weighted average of lastmonth rate, weighted by remaining games.
+    # One player, rate=2.0, weight=2 → 2.0*2/2 = 2.0
+    assert result["GAA"] == pytest.approx(2.0)
 
 
 def test_projection_zero_games_played_contributes_nothing():
@@ -99,6 +101,33 @@ def test_projection_sums_multiple_players():
 
     # p.1: 5/10 * 2 = 1.0; p.2: 10/5 * 3 = 6.0; total = 7.0
     assert result["Goals"] == pytest.approx(7.0)
+
+
+def test_rate_stat_weighted_average_two_players():
+    """GAA for two goalies with different remaining games → weighted average."""
+    current = {"Goals": 0.0, "Assists": 0.0, "GAA": 0.0}
+    roster = [
+        {"player_key": "g.1", "team_abbr": "EDM"},
+        {"player_key": "g.2", "team_abbr": "BOS"},
+    ]
+    lm = {
+        "g.1": {"games_played": 10, "Goals": 0.0, "Assists": 0.0, "GAA": 2.0},
+        "g.2": {"games_played": 10, "Goals": 0.0, "Assists": 0.0, "GAA": 3.0},
+    }
+    remaining = {"EDM": 3, "BOS": 1}
+
+    result = projection.project_team_stats(current, roster, lm, remaining, STAT_CATEGORIES)
+
+    # Weighted average: (2.0*3 + 3.0*1) / (3+1) = 9/4 = 2.25
+    assert result["GAA"] == pytest.approx(2.25)
+
+
+def test_rate_stat_no_contributors_keeps_current():
+    """If no players contribute to a rate stat, the current value is unchanged."""
+    current = {"Goals": 0.0, "Assists": 0.0, "GAA": 2.8}
+    result = projection.project_team_stats(current, [], {}, {}, STAT_CATEGORIES)
+
+    assert result["GAA"] == pytest.approx(2.8)
 
 
 def test_projection_empty_roster():
