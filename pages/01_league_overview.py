@@ -89,11 +89,18 @@ available_weeks = sorted(df["week"].unique())
 
 st.subheader("Weekly Scores")
 
+last_complete = current_week - 1 if current_week else None
+default_idx = (
+    available_weeks.index(last_complete)
+    if last_complete in available_weeks
+    else len(available_weeks) - 1
+)
+
 selected_week = st.selectbox(
     "Week",
     options=available_weeks,
     format_func=lambda w: f"Week {w} (in progress)" if w == current_week else f"Week {w}",
-    index=len(available_weeks) - 1,   # default to the most recent week
+    index=default_idx,
     key="overview_week_selector",
 )
 

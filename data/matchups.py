@@ -23,6 +23,8 @@ intra-week data is needed later, add a force_refresh flag.
 
 from __future__ import annotations
 
+from datetime import date as _date
+
 import pandas as pd
 
 from data import cache, client
@@ -42,6 +44,14 @@ def get_matchups(session, league_key: str) -> pd.DataFrame | None:
     last_week = _last_cached_week(league_key)
     fetch_from = start_week if last_week is None else last_week + 1
     weeks_to_fetch = list(range(fetch_from, current_week + 1))
+
+    # Re-fetch the most recently completed week if the cache was last written
+    # today — stats from that week may have updated since the earlier fetch.
+    prev_week = current_week - 1
+    if prev_week >= start_week and prev_week not in weeks_to_fetch:
+        lu = cache.last_updated(league_key, "matchups")
+        if lu is not None and lu.astimezone().date() == _date.today():
+            weeks_to_fetch = [prev_week] + weeks_to_fetch
 
     if weeks_to_fetch:
         stat_categories = client.get_stat_categories(session, league_key)
