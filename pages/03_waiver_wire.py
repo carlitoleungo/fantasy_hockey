@@ -44,6 +44,36 @@ if df_matchups is None or df_matchups.empty:
 
 all_stat_cols = stat_columns(df_matchups)
 
+# Abbreviation lookup — needed early so chip buttons can show short labels.
+_STAT_FALLBACK_ABBREV: dict[str, str] = {
+    "Goals": "G",
+    "Assists": "A",
+    "Points": "Pts",
+    "Plus/Minus": "+/-",
+    "Penalty Minutes": "PIM",
+    "Power Play Goals": "PPG",
+    "Power Play Assists": "PPA",
+    "Power Play Points": "PPP",
+    "Short Handed Goals": "SHG",
+    "Short Handed Assists": "SHA",
+    "Short Handed Points": "SHP",
+    "Shots on Goal": "SOG",
+    "Hits": "HIT",
+    "Blocked Shots": "BLK",
+    "Wins": "W",
+    "Save Percentage": "SV%",
+    "Goals Against Average": "GAA",
+    "Saves": "SV",
+    "Shutouts": "SO",
+    "Goals Against": "GA",
+    "Faceoffs Won": "FOW",
+}
+_stat_cats = st.session_state.get("stat_categories", [])
+_stat_abbrev: dict[str, str] = (
+    {c["stat_name"]: c["abbreviation"] for c in _stat_cats if "stat_name" in c and "abbreviation" in c}
+    or _STAT_FALLBACK_ABBREV
+)
+
 # ---------------------------------------------------------------------------
 # Page header (title left, refresh button right)
 # ---------------------------------------------------------------------------
@@ -56,7 +86,6 @@ with header_col:
         unsafe_allow_html=True,
     )
 with refresh_col:
-    st.markdown("<br>", unsafe_allow_html=True)
     refresh = st.button("↻ Refresh", key="ww_refresh", type="primary")
 
 # ---------------------------------------------------------------------------
@@ -110,20 +139,24 @@ with left_col:
 # ── Right section: stat category chips ──────────────────────────────────────
 with right_col:
     st.markdown(
-        '<span class="fh-control-label">Categorical Improvement (Select Target Stats)</span>',
+        '<span class="fh-control-label">Categories</span>',
         unsafe_allow_html=True,
     )
     CHIPS_PER_ROW = 8
     for row_start in range(0, len(all_stat_cols), CHIPS_PER_ROW):
         row_stats = all_stat_cols[row_start : row_start + CHIPS_PER_ROW]
-        chip_cols = st.columns(len(row_stats))
+        # Always create CHIPS_PER_ROW columns so every chip is the same width,
+        # even on the last (possibly shorter) row.
+        chip_cols = st.columns(CHIPS_PER_ROW)
         for i, stat in enumerate(row_stats):
             is_on = st.session_state[f"ww_cat_{stat}"]
+            abbrev = _stat_abbrev.get(stat, stat)
             with chip_cols[i]:
                 if st.button(
-                    stat,
+                    abbrev,
                     key=f"ww_chip_{stat}",
                     type="primary" if is_on else "secondary",
+                    use_container_width=True,
                 ):
                     st.session_state[f"ww_cat_{stat}"] = not is_on
                     st.session_state.pop("ww_page", None)
@@ -266,39 +299,6 @@ _COL_LABELS = {
     "games_remaining": "Games",
     "games_played": "GP",
 }
-
-# Stat name → abbreviation.  Built from session-state stat_categories if present
-# (populated by the week projection page), with a hardcoded fallback for all
-# standard Yahoo Fantasy Hockey stats.
-_STAT_FALLBACK_ABBREV = {
-    "Goals": "G",
-    "Assists": "A",
-    "Points": "Pts",
-    "Plus/Minus": "+/-",
-    "Penalty Minutes": "PIM",
-    "Power Play Goals": "PPG",
-    "Power Play Assists": "PPA",
-    "Power Play Points": "PPP",
-    "Short Handed Goals": "SHG",
-    "Short Handed Assists": "SHA",
-    "Short Handed Points": "SHP",
-    "Shots on Goal": "SOG",
-    "Hits": "HIT",
-    "Blocked Shots": "BLK",
-    "Wins": "W",
-    "Save Percentage": "SV%",
-    "Goals Against Average": "GAA",
-    "Saves": "SV",
-    "Shutouts": "SO",
-    "Goals Against": "GA",
-    "Faceoffs Won": "FOW",
-}
-_stat_cats = st.session_state.get("stat_categories", [])
-_stat_abbrev: dict[str, str] = {
-    c["stat_name"]: c["abbreviation"]
-    for c in _stat_cats
-    if "stat_name" in c and "abbreviation" in c
-} or _STAT_FALLBACK_ABBREV
 
 def _col_label(col: str) -> str:
     """Return the display label for a table column."""

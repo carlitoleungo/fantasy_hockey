@@ -151,20 +151,17 @@ _CSS = """
     transform: scale(0.98) !important;
 }
 
-/* Primary button: teal gradient CTA.
-   [kind="primary"] has specificity (0,2,1) — beats the base (0,1,1) — so
-   this always wins for type="primary" buttons regardless of source order. */
+/* Active/primary button: flat green — same size as base to keep uniform height.
+   [kind="primary"] specificity (0,2,1) beats base (0,1,1). */
 .stButton > button[kind="primary"] {
-    background: linear-gradient(135deg, var(--c-primary), var(--c-primary-container)) !important;
-    color: var(--c-on-primary-container) !important;
-    font-size: 0.75rem !important;
+    background: var(--c-primary-container) !important;
+    color: var(--c-primary) !important;
     font-weight: 700 !important;
-    padding: 8px 16px !important;
 }
 .stButton > button[kind="primary"]:hover {
-    opacity: 0.9 !important;
-    background: linear-gradient(135deg, var(--c-primary), var(--c-primary-container)) !important;
+    background: #1e5a4d !important;
     color: var(--c-on-primary-container) !important;
+    opacity: 1 !important;
 }
 
 /* ── Selectbox ──────────────────────────────────────────────────────────── */
