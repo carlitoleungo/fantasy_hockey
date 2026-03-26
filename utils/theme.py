@@ -128,46 +128,43 @@ _CSS = """
 }
 
 /* ── Buttons ────────────────────────────────────────────────────────────── */
+/* Base style — muted chip look. Applies to all buttons including secondary.
+   Primary buttons override this below using the higher-specificity [kind] rule. */
 .stButton > button {
-    background: linear-gradient(135deg, var(--c-primary), var(--c-primary-container)) !important;
-    color: var(--c-on-primary-container) !important;
+    background: var(--c-surface-highest) !important;
+    color: var(--c-outline) !important;
     font-family: 'Manrope', sans-serif !important;
-    font-size: 0.75rem !important;
-    font-weight: 700 !important;
+    font-size: 0.6875rem !important;
+    font-weight: 600 !important;
     text-transform: uppercase !important;
-    letter-spacing: 0.05em !important;
+    letter-spacing: 0.04em !important;
     border: none !important;
     border-radius: 4px !important;
-    padding: 8px 16px !important;
-    transition: opacity 0.15s, transform 0.1s !important;
+    padding: 6px 12px !important;
+    transition: background 0.12s, color 0.12s !important;
 }
 .stButton > button:hover {
-    opacity: 0.9 !important;
-    transform: scale(1.01) !important;
+    background: var(--c-surface-high) !important;
+    color: var(--c-on-surface) !important;
 }
 .stButton > button:active {
     transform: scale(0.98) !important;
 }
 
-/* Secondary button: muted chip look for filter / chip / pagination buttons.
-   Selector specificity (0,2,1) beats the primary .stButton > button (0,1,1)
-   so this wins even when both declarations use !important. */
-.stButton > button[data-testid="baseButton-secondary"] {
-    background: var(--c-surface-highest) !important;
-    color: var(--c-outline) !important;
-    border: none !important;
-    border-radius: 4px !important;
-    padding: 4px 10px !important;
-    font-size: 0.6875rem !important;
-    font-weight: 600 !important;
-    letter-spacing: 0.04em !important;
-    text-transform: uppercase !important;
+/* Primary button: teal gradient CTA.
+   [kind="primary"] has specificity (0,2,1) — beats the base (0,1,1) — so
+   this always wins for type="primary" buttons regardless of source order. */
+.stButton > button[kind="primary"] {
+    background: linear-gradient(135deg, var(--c-primary), var(--c-primary-container)) !important;
+    color: var(--c-on-primary-container) !important;
+    font-size: 0.75rem !important;
+    font-weight: 700 !important;
+    padding: 8px 16px !important;
 }
-.stButton > button[data-testid="baseButton-secondary"]:hover {
-    background: var(--c-surface-high) !important;
-    color: var(--c-on-surface) !important;
-    transform: none !important;
-    opacity: 1 !important;
+.stButton > button[kind="primary"]:hover {
+    opacity: 0.9 !important;
+    background: linear-gradient(135deg, var(--c-primary), var(--c-primary-container)) !important;
+    color: var(--c-on-primary-container) !important;
 }
 
 /* ── Selectbox ──────────────────────────────────────────────────────────── */

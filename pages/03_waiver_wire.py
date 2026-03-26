@@ -57,7 +57,7 @@ with header_col:
     )
 with refresh_col:
     st.markdown("<br>", unsafe_allow_html=True)
-    refresh = st.button("↻ Refresh", key="ww_refresh")
+    refresh = st.button("↻ Refresh", key="ww_refresh", type="primary")
 
 # ---------------------------------------------------------------------------
 # Controls panel — three sections side by side:
