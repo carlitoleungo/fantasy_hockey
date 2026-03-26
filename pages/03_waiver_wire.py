@@ -21,7 +21,7 @@ from analysis.waiver_ranking import filter_by_position, rank_players
 from auth.oauth import clear_session, get_session
 from data import schedule as schedule_module, scoreboard as scoreboard_module
 from data.players import get_available_players
-from pages._common import load_matchups, require_auth
+from utils.common import load_matchups, require_auth
 
 # ---------------------------------------------------------------------------
 # Guards + data load

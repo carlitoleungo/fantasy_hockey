@@ -24,7 +24,7 @@ from analysis.team_scores import (
     stat_columns,
     weekly_scores_ranked,
 )
-from pages._common import load_matchups, require_auth
+from utils.common import load_matchups, require_auth
 
 # ---------------------------------------------------------------------------
 # Guards + data load

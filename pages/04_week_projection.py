@@ -22,7 +22,7 @@ from auth.oauth import clear_session, get_session
 from data import client, players as players_module, roster as roster_module
 from data import schedule as schedule_module
 from data import scoreboard as scoreboard_module
-from pages._common import require_auth
+from utils.common import require_auth
 
 # ---------------------------------------------------------------------------
 # Guards
