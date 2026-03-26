@@ -23,9 +23,14 @@ BASE_URL = "https://fantasysports.yahooapis.com/fantasy/v2"
 # Internal helpers
 # ---------------------------------------------------------------------------
 
-def _get(session, url: str) -> dict:
-    """GET a Yahoo API URL, parse the XML response to a dict."""
-    response = session.get(url)
+def _get(session, url: str, timeout: int = 15) -> dict:
+    """
+    GET a Yahoo API URL, parse the XML response to a dict.
+
+    Raises requests.Timeout if the server doesn't respond within `timeout`
+    seconds, preventing indefinite hangs on slow or inactive-league calls.
+    """
+    response = session.get(url, timeout=timeout)
     response.raise_for_status()
     # json.dumps/loads round-trip converts OrderedDicts from xmltodict to plain dicts
     return json.loads(json.dumps(xmltodict.parse(response.content)))

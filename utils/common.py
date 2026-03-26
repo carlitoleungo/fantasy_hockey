@@ -25,7 +25,7 @@ def require_auth() -> str:
         st.stop()
     league_key = st.session_state.get("league_key")
     if not league_key:
-        st.warning("Please select a league on the home page.")
+        st.warning("Please select a league in the sidebar.")
         st.stop()
     return league_key  # type: ignore[return-value]  # st.stop() guarantees non-None
 
