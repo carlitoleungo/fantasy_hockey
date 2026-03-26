@@ -101,11 +101,11 @@ _TABLE_CSS = """
     color: var(--c-on-surface);
     white-space: nowrap;
 }
-/* Selected (comparison team) rows */
-.fh-row-selected { background-color: rgba(38,107,92,0.08) !important; }
+/* Selected (comparison team) rows — amber accent */
+.fh-row-selected { background-color: rgba(251,187,91,0.08) !important; }
 .fh-row-selected td:first-child {
-    border-left: 3px solid var(--c-primary-container) !important;
-    color: var(--c-primary) !important;
+    border-left: 3px solid #fbbb5b !important;
+    color: #fbbb5b !important;
     font-family: 'Manrope', sans-serif !important;
     font-weight: 700 !important;
 }
@@ -230,6 +230,7 @@ def _html_table(
     df: pd.DataFrame,
     cell_colors: dict[tuple[int, int], str] | None = None,
     selected_rows: set[int] | None = None,
+    col_styles: dict[str, str] | None = None,
 ) -> str:
     """
     Build a self-contained HTML table string for use with st.html().
@@ -237,14 +238,19 @@ def _html_table(
     Parameters
     ----------
     df            : Pre-formatted DataFrame. All values are rendered as-is.
-    cell_colors   : (row_idx, col_idx) → inline CSS color string for background.
-    selected_rows : Row indices that receive the teal left-border highlight.
+    cell_colors   : (row_idx, col_idx) → inline CSS background-color string.
+    selected_rows : Row indices that receive the amber left-border highlight.
+    col_styles    : column_name → CSS style string applied to both <th> and <td>.
     """
     cell_colors = cell_colors or {}
     selected_rows = selected_rows or set()
+    col_styles = col_styles or {}
 
     headers = list(df.columns)
-    header_html = "".join(f"<th>{h}</th>" for h in headers)
+    header_html = ""
+    for h in headers:
+        extra = col_styles.get(h, "")
+        header_html += f'<th style="{extra}">{h}</th>' if extra else f"<th>{h}</th>"
 
     rows_html: list[str] = []
     for r_idx, row in df.iterrows():
@@ -252,7 +258,13 @@ def _html_table(
         cells: list[str] = []
         for c_idx, col in enumerate(headers):
             color = cell_colors.get((int(r_idx), c_idx))
-            style = f' style="background-color:{color};"' if color else ""
+            extra = col_styles.get(col, "")
+            parts = []
+            if color:
+                parts.append(f"background-color:{color}")
+            if extra:
+                parts.append(extra)
+            style = f' style="{";".join(parts)}"' if parts else ""
             cells.append(f"<td{style}>{row[col]}</td>")
         rows_html.append(f'<tr class="{row_class}">{"".join(cells)}</tr>')
 
@@ -408,7 +420,25 @@ with ctrl_b:
 week_df = weekly_scores_ranked(df, selected_week).reset_index(drop=True)
 stat_cols = stat_columns(df)
 
-# Teal left-border highlight for the two comparison teams
+# Abbreviation lookup for column headers
+_STAT_ABBREV: dict[str, str] = {
+    "Goals": "G", "Assists": "A", "Points": "Pts", "Plus/Minus": "+/-",
+    "Penalty Minutes": "PIM", "Power Play Goals": "PPG", "Powerplay Goals": "PPG",
+    "Power Play Assists": "PPA", "Powerplay Assists": "PPA",
+    "Power Play Points": "PPP", "Powerplay Points": "PPP",
+    "Short Handed Goals": "SHG", "Short Handed Assists": "SHA",
+    "Short Handed Points": "SHP", "Shots on Goal": "SOG",
+    "Hits": "HIT", "Blocked Shots": "BLK", "Blocks": "BLK",
+    "Wins": "W", "Save Percentage": "SV%", "Goals Against Average": "GAA",
+    "Saves": "SV", "Shutouts": "SO", "Goals Against": "GA", "Faceoffs Won": "FOW",
+}
+_stat_cats_ss = st.session_state.get("stat_categories", [])
+_stat_abbrev: dict[str, str] = (
+    {c["stat_name"]: c["abbreviation"] for c in _stat_cats_ss if "stat_name" in c and "abbreviation" in c}
+    or _STAT_ABBREV
+)
+
+# Amber highlight for the two comparison teams
 selected_rows: set[int] = {
     int(r_idx)
     for r_idx, row in week_df.iterrows()
@@ -418,13 +448,24 @@ selected_rows: set[int] = {
 cell_colors = _weekly_cell_colors(week_df, stat_cols)
 display_week_df = _fmt_weekly(week_df, stat_cols)
 
+# Rename columns: team_name → Team, stat cols → abbreviations
+rename_map: dict[str, str] = {"team_name": "Team"}
+for col in stat_cols:
+    rename_map[col] = _stat_abbrev.get(col, col)
+display_week_df = display_week_df.rename(columns=rename_map)
+abbrev_stat_cols = [rename_map.get(c, c) for c in stat_cols]
+
+# Compact style for stat columns: narrow, right-aligned, reduced padding
+_STAT_COL_STYLE = "width:50px;padding:14px 6px;text-align:right;"
+stat_col_styles = {abbrev: _STAT_COL_STYLE for abbrev in abbrev_stat_cols}
+
 leaderboard_html = (
     f'<div style="background:#1c1c1a;border-radius:12px;border-left:4px solid #266b5c;'
     f'overflow:hidden;margin-bottom:2.5rem;box-shadow:0 4px 24px rgba(0,0,0,0.3);">'
     f'<div style="padding:1.5rem;border-bottom:1px solid rgba(63,73,69,0.05);">'
     f'<h3 style="font-family:Newsreader,serif;font-size:1.5rem;color:#e5e2de;margin:0;">Weekly Leaderboard</h3>'
     f'</div>'
-    + _html_table(display_week_df, cell_colors, selected_rows).replace(_TABLE_CSS, "", 1)
+    + _html_table(display_week_df, cell_colors, selected_rows, stat_col_styles).replace(_TABLE_CSS, "", 1)
     + f"</div>"
 )
 # Build the full card including embedded CSS
@@ -452,21 +493,18 @@ st.html(f"""
     <div class="fh-metric-card" style="border:1px solid rgba(144,212,193,0.2);">
         <div class="fh-metric-top">
             <span class="fh-metric-label" style="color:#90d4c1;">{team_a} Wins</span>
-            <span style="font-size:0.875rem;">🏆</span>
         </div>
         <div class="fh-metric-value">{counts[team_a]}</div>
     </div>
     <div class="fh-metric-card" style="border:1px solid rgba(137,147,143,0.2);">
         <div class="fh-metric-top">
             <span class="fh-metric-label" style="color:#89938f;">Category Ties</span>
-            <span style="font-size:0.875rem;">=</span>
         </div>
         <div class="fh-metric-value">{counts["Tie"]}</div>
     </div>
     <div class="fh-metric-card" style="border:1px solid rgba(251,187,91,0.2);">
         <div class="fh-metric-top">
             <span class="fh-metric-label" style="color:#fbbb5b;">{team_b} Wins</span>
-            <span style="font-size:0.875rem;">🛡️</span>
         </div>
         <div class="fh-metric-value">{counts[team_b]}</div>
     </div>

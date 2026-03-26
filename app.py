@@ -13,7 +13,7 @@ from auth.oauth import clear_session, exchange_code, get_auth_url, get_session, 
 from data.leagues import get_user_hockey_leagues
 from utils.theme import inject_css
 
-st.set_page_config(page_title="Fantasy Hockey Manager", page_icon="🏒", layout="wide")
+st.set_page_config(page_title="Carlin's Fantasy Tools", layout="wide")
 
 # ---------------------------------------------------------------------------
 # Step 1: Handle OAuth callback
@@ -57,30 +57,26 @@ if "tokens" not in st.session_state:
             max-width: 100% !important;
         }
         .block-container { padding: 0 !important; max-width: 100% !important; }
+        /* Collapse CSS-injection containers so they don't appear as grey boxes.
+           Style tags inside remain active even when their parent is zero-height. */
+        [data-testid="stMarkdownContainer"] {
+            height: 0 !important; overflow: hidden !important;
+            margin: 0 !important; padding: 0 !important;
+        }
+        /* Match page background to the login screen so any residual containers are invisible */
+        html, body, [data-testid="stAppViewContainer"],
+        section.main, [data-testid="stMainBlockContainer"],
+        .block-container { background-color: #131312 !important; }
+        [data-testid="stVerticalBlock"] { gap: 0 !important; }
         </style>
         """, unsafe_allow_html=True)
 
         try:
             auth_url = get_auth_url()
             login_btn_html = f"""
-            <a href="{auth_url}" target="_self" style="
-                display: flex; align-items: center; justify-content: center; gap: 12px;
-                width: 100%; padding: 16px;
-                background-color: #6001D2;
-                color: #ffffff;
-                font-family: 'Newsreader', serif;
-                font-size: 1.0625rem;
-                font-weight: 800;
-                letter-spacing: -0.01em;
-                text-decoration: none;
-                border-radius: 8px;
-                box-shadow: 0 8px 20px rgba(96,1,210,0.3);
-                transition: transform 0.15s;
-            ">
-                <svg xmlns="http://www.w3.org/2000/svg" height="20" width="20" viewBox="0 0 24 24" fill="white">
-                    <path d="M11 7L9.6 8.4l2.6 2.6H2v2h10.2l-2.6 2.6L11 17l5-5-5-5zm9 12h-8v2h8c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-8v2h8v14z"/>
-                </svg>
-                Login with Yahoo
+            <a href="{auth_url}" target="_self" style="display:flex;align-items:center;justify-content:center;gap:12px;width:100%;padding:11px 18px;background-color:#ffffff;color:#3d0091;font-family:Arial,Helvetica,sans-serif;font-size:0.9375rem;font-weight:700;text-decoration:none;border-radius:4px;border:1.5px solid #d0c0e8;">
+                <span style="background:#6001d2;color:#fff;font-family:Arial,Helvetica,sans-serif;font-weight:900;font-size:13px;padding:3px 7px;border-radius:3px;letter-spacing:-0.02em;line-height:1.2;">Y!</span>
+                Sign in with Yahoo
             </a>
             """
             error_html = ""
@@ -129,8 +125,7 @@ if "tokens" not in st.session_state:
                 <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;border-radius:12px;background-color:#2a2a28;border:1px solid rgba(63,73,69,0.15);box-shadow:0 12px 40px rgba(6,14,32,0.4);margin-bottom:24px;">
                     <svg xmlns="http://www.w3.org/2000/svg" height="32" width="32" viewBox="0 0 24 24" fill="#90d4c1"><path d="M9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4zm2 2H5V5h14v14zm0-16H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg>
                 </div>
-                <h1 style="font-family:'Newsreader',serif;font-size:2.5rem;font-weight:900;letter-spacing:-0.04em;text-transform:uppercase;color:#e5e2de;margin:0 0 8px 0;line-height:1.05;">Fantasy Hockey<br>Manager</h1>
-                <p style="font-family:'Newsreader',serif;font-size:1.0625rem;font-weight:600;color:#ffb599;letter-spacing:-0.01em;margin:0;">Your tactical edge on the waiver wire</p>
+                <h1 style="font-family:'Newsreader',serif;font-size:2.5rem;font-weight:900;letter-spacing:-0.04em;text-transform:uppercase;color:#e5e2de;margin:0;line-height:1.05;">Carlin's<br>Fantasy Tools</h1>
             </div>
 
             <div style="width:100%;max-width:420px;background:rgba(30,30,28,0.8);backdrop-filter:blur(20px);border:1px solid rgba(63,73,69,0.15);border-radius:12px;padding:2rem;box-shadow:0 24px 64px rgba(6,14,32,0.6);position:relative;z-index:1;">
@@ -141,24 +136,11 @@ if "tokens" not in st.session_state:
 
                 {login_btn_html}
                 {error_html}
-
-                <div style="margin-top:1.5rem;text-align:center;">
-                    <div style="display:flex;align-items:center;gap:8px;justify-content:center;font-family:'Manrope',sans-serif;font-size:0.625rem;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:#89938f;">
-                        <span style="height:1px;width:32px;background:rgba(63,73,69,0.3);display:inline-block;"></span>
-                        Secure Infrastructure
-                        <span style="height:1px;width:32px;background:rgba(63,73,69,0.3);display:inline-block;"></span>
-                    </div>
-                </div>
-            </div>
-
-            <div style="margin-top:3rem;display:flex;align-items:center;gap:8px;font-family:'Manrope',sans-serif;font-size:0.625rem;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:#89938f;position:relative;z-index:1;">
-                <div style="width:6px;height:6px;border-radius:50%;background-color:#90d4c1;box-shadow:0 0 8px rgba(144,212,193,0.6);"></div>
-                Tactical Core Active
             </div>
         </div>
         """)
 
-    pg = st.navigation([st.Page(_login_page, title="Login", icon="🏒")])
+    pg = st.navigation([st.Page(_login_page, title="Login")])
     pg.run()
     st.stop()
 
@@ -248,8 +230,8 @@ with st.sidebar:
 # Step 6: Content navigation
 # ---------------------------------------------------------------------------
 pg = st.navigation([
-    st.Page("pages/01_league_overview.py", title="League Overview", icon="📊"),
-    st.Page("pages/03_waiver_wire.py",     title="Waiver Wire",     icon="🎣"),
-    st.Page("pages/04_week_projection.py", title="Week Projection", icon="📈"),
+    st.Page("pages/01_league_overview.py", title="League Overview"),
+    st.Page("pages/03_waiver_wire.py",     title="Waiver Wire"),
+    st.Page("pages/04_week_projection.py", title="Week Projection"),
 ])
 pg.run()
