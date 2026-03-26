@@ -149,50 +149,25 @@ _CSS = """
     transform: scale(0.98) !important;
 }
 
-/* Pill-button variant: used for position filter and category chips.
-   Applied by wrapping a st.button column in a div with class "fh-pill-col". */
-.fh-pill-col .stButton > button {
+/* Secondary button: muted chip look for filter / chip / pagination buttons.
+   Selector specificity (0,2,1) beats the primary .stButton > button (0,1,1)
+   so this wins even when both declarations use !important. */
+.stButton > button[data-testid="baseButton-secondary"] {
     background: var(--c-surface-highest) !important;
     color: var(--c-outline) !important;
-    border-radius: 999px !important;
-    padding: 4px 12px !important;
+    border: none !important;
+    border-radius: 4px !important;
+    padding: 4px 10px !important;
     font-size: 0.6875rem !important;
     font-weight: 600 !important;
-    letter-spacing: 0.02em !important;
-    text-transform: none !important;
-}
-.fh-pill-col.active .stButton > button {
-    background: var(--c-primary-container) !important;
-    color: var(--c-on-primary-container) !important;
-}
-
-/* Category chip variant */
-.fh-chip-col .stButton > button {
-    background: var(--c-surface-highest) !important;
-    color: var(--c-outline) !important;
-    border-radius: 4px !important;
-    padding: 4px 8px !important;
-    font-size: 0.625rem !important;
-    font-weight: 600 !important;
-    letter-spacing: 0.02em !important;
+    letter-spacing: 0.04em !important;
     text-transform: uppercase !important;
 }
-.fh-chip-col.active .stButton > button {
-    background: var(--c-surface-highest) !important;
-    color: var(--c-primary) !important;
-    outline: 1px solid rgba(144,212,193,0.2) !important;
-}
-
-/* Refresh / CTA button variant */
-.fh-cta-btn .stButton > button {
-    background: var(--c-primary-container) !important;
-    color: var(--c-on-primary-container) !important;
-    border-radius: 4px !important;
-    padding: 8px 20px !important;
-    font-size: 0.75rem !important;
-    font-weight: 700 !important;
-    letter-spacing: 0.08em !important;
-    text-transform: uppercase !important;
+.stButton > button[data-testid="baseButton-secondary"]:hover {
+    background: var(--c-surface-high) !important;
+    color: var(--c-on-surface) !important;
+    transform: none !important;
+    opacity: 1 !important;
 }
 
 /* ── Selectbox ──────────────────────────────────────────────────────────── */

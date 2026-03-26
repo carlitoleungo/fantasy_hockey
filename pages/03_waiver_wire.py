@@ -17,6 +17,7 @@ session state for the rest of the session.
 
 from datetime import date
 
+import pandas as pd
 import streamlit as st
 
 from analysis.projection import _is_rate_stat
@@ -44,67 +45,28 @@ if df_matchups is None or df_matchups.empty:
 all_stat_cols = stat_columns(df_matchups)
 
 # ---------------------------------------------------------------------------
-# Page header
+# Page header (title left, refresh button right)
 # ---------------------------------------------------------------------------
 
-st.markdown("""
-<div class="fh-page-header" style="display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;">
-    <div>
-        <h1 class="fh-page-title">Waiver Wire</h1>
-        <p class="fh-page-subtitle">Precision scouting for the deep league manager</p>
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
-# Refresh button (top-right)
-_, refresh_col = st.columns([8, 1])
+header_col, refresh_col = st.columns([10, 2])
+with header_col:
+    st.markdown('<h1 class="fh-page-title">Waiver Wire</h1>', unsafe_allow_html=True)
+    st.markdown(
+        '<p class="fh-page-subtitle">Precision scouting for the deep league manager</p>',
+        unsafe_allow_html=True,
+    )
 with refresh_col:
-    st.markdown('<div class="fh-cta-btn">', unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
     refresh = st.button("↻ Refresh", key="ww_refresh")
-    st.markdown('</div>', unsafe_allow_html=True)
 
 # ---------------------------------------------------------------------------
-# Controls panel
+# Controls panel — three sections side by side:
+#   [Position Filter | Rank By] | [Stat Categories]
 # ---------------------------------------------------------------------------
-
-st.markdown('<div class="fh-controls-panel">', unsafe_allow_html=True)
-st.markdown('<div style="display:grid;grid-template-columns:1fr 1fr 3fr;gap:2rem;align-items:start;">', unsafe_allow_html=True)
-
-# ── Position filter (pill buttons) ─────────────────────────────────────────
-st.markdown('<div>', unsafe_allow_html=True)
-st.markdown('<span class="fh-control-label">Position Filter</span>', unsafe_allow_html=True)
 
 positions = ["All", "C", "LW", "RW", "D", "G"]
 if "ww_position" not in st.session_state:
     st.session_state["ww_position"] = "All"
-
-pill_cols = st.columns(len(positions))
-for i, pos in enumerate(positions):
-    is_active = st.session_state["ww_position"] == pos
-    wrapper_class = "fh-pill-col active" if is_active else "fh-pill-col"
-    with pill_cols[i]:
-        st.markdown(f'<div class="{wrapper_class}">', unsafe_allow_html=True)
-        if st.button(pos, key=f"ww_pos_{pos}"):
-            st.session_state["ww_position"] = pos
-            st.session_state.pop("ww_page", None)  # reset pagination on filter change
-            st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
-
-st.markdown('</div>', unsafe_allow_html=True)
-
-# ── Rank by (radio) ────────────────────────────────────────────────────────
-st.markdown('<div>', unsafe_allow_html=True)
-ranking_period = st.radio(
-    "Rank by",
-    options=["Season", "Last 30 days"],
-    horizontal=False,
-    key="ww_period",
-)
-st.markdown('</div>', unsafe_allow_html=True)
-
-# ── Stat category chips ────────────────────────────────────────────────────
-st.markdown('<div>', unsafe_allow_html=True)
-st.markdown('<span class="fh-control-label">Categorical Improvement (Select Target Stats)</span>', unsafe_allow_html=True)
 
 # Initialise toggle state for each stat (default: all off)
 for stat in all_stat_cols:
@@ -112,25 +74,60 @@ for stat in all_stat_cols:
     if key not in st.session_state:
         st.session_state[key] = False
 
-# Render chips in rows of up to 8
-CHIPS_PER_ROW = 8
-for row_start in range(0, len(all_stat_cols), CHIPS_PER_ROW):
-    row_stats = all_stat_cols[row_start : row_start + CHIPS_PER_ROW]
-    chip_cols = st.columns(len(row_stats))
-    for i, stat in enumerate(row_stats):
-        is_on = st.session_state[f"ww_cat_{stat}"]
-        wrapper_class = "fh-chip-col active" if is_on else "fh-chip-col"
-        with chip_cols[i]:
-            st.markdown(f'<div class="{wrapper_class}">', unsafe_allow_html=True)
-            if st.button(stat, key=f"ww_chip_{stat}"):
-                st.session_state[f"ww_cat_{stat}"] = not is_on
-                st.session_state.pop("ww_page", None)
-                st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
+left_col, right_col = st.columns([5, 7])
 
-st.markdown('</div>', unsafe_allow_html=True)  # stat chips div
-st.markdown('</div>', unsafe_allow_html=True)  # grid div
-st.markdown('</div>', unsafe_allow_html=True)  # controls panel div
+# ── Left section: position filter + rank by ─────────────────────────────────
+with left_col:
+    pos_col, rank_col = st.columns(2)
+
+    with pos_col:
+        st.markdown('<span class="fh-control-label">Position Filter</span>', unsafe_allow_html=True)
+        # Two rows of 3 position buttons
+        row1_cols = st.columns(3)
+        row2_cols = st.columns(3)
+        for i, pos in enumerate(positions):
+            col = row1_cols[i] if i < 3 else row2_cols[i - 3]
+            is_active = st.session_state["ww_position"] == pos
+            with col:
+                if st.button(
+                    pos,
+                    key=f"ww_pos_{pos}",
+                    type="primary" if is_active else "secondary",
+                    use_container_width=True,
+                ):
+                    st.session_state["ww_position"] = pos
+                    st.session_state.pop("ww_page", None)
+                    st.rerun()
+
+    with rank_col:
+        ranking_period = st.radio(
+            "Rank by",
+            options=["Season", "Last 30 days"],
+            horizontal=False,
+            key="ww_period",
+        )
+
+# ── Right section: stat category chips ──────────────────────────────────────
+with right_col:
+    st.markdown(
+        '<span class="fh-control-label">Categorical Improvement (Select Target Stats)</span>',
+        unsafe_allow_html=True,
+    )
+    CHIPS_PER_ROW = 8
+    for row_start in range(0, len(all_stat_cols), CHIPS_PER_ROW):
+        row_stats = all_stat_cols[row_start : row_start + CHIPS_PER_ROW]
+        chip_cols = st.columns(len(row_stats))
+        for i, stat in enumerate(row_stats):
+            is_on = st.session_state[f"ww_cat_{stat}"]
+            with chip_cols[i]:
+                if st.button(
+                    stat,
+                    key=f"ww_chip_{stat}",
+                    type="primary" if is_on else "secondary",
+                ):
+                    st.session_state[f"ww_cat_{stat}"] = not is_on
+                    st.session_state.pop("ww_page", None)
+                    st.rerun()
 
 # Derive selected categories from toggle state
 selected_cats = [s for s in all_stat_cols if st.session_state.get(f"ww_cat_{s}")]
@@ -215,18 +212,24 @@ if show_all:
 else:
     stat_cols_to_show = [c for c in selected_cats if c in ranked_df.columns]
 
-display_cols = meta_cols + stat_cols_to_show + ["composite_rank"]
+# ranked_df is sorted by composite_rank; keep rank for ordering but don't display it
+display_cols = meta_cols + stat_cols_to_show
 display_df = ranked_df[[c for c in display_cols if c in ranked_df.columns]].copy()
 
-# Format stat columns
+# Format stat columns (guard against NaN)
 for col in stat_cols_to_show:
     fmt = ".2f" if _is_rate_stat(col) else ".0f"
-    display_df[col] = display_df[col].apply(lambda v, f=fmt: format(float(v), f))
-display_df["composite_rank"] = display_df["composite_rank"].apply(lambda v: f"#{int(v)}")
+    display_df[col] = display_df[col].apply(
+        lambda v, f=fmt: format(float(v), f) if pd.notna(v) else "—"
+    )
 if "games_remaining" in display_df.columns:
-    display_df["games_remaining"] = display_df["games_remaining"].apply(lambda v: f"{int(v)}")
+    display_df["games_remaining"] = display_df["games_remaining"].apply(
+        lambda v: f"{int(v)}" if pd.notna(v) else "—"
+    )
 if "games_played" in display_df.columns:
-    display_df["games_played"] = display_df["games_played"].apply(lambda v: f"{int(v)}")
+    display_df["games_played"] = display_df["games_played"].apply(
+        lambda v: f"{int(v)}" if pd.notna(v) else "—"
+    )
 
 # ---------------------------------------------------------------------------
 # Pagination
@@ -254,24 +257,61 @@ _STATUS_COLORS = {
     "O":       ("background-color:rgba(147,0,10,0.3);color:#ffb4ab;", "OUT"),
 }
 
-# Human-readable column headers
+# Column header labels — metadata columns
 _COL_LABELS = {
     "player_name": "Player",
     "team_abbr": "Team",
     "display_position": "Pos",
     "status": "Status",
-    "games_remaining": "Rem",
+    "games_remaining": "Games",
     "games_played": "GP",
-    "composite_rank": "Rank",
 }
+
+# Stat name → abbreviation.  Built from session-state stat_categories if present
+# (populated by the week projection page), with a hardcoded fallback for all
+# standard Yahoo Fantasy Hockey stats.
+_STAT_FALLBACK_ABBREV = {
+    "Goals": "G",
+    "Assists": "A",
+    "Points": "Pts",
+    "Plus/Minus": "+/-",
+    "Penalty Minutes": "PIM",
+    "Power Play Goals": "PPG",
+    "Power Play Assists": "PPA",
+    "Power Play Points": "PPP",
+    "Short Handed Goals": "SHG",
+    "Short Handed Assists": "SHA",
+    "Short Handed Points": "SHP",
+    "Shots on Goal": "SOG",
+    "Hits": "HIT",
+    "Blocked Shots": "BLK",
+    "Wins": "W",
+    "Save Percentage": "SV%",
+    "Goals Against Average": "GAA",
+    "Saves": "SV",
+    "Shutouts": "SO",
+    "Goals Against": "GA",
+    "Faceoffs Won": "FOW",
+}
+_stat_cats = st.session_state.get("stat_categories", [])
+_stat_abbrev: dict[str, str] = {
+    c["stat_name"]: c["abbreviation"]
+    for c in _stat_cats
+    if "stat_name" in c and "abbreviation" in c
+} or _STAT_FALLBACK_ABBREV
+
+def _col_label(col: str) -> str:
+    """Return the display label for a table column."""
+    if col in _COL_LABELS:
+        return _COL_LABELS[col]
+    return _stat_abbrev.get(col, col)
 
 header_cells = []
 for col in display_df.columns:
-    label = _COL_LABELS.get(col, col)
+    label = _col_label(col)
     color = "#90d4c1" if col in selected_cats else "#89938f"
-    align = "right" if col == "composite_rank" else "left"
     header_cells.append(
-        f'<th style="color:{color};text-align:{align};">{label}</th>'
+        f'<th style="color:{color};text-align:left;">{label}</th>'
     )
 
 row_htmls = []
@@ -295,14 +335,8 @@ for _, row in page_df.iterrows():
             cells.append(
                 f'<td><span class="fh-badge" style="{style}">{label}</span></td>'
             )
-        elif col == "composite_rank":
-            cells.append(
-                f'<td style="text-align:right;font-family:\'Newsreader\',serif;'
-                f'font-size:1rem;font-style:italic;font-weight:700;color:#fbbb5b;">'
-                f'{val}</td>'
-            )
         elif col in ("team_abbr", "display_position"):
-            # Skip — already shown in the player name cell
+            # Already shown in the player name cell
             cells.append(f'<td style="color:#89938f;font-size:0.6875rem;">{val}</td>')
         else:
             cells.append(f'<td style="text-align:right;">{val}</td>')
@@ -411,10 +445,10 @@ st.html(table_html)
 
 pg_cols = st.columns([6, 1, 1])
 with pg_cols[1]:
-    if st.button("← Prev", key="ww_prev", disabled=(current_page == 0)):
+    if st.button("← Prev", key="ww_prev", type="secondary", disabled=(current_page == 0)):
         st.session_state["ww_page"] = current_page - 1
         st.rerun()
 with pg_cols[2]:
-    if st.button("Next →", key="ww_next", disabled=(current_page >= total_pages - 1)):
+    if st.button("Next →", key="ww_next", type="secondary", disabled=(current_page >= total_pages - 1)):
         st.session_state["ww_page"] = current_page + 1
         st.rerun()
