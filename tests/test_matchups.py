@@ -8,6 +8,8 @@ Tests focus on the delta-fetch logic: which weeks get fetched, that new rows
 are appended correctly, and that the returned DataFrame has the expected shape.
 """
 
+from datetime import datetime, timedelta, timezone
+
 import pandas as pd
 import pytest
 
@@ -124,12 +126,15 @@ def test_fetches_only_missing_weeks_when_cache_partial(monkeypatch):
 
 
 def test_does_not_call_api_when_cache_is_current(monkeypatch):
-    # Cache already has the current week
+    # Cache already has the current week. Simulate the cache having been written
+    # yesterday so the stale-today re-fetch of prev_week doesn't trigger.
     seed = pd.DataFrame([
         {"team_key": "nhl.l.99999.t.1", "team_name": "Team Alpha", "week": 5, "Goals": 10.0},
         {"team_key": "nhl.l.99999.t.2", "team_name": "Team Beta",  "week": 5, "Goals": 8.0},
     ])
     cache.write(LEAGUE_KEY, "matchups", seed)
+    yesterday = datetime.now(timezone.utc) - timedelta(days=1)
+    monkeypatch.setattr(cache, "last_updated", lambda league, dtype: yesterday)
 
     stats_called = []
     monkeypatch.setattr(client, "get_league_settings", lambda s, k: make_settings(current_week=5))

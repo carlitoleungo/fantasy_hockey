@@ -29,14 +29,17 @@ CACHE_DIR = ".cache"
 # ---------------------------------------------------------------------------
 
 def _parquet_path(league_key: str, data_type: str) -> Path:
+    """Return the Path for a league's parquet file of the given data type."""
     return Path(CACHE_DIR) / league_key / f"{data_type}.parquet"
 
 
 def _meta_path(league_key: str) -> Path:
+    """Return the Path for a league's last_updated.json metadata file."""
     return Path(CACHE_DIR) / league_key / "last_updated.json"
 
 
 def _ensure_dir(league_key: str) -> None:
+    """Create the cache directory for the league if it doesn't exist."""
     (Path(CACHE_DIR) / league_key).mkdir(parents=True, exist_ok=True)
 
 
@@ -45,10 +48,12 @@ def _ensure_dir(league_key: str) -> None:
 # ---------------------------------------------------------------------------
 
 def _now() -> datetime:
+    """Return the current UTC datetime."""
     return datetime.now(timezone.utc)
 
 
 def _read_meta(league_key: str) -> dict:
+    """Load the last_updated metadata for a league, returning {} if absent."""
     path = _meta_path(league_key)
     if not path.exists():
         return {}
@@ -57,6 +62,7 @@ def _read_meta(league_key: str) -> dict:
 
 
 def _write_meta(league_key: str, data_type: str, ts: datetime) -> None:
+    """Record a write timestamp for data_type in the league's metadata file."""
     meta = _read_meta(league_key)
     meta[data_type] = ts.isoformat()
     _ensure_dir(league_key)

@@ -22,19 +22,13 @@ from auth.oauth import clear_session, get_session
 from data import client, players as players_module, roster as roster_module
 from data import schedule as schedule_module
 from data import scoreboard as scoreboard_module
+from pages._common import require_auth
 
 # ---------------------------------------------------------------------------
 # Guards
 # ---------------------------------------------------------------------------
 
-if "tokens" not in st.session_state:
-    st.warning("Please log in first.")
-    st.stop()
-
-league_key = st.session_state.get("league_key")
-if not league_key:
-    st.warning("Please select a league on the home page.")
-    st.stop()
+league_key = require_auth()
 
 # ---------------------------------------------------------------------------
 # Header + refresh
@@ -48,8 +42,11 @@ with btn_col:
     refresh = st.button("↻ Refresh", key="proj_refresh")
 
 if refresh:
+    # All projection state uses the "proj_" prefix or the two named keys below.
+    # Per-team-pair data is keyed as f"proj_{my_key}_{opp_key}".
+    # Do not add "proj_" keys that should survive a refresh.
     for key in list(st.session_state.keys()):
-        if key.startswith("proj_") or key == "projection_data" or key == "projection_league_key":
+        if key.startswith("proj_") or key in ("projection_data", "projection_league_key"):
             del st.session_state[key]
 
 # ---------------------------------------------------------------------------
@@ -70,9 +67,9 @@ if page_data_stale:
 
     with st.spinner("Loading current week data…"):
         try:
-            settings = client.get_league_settings(session, league_key)
+            # Single /settings call returns both week info and stat categories.
+            settings, stat_categories = client.get_settings_and_categories(session, league_key)
             current_week = settings["current_week"]
-            stat_categories = client.get_stat_categories(session, league_key)
             teams = client.get_teams(session, league_key)
             live_stats_rows = client.get_all_teams_week_stats(
                 session, league_key, current_week, stat_categories

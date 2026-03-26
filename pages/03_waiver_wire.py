@@ -15,46 +15,21 @@ from datetime import date
 
 import streamlit as st
 
+from analysis.projection import _is_rate_stat
 from analysis.team_scores import stat_columns
 from analysis.waiver_ranking import filter_by_position, rank_players
 from auth.oauth import clear_session, get_session
-from data import matchups, schedule as schedule_module, scoreboard as scoreboard_module
+from data import schedule as schedule_module, scoreboard as scoreboard_module
 from data.players import get_available_players
+from pages._common import load_matchups, require_auth
 
 # ---------------------------------------------------------------------------
-# Guards
+# Guards + data load
+# We need the matchup DataFrame for stat category names to drive the multi-select.
 # ---------------------------------------------------------------------------
 
-if "tokens" not in st.session_state:
-    st.warning("Please log in first.")
-    st.stop()
-
-league_key = st.session_state.get("league_key")
-if not league_key:
-    st.warning("Please select a league on the home page.")
-    st.stop()
-
-# We need the stat category names from the matchups DataFrame to drive the
-# multi-select. Load matchups if not already in session (same pattern as other pages).
-if (
-    "matchups_df" not in st.session_state
-    or st.session_state.get("matchups_league_key") != league_key
-):
-    session = get_session()
-    if session is None:
-        st.error("Your session has expired. Please log in again.")
-        clear_session()
-        st.stop()
-
-    with st.spinner("Loading league data…"):
-        try:
-            df_matchups = matchups.get_matchups(session, league_key)
-        except Exception as e:
-            st.error(f"Failed to load league data: {e}")
-            st.stop()
-
-    st.session_state["matchups_df"] = df_matchups
-    st.session_state["matchups_league_key"] = league_key
+league_key = require_auth()
+load_matchups(league_key)
 
 df_matchups = st.session_state.get("matchups_df")
 if df_matchups is None or df_matchups.empty:
@@ -177,11 +152,7 @@ else:
 display_cols = meta_cols + stat_cols_to_show + ["composite_rank"]
 display_df = ranked_df[[c for c in display_cols if c in ranked_df.columns]]
 
-# Format stat columns as integers or 2dp for rate stats
-def _is_rate_stat(name: str) -> bool:
-    lower = name.lower()
-    return "average" in lower or "percentage" in lower or "%" in name
-
+# Format stat columns: integers for counting stats, 2dp for rate stats (GAA, SV%, etc.)
 format_map = {"games_remaining": "{:.0f}"}
 for col in stat_cols_to_show:
     format_map[col] = "{:.2f}" if _is_rate_stat(col) else "{:.0f}"

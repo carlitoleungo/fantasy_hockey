@@ -101,6 +101,46 @@ def get_stat_categories(session, league_key: str) -> list[dict]:
     return categories
 
 
+def get_settings_and_categories(
+    session, league_key: str
+) -> tuple[dict, list[dict]]:
+    """
+    Return league settings and stat categories in a single API call.
+
+    Combines get_league_settings() and get_stat_categories() to avoid hitting
+    /league/{key}/settings twice when both are needed (e.g. the projection page).
+
+    Returns:
+        settings:   {current_week, start_week, end_week}
+        categories: same list as get_stat_categories()
+    """
+    data = _get(session, f"{BASE_URL}/league/{league_key}/settings")
+    league = data["fantasy_content"]["league"]
+
+    settings = {
+        "current_week": int(league["current_week"]),
+        "start_week": int(league["start_week"]),
+        "end_week": int(league["end_week"]),
+    }
+
+    raw_stats = league["settings"]["stat_categories"]["stats"]["stat"]
+    categories = []
+    for stat in _as_list(raw_stats):
+        pos_types = _as_list(stat["stat_position_types"]["stat_position_type"])
+        is_display = any(
+            p.get("is_only_display_stat", "0") == "1" for p in pos_types
+        )
+        categories.append({
+            "stat_id": stat["stat_id"],
+            "stat_name": stat["name"],
+            "abbreviation": stat["display_name"],
+            "stat_group": stat["group"],
+            "is_enabled": not is_display,
+        })
+
+    return settings, categories
+
+
 def get_teams(session, league_key: str) -> list[dict]:
     """Return a list of team dicts for the league."""
     data = _get(session, f"{BASE_URL}/league/{league_key}/teams")

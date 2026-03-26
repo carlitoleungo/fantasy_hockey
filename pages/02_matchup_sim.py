@@ -12,46 +12,14 @@ in st.session_state["matchups_df"].
 import streamlit as st
 
 from analysis.matchup_sim import simulate, tally
-from analysis.team_scores import stat_columns
-from auth.oauth import clear_session, get_session
-from data import matchups
+from pages._common import load_matchups, require_auth
 
 # ---------------------------------------------------------------------------
-# Guards
+# Guards + data load (shared session-state cache with league overview page)
 # ---------------------------------------------------------------------------
 
-if "tokens" not in st.session_state:
-    st.warning("Please log in first.")
-    st.stop()
-
-league_key = st.session_state.get("league_key")
-if not league_key:
-    st.warning("Please select a league on the home page.")
-    st.stop()
-
-# ---------------------------------------------------------------------------
-# Load data (shared session-state cache with league overview page)
-# ---------------------------------------------------------------------------
-
-if (
-    "matchups_df" not in st.session_state
-    or st.session_state.get("matchups_league_key") != league_key
-):
-    session = get_session()
-    if session is None:
-        st.error("Your session has expired. Please log in again.")
-        clear_session()
-        st.stop()
-
-    with st.spinner("Loading matchup data…"):
-        try:
-            df = matchups.get_matchups(session, league_key)
-        except Exception as e:
-            st.error(f"Failed to load matchup data: {e}")
-            st.stop()
-
-    st.session_state["matchups_df"] = df
-    st.session_state["matchups_league_key"] = league_key
+league_key = require_auth()
+load_matchups(league_key)
 
 df = st.session_state.get("matchups_df")
 
@@ -157,7 +125,6 @@ def _highlight_winner(row):
     return styles
 
 
-stat_cols = stat_columns(df)
 format_map = {team_a: "{:.2f}", team_b: "{:.2f}"}
 
 styled = (
