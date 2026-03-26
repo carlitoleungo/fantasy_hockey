@@ -107,6 +107,16 @@ def test_get_team_roster_url():
     assert "week=7" in url
 
 
+def test_get_team_roster_date_url():
+    """date= param produces roster;date=... URL (used by projection page)."""
+    with patch("data.roster._get", return_value=load("team_roster.json")) as mock_get:
+        roster_module.get_team_roster(SESSION, TEAM_KEY, date="2026-03-26")
+
+    url = mock_get.call_args[0][1]
+    assert f"/team/{TEAM_KEY}/roster" in url
+    assert "date=2026-03-26" in url
+
+
 def test_get_team_roster_empty_returns_empty_list():
     response = {
         "fantasy_content": {

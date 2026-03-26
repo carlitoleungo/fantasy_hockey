@@ -147,8 +147,12 @@ if pair_key not in st.session_state:
 
     with st.spinner("Fetching rosters and NHL schedule…"):
         try:
-            my_roster = roster_module.get_team_roster(session, my_team_key, current_week)
-            opp_roster = roster_module.get_team_roster(session, opponent_key, current_week)
+            # Use today's date so dropped players are excluded from projections.
+            # (A player dropped mid-week should no longer contribute projected points,
+            # though their past points are already captured in the live team totals.)
+            today_str = date.today().isoformat()
+            my_roster = roster_module.get_team_roster(session, my_team_key, date=today_str)
+            opp_roster = roster_module.get_team_roster(session, opponent_key, date=today_str)
 
             all_player_keys = [p["player_key"] for p in my_roster + opp_roster]
             all_abbrs = list({p["team_abbr"] for p in my_roster + opp_roster if p["team_abbr"]})
