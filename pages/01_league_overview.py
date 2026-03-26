@@ -25,11 +25,13 @@ from analysis.team_scores import (
     weekly_scores_ranked,
 )
 from utils.common import load_matchups, require_auth
+from utils.theme import inject_css
 
 # ---------------------------------------------------------------------------
 # Guards + data load
 # ---------------------------------------------------------------------------
 
+inject_css()
 league_key = require_auth()
 load_matchups(league_key)
 
@@ -44,33 +46,182 @@ if df is None or df.empty:
 # HTML table builder
 # ---------------------------------------------------------------------------
 
+# Embed the design system CSS within each st.html() call.
+# st.html() renders in a shadow context, so global CSS from inject_css()
+# may not reach it — we include the critical table styles inline here.
 _TABLE_CSS = """
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,700;1,400;1,700&family=Manrope:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap');
+:root {
+    --c-surface:            #131312;
+    --c-surface-low:        #1c1c1a;
+    --c-surface-container:  #20201e;
+    --c-surface-highest:    #353532;
+    --c-primary:            #90d4c1;
+    --c-primary-container:  #266b5c;
+    --c-on-primary-container: #a5e9d6;
+    --c-secondary:          #fbbb5b;
+    --c-on-surface:         #e5e2de;
+    --c-outline:            #89938f;
+    --c-outline-variant:    #3f4945;
+    --c-error:              #ffb4ab;
+    --c-error-container:    #93000a;
+}
+* { box-sizing: border-box; }
+.fh-table-wrap { overflow-x: auto; }
 .fh-table {
-    border-collapse: collapse;
     width: 100%;
-    font-size: 0.875rem;
+    border-collapse: collapse;
+    font-size: 0.75rem;
+}
+.fh-table thead tr {
+    background-color: rgba(53,53,50,0.3);
+    border-bottom: 1px solid rgba(63,73,69,0.1);
 }
 .fh-table th {
-    background-color: #262730;
-    color: #fafafa;
-    padding: 6px 10px;
+    padding: 14px 16px;
+    font-family: 'Manrope', sans-serif;
+    font-size: 0.625rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--c-outline);
+    font-weight: 700;
     text-align: left;
-    border-bottom: 2px solid rgba(148,163,184,0.3);
+    white-space: nowrap;
 }
+.fh-table tbody tr {
+    border-bottom: 1px solid rgba(63,73,69,0.05);
+    transition: background-color 0.12s;
+}
+.fh-table tbody tr:hover { background-color: rgba(32,32,30,0.5); }
 .fh-table td {
-    padding: 5px 10px;
-    border-bottom: 1px solid rgba(148,163,184,0.15);
+    padding: 14px 16px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.75rem;
+    color: var(--c-on-surface);
+    white-space: nowrap;
 }
-/* Blue outer border for selected rows — no internal cell borders within the row */
-.fh-table tr.selected td {
-    border-top: 2px solid #4A90D9 !important;
-    border-bottom: 2px solid #4A90D9 !important;
-    border-left: none;
-    border-right: none;
+/* Selected (comparison team) rows */
+.fh-row-selected { background-color: rgba(38,107,92,0.08) !important; }
+.fh-row-selected td:first-child {
+    border-left: 3px solid var(--c-primary-container) !important;
+    color: var(--c-primary) !important;
+    font-family: 'Manrope', sans-serif !important;
+    font-weight: 700 !important;
 }
-.fh-table tr.selected td:first-child { border-left: 2px solid #4A90D9 !important; }
-.fh-table tr.selected td:last-child  { border-right: 2px solid #4A90D9 !important; }
+/* Comparison table: winner / loser cells */
+.fh-cell-win {
+    background-color: rgba(38,107,92,0.4);
+    color: var(--c-on-primary-container);
+    font-weight: 700;
+    font-family: 'Manrope', sans-serif;
+}
+.fh-cell-lose { color: var(--c-outline); }
+/* Card header inside st.html */
+.fh-card-inner-header {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid rgba(63,73,69,0.05);
+}
+.fh-card-inner-title {
+    font-family: 'Newsreader', serif;
+    font-size: 1.5rem;
+    color: var(--c-on-surface);
+    margin: 0;
+}
+/* Metric row */
+.fh-metric-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1.5rem;
+    margin: 0;
+}
+.fh-metric-card {
+    background-color: var(--c-surface-container);
+    border-radius: 12px;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+.fh-metric-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+.fh-metric-label {
+    font-family: 'Manrope', sans-serif;
+    font-size: 0.5625rem;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    font-weight: 700;
+}
+.fh-metric-value {
+    font-family: 'Newsreader', serif;
+    font-size: 3rem;
+    font-style: italic;
+    font-weight: 700;
+    color: var(--c-on-surface);
+    line-height: 1;
+}
+/* Section header with rule */
+.fh-section-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin: 0 0 1.5rem 0;
+}
+.fh-section-title {
+    font-family: 'Newsreader', serif;
+    font-size: 1.5rem;
+    font-style: italic;
+    color: var(--c-on-surface);
+    margin: 0;
+    white-space: nowrap;
+}
+.fh-section-rule {
+    flex: 1;
+    height: 1px;
+    background-color: rgba(63,73,69,0.2);
+}
+/* Comparison detail table */
+.fh-cmp-header {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    padding: 12px 16px;
+    background-color: rgba(53,53,50,0.2);
+    border-bottom: 1px solid rgba(63,73,69,0.1);
+}
+.fh-cmp-col-label {
+    font-family: 'Manrope', sans-serif;
+    font-size: 0.5625rem;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    font-weight: 700;
+    color: var(--c-outline);
+}
+.fh-cmp-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    align-items: center;
+    border-bottom: 1px solid rgba(63,73,69,0.05);
+    transition: background-color 0.12s;
+}
+.fh-cmp-row:hover { background-color: rgba(255,255,255,0.02); }
+.fh-cmp-cat {
+    padding: 14px 16px;
+    font-family: 'Manrope', sans-serif;
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #bfc9c4;
+}
+.fh-cmp-val {
+    padding: 14px 16px;
+    text-align: center;
+    font-family: 'Manrope', sans-serif;
+    font-size: 0.875rem;
+    color: var(--c-outline);
+}
 </style>
 """
 
@@ -85,13 +236,9 @@ def _html_table(
 
     Parameters
     ----------
-    df            : Pre-formatted DataFrame. All values are rendered as-is
-                    (call _fmt_* helpers first). Index must be a clean
-                    0-based RangeIndex so row positions match the dicts below.
-    cell_colors   : (row_idx, col_idx) → CSS color string. Applied as the
-                    background-color of that cell.
-    selected_rows : Row indices that receive a blue outer border (used to
-                    highlight the two comparison teams in the weekly scores table).
+    df            : Pre-formatted DataFrame. All values are rendered as-is.
+    cell_colors   : (row_idx, col_idx) → inline CSS color string for background.
+    selected_rows : Row indices that receive the teal left-border highlight.
     """
     cell_colors = cell_colors or {}
     selected_rows = selected_rows or set()
@@ -101,20 +248,22 @@ def _html_table(
 
     rows_html: list[str] = []
     for r_idx, row in df.iterrows():
-        row_class = ' class="selected"' if r_idx in selected_rows else ""
+        row_class = "fh-row-selected" if r_idx in selected_rows else ""
         cells: list[str] = []
         for c_idx, col in enumerate(headers):
             color = cell_colors.get((int(r_idx), c_idx))
             style = f' style="background-color:{color};"' if color else ""
             cells.append(f"<td{style}>{row[col]}</td>")
-        rows_html.append(f"<tr{row_class}>{''.join(cells)}</tr>")
+        rows_html.append(f'<tr class="{row_class}">{"".join(cells)}</tr>')
 
     return (
         f"{_TABLE_CSS}"
+        f'<div class="fh-table-wrap">'
         f"<table class='fh-table'>"
         f"<thead><tr>{header_html}</tr></thead>"
         f"<tbody>{''.join(rows_html)}</tbody>"
         f"</table>"
+        f"</div>"
     )
 
 
@@ -148,11 +297,11 @@ def _weekly_cell_colors(
         worst_val = series.max() if lower_better else series.min()
 
         for r_idx in series[series == best_val].index:
-            colors[(int(r_idx), c_idx)] = "#4ade80"
+            colors[(int(r_idx), c_idx)] = "rgba(38,107,92,0.4)"
         for r_idx in series[series == worst_val].index:
-            # Don't overwrite green (can happen if all teams have the same value)
+            # Don't overwrite best (can happen if all teams have the same value)
             if (int(r_idx), c_idx) not in colors:
-                colors[(int(r_idx), c_idx)] = "#f87171"
+                colors[(int(r_idx), c_idx)] = "rgba(147,0,10,0.2)"
 
     return colors
 
@@ -200,9 +349,9 @@ def _fmt_comparison(
         })
         # Column indices: 0 = Category, 1 = team_a, 2 = team_b
         if row.winner == team_a:
-            cell_colors[(r_idx, 1)] = "#4ade80"
+            cell_colors[(r_idx, 1)] = "rgba(38,107,92,0.4)"
         elif row.winner == team_b:
-            cell_colors[(r_idx, 2)] = "#4ade80"
+            cell_colors[(r_idx, 2)] = "rgba(38,107,92,0.4)"
 
     return pd.DataFrame(rows), cell_colors
 
@@ -211,10 +360,16 @@ def _fmt_comparison(
 # Page layout
 # ---------------------------------------------------------------------------
 
-st.title("League Overview")
-
 available_weeks = sorted(df["week"].unique())
 team_names = sorted(df["team_name"].unique())
+
+# --- Page header ---
+st.markdown("""
+<div class="fh-page-header">
+    <h1 class="fh-page-title">League Overview</h1>
+    <p class="fh-page-subtitle">Weekly Performance &amp; Head-to-Head Analysis</p>
+</div>
+""", unsafe_allow_html=True)
 
 # --- Controls: week + team selectors side-by-side ---
 
@@ -250,12 +405,10 @@ with ctrl_b:
 # Section 1: Weekly Scores
 # ---------------------------------------------------------------------------
 
-st.subheader("Weekly Scores")
-
 week_df = weekly_scores_ranked(df, selected_week).reset_index(drop=True)
 stat_cols = stat_columns(df)
 
-# Blue-border rows for the two comparison teams
+# Teal left-border highlight for the two comparison teams
 selected_rows: set[int] = {
     int(r_idx)
     for r_idx, row in week_df.iterrows()
@@ -265,9 +418,17 @@ selected_rows: set[int] = {
 cell_colors = _weekly_cell_colors(week_df, stat_cols)
 display_week_df = _fmt_weekly(week_df, stat_cols)
 
-st.html(_html_table(display_week_df, cell_colors, selected_rows))
-
-st.divider()
+leaderboard_html = (
+    f'<div style="background:#1c1c1a;border-radius:12px;border-left:4px solid #266b5c;'
+    f'overflow:hidden;margin-bottom:2.5rem;box-shadow:0 4px 24px rgba(0,0,0,0.3);">'
+    f'<div style="padding:1.5rem;border-bottom:1px solid rgba(63,73,69,0.05);">'
+    f'<h3 style="font-family:Newsreader,serif;font-size:1.5rem;color:#e5e2de;margin:0;">Weekly Leaderboard</h3>'
+    f'</div>'
+    + _html_table(display_week_df, cell_colors, selected_rows).replace(_TABLE_CSS, "", 1)
+    + f"</div>"
+)
+# Build the full card including embedded CSS
+st.html(_TABLE_CSS + leaderboard_html)
 
 # ---------------------------------------------------------------------------
 # Section 2: Team Comparison
@@ -277,15 +438,40 @@ if team_a == team_b:
     st.info("Select two different teams above to see a head-to-head breakdown.")
     st.stop()
 
-st.subheader(f"{team_a} vs {team_b} — Week {selected_week}")
-
 sim_df = simulate(df, team_a, team_b, from_week=selected_week, to_week=selected_week)
 counts = tally(sim_df, team_a, team_b)
 
-tcol1, tcol2, tcol3 = st.columns(3)
-tcol1.metric(team_a, f"{counts[team_a]} wins")
-tcol2.metric("Tied", str(counts["Tie"]))
-tcol3.metric(team_b, f"{counts[team_b]} wins")
+# Section header
+st.html(f"""
+{_TABLE_CSS}
+<div class="fh-section-header">
+    <h3 class="fh-section-title">Head-to-Head Comparison</h3>
+    <div class="fh-section-rule"></div>
+</div>
+<div class="fh-metric-row">
+    <div class="fh-metric-card" style="border:1px solid rgba(144,212,193,0.2);">
+        <div class="fh-metric-top">
+            <span class="fh-metric-label" style="color:#90d4c1;">{team_a} Wins</span>
+            <span style="font-size:0.875rem;">🏆</span>
+        </div>
+        <div class="fh-metric-value">{counts[team_a]}</div>
+    </div>
+    <div class="fh-metric-card" style="border:1px solid rgba(137,147,143,0.2);">
+        <div class="fh-metric-top">
+            <span class="fh-metric-label" style="color:#89938f;">Category Ties</span>
+            <span style="font-size:0.875rem;">=</span>
+        </div>
+        <div class="fh-metric-value">{counts["Tie"]}</div>
+    </div>
+    <div class="fh-metric-card" style="border:1px solid rgba(251,187,91,0.2);">
+        <div class="fh-metric-top">
+            <span class="fh-metric-label" style="color:#fbbb5b;">{team_b} Wins</span>
+            <span style="font-size:0.875rem;">🛡️</span>
+        </div>
+        <div class="fh-metric-value">{counts[team_b]}</div>
+    </div>
+</div>
+""")
 
 display_cmp_df, cmp_colors = _fmt_comparison(sim_df, team_a, team_b)
 st.html(_html_table(display_cmp_df, cmp_colors))

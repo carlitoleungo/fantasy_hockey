@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>The Kinetic Analyst | Login</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:wght@400;500;700&amp;family=Inter:wght@400;500;700&amp;family=Manrope:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">tailwind.config = {darkMode: "class", theme: {extend: {colors: {error: "#ffb4ab", "outline-variant": "#3f4945", "on-secondary-fixed": "#291800", "error-container": "#93000a", "on-secondary-container": "#ffedda", "surface-container": "#20201e", "on-background": "#e5e2de", "on-error-container": "#ffdad6", "inverse-surface": "#e5e2de", "surface-container-high": "#2a2a28", "secondary-container": "#956300", "on-surface-variant": "#bfc9c4", "secondary-fixed-dim": "#fbbb5b", "on-primary-fixed-variant": "#005143", "on-tertiary-container": "#ffd2c2", "on-surface": "#e5e2de", "on-secondary-fixed-variant": "#624000", "surface-container-low": "#1c1c1a", surface: "#131312", tertiary: "#ffb599", "on-tertiary-fixed": "#370e00", "surface-tint": "#90d4c1", "tertiary-container": "#9b4825", primary: "#90d4c1", "inverse-on-surface": "#31302e", "inverse-primary": "#24695a", "surface-container-lowest": "#0e0e0c", background: "#131312", "surface-bright": "#3a3937", secondary: "#fbbb5b", "tertiary-fixed-dim": "#ffb599", "on-secondary": "#442b00", "primary-fixed-dim": "#90d4c1", "secondary-fixed": "#ffddb2", "on-tertiary-fixed-variant": "#7a2f0e", "surface-dim": "#131312", "primary-container": "#266b5c", "on-error": "#690005", "surface-container-highest": "#353532", "surface-variant": "#353532", "on-primary-container": "#a5e9d6", outline: "#89938f", "tertiary-fixed": "#ffdbce", "on-primary-fixed": "#00201a", "on-primary": "#00382e", "primary-fixed": "#acf0dd", "on-tertiary": "#5a1c00", "yahoo-purple": "#6001D2"}, fontFamily: {headline: ["Newsreader"], body: ["Inter"], label: ["Manrope"], display: "Newsreader"}, borderRadius: {DEFAULT: "0.125rem", lg: "0.25rem", xl: "0.5rem", full: "0.75rem"}}}};</script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .tactical-grid {
+            background-image: radial-gradient(circle at 2px 2px, rgba(144, 144, 151, 0.1) 1px, transparent 0);
+            background-size: 32px 32px;
+        }
+        .glass-panel {
+            background: rgba(30, 30, 28, 0.8);
+            backdrop-filter: blur(20px);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body antialiased selection:bg-primary/30 min-h-screen flex items-center justify-center overflow-hidden">
+<!-- Organic Texture Background Layer -->
+<div class="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+<div class="absolute inset-0 tactical-grid"></div>
+<!-- Ambient Atmospheric Glows -->
+<div class="absolute -top-[20%] -left-[10%] w-[60%] h-[60%] bg-primary/5 rounded-full blur-[120px]"></div>
+<div class="absolute -bottom-[10%] -right-[5%] w-[50%] h-[50%] bg-secondary/5 rounded-full blur-[120px]"></div>
+</div>
+<!-- Main Content Canvas -->
+<main class="relative z-10 w-full max-w-md px-6 flex flex-col items-center">
+<!-- Brand Header Section -->
+<div class="text-center space-y-4 mb-12">
+<!-- Icon Symbol -->
+<div class="inline-flex items-center justify-center w-16 h-16 rounded-xl bg-surface-container-high border border-outline-variant/15 shadow-[0_12px_40px_rgba(6,14,32,0.4)] mb-6">
+<span class="material-symbols-outlined text-primary text-4xl" data-icon="insights" style="font-variation-settings: 'FILL' 1;">insights</span>
+</div>
+<h1 class="font-headline font-black text-4xl tracking-tighter uppercase text-on-surface decoration-primary/50">
+                The Kinetic Analyst
+            </h1>
+<p class="font-headline font-semibold text-tertiary tracking-tight text-lg">
+                Elite Tactical Command
+            </p>
+</div>
+<!-- Login Card -->
+<div class="w-full glass-panel border border-outline-variant/15 rounded-xl p-8 shadow-[0_24px_64px_rgba(6,14,32,0.6)] space-y-8">
+<div class="space-y-2 text-center">
+<h2 class="font-headline text-xl font-bold tracking-tight text-on-surface">
+                    Fantasy Hockey Manager
+                </h2>
+<p class="text-on-surface-variant text-sm font-medium">
+                    Connect your Yahoo Fantasy account to get started
+                </p>
+</div>
+<div class="space-y-6">
+<!-- Primary Action -->
+<button class="w-full group relative flex items-center justify-center gap-3 py-4 bg-[#6001D2] rounded-lg font-headline font-extrabold text-white tracking-tight transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shadow-[0_8px_20px_rgba(96,1,210,0.3)]">
+<span class="material-symbols-outlined text-xl" data-icon="login">login</span>
+                    Login with Yahoo
+                    <div class="absolute inset-0 rounded-lg bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+</button>
+<!-- Footer Links inside the Card -->
+<div class="pt-4 flex flex-col gap-4">
+<div class="flex items-center justify-center gap-2 text-xs font-bold tracking-widest uppercase text-outline">
+<span class="h-px w-8 bg-outline-variant/30"></span>
+                        Secure Infrastructure
+                        <span class="h-px w-8 bg-outline-variant/30"></span>
+</div>
+<div class="flex justify-center gap-6">
+<a class="text-xs font-bold text-tertiary hover:text-white transition-colors" href="#">Privacy Policy</a>
+<a class="text-xs font-bold text-tertiary hover:text-white transition-colors" href="#">Support</a>
+</div>
+</div>
+</div>
+</div>
+<!-- System Branding / Status Footer -->
+<div class="mt-12 text-center">
+<div class="flex items-center justify-center gap-2 text-[10px] font-bold tracking-widest text-outline uppercase">
+<div class="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_8px_rgba(74,225,118,0.6)]"></div>
+                Tactical Core v4.2.0 Active
+            </div>
+</div>
+</main>
+<!-- Decorative Corner Accents -->
+<div class="fixed top-8 left-8 hidden lg:block">
+<div class="w-12 h-[2px] bg-outline-variant/20 mb-2"></div>
+<div class="w-[2px] h-12 bg-outline-variant/20"></div>
+</div>
+<div class="fixed bottom-8 right-8 hidden lg:block rotate-180">
+<div class="w-12 h-[2px] bg-outline-variant/20 mb-2"></div>
+<div class="w-[2px] h-12 bg-outline-variant/20"></div>
+</div>
+</body></html>

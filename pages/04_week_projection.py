@@ -23,11 +23,13 @@ from data import client, players as players_module, roster as roster_module
 from data import schedule as schedule_module
 from data import scoreboard as scoreboard_module
 from utils.common import require_auth
+from utils.theme import inject_css
 
 # ---------------------------------------------------------------------------
 # Guards
 # ---------------------------------------------------------------------------
 
+inject_css()
 league_key = require_auth()
 
 # ---------------------------------------------------------------------------
@@ -36,9 +38,14 @@ league_key = require_auth()
 
 title_col, btn_col = st.columns([5, 1])
 with title_col:
-    st.title("Week Projection")
+    st.markdown("""
+    <div class="fh-page-header">
+        <h1 class="fh-page-title">Week Projection</h1>
+        <p class="fh-page-subtitle">Live matchup score &amp; projected finish</p>
+    </div>
+    """, unsafe_allow_html=True)
 with btn_col:
-    st.write("")  # vertical alignment nudge
+    st.markdown('<div style="margin-top:1.75rem;"></div>', unsafe_allow_html=True)
     refresh = st.button("↻ Refresh", key="proj_refresh")
 
 if refresh:
@@ -106,7 +113,8 @@ enabled_stats = [c["stat_name"] for c in stat_categories if c["is_enabled"]]
 team_name_to_key = {t["team_name"]: t["team_key"] for t in teams}
 team_names = sorted(team_name_to_key.keys())
 
-my_team_name = st.selectbox("My team", options=team_names, key="proj_my_team")
+my_team_name = st.selectbox("My team", options=team_names, key="proj_my_team",
+                           label_visibility="collapsed")
 my_team_key = team_name_to_key[my_team_name]
 
 # Resolve opponent from scoreboard matchup pairings
@@ -127,9 +135,12 @@ opponent_name = next(
     (t["team_name"] for t in teams if t["team_key"] == opponent_key),
     opponent_key,
 )
-st.caption(
-    f"Week {current_week} · {scoreboard_data['week_start']} – {scoreboard_data['week_end']}"
-    f" · vs **{opponent_name}**"
+st.markdown(
+    f'<p class="fh-page-subtitle" style="margin-bottom:1.5rem;">'
+    f"Matchup: Week {current_week} vs {opponent_name} · "
+    f"{scoreboard_data['week_start']} – {scoreboard_data['week_end']}"
+    f"</p>",
+    unsafe_allow_html=True,
 )
 
 # ---------------------------------------------------------------------------
@@ -222,13 +233,61 @@ sim_rows = [
 sim_df = pd.DataFrame(sim_rows)
 counts = tally(sim_df, my_team_name, opponent_name)
 
-tcol1, tcol2 = st.columns(2)
-with tcol1:
-    st.markdown(f"### {my_team_name}")
-    st.markdown(f"## {counts[my_team_name]}")
-with tcol2:
-    st.markdown(f"### {opponent_name}")
-    st.markdown(f"## {counts[opponent_name]}")
+st.markdown(f"""
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.5rem;margin-bottom:2rem;">
+    <!-- My team -->
+    <div style="
+        background:#1c1c1a; border-radius:12px; padding:2rem;
+        border-left:4px solid #90d4c1;
+        display:flex; flex-direction:column; align-items:center; justify-content:center;
+        text-align:center; position:relative; overflow:hidden;
+        box-shadow:0 4px 24px rgba(0,0,0,0.3);
+    ">
+        <div style="position:absolute;top:-20%;right:-15%;width:120px;height:120px;
+            background:rgba(144,212,193,0.08);border-radius:50%;filter:blur(40px);"></div>
+        <p style="font-family:'Manrope',sans-serif;font-size:0.6875rem;text-transform:uppercase;
+            letter-spacing:0.2em;color:#89938f;margin:0 0 1rem 0;font-weight:500;">{my_team_name}</p>
+        <div style="font-family:'Newsreader',serif;font-size:4.5rem;font-weight:700;
+            color:#90d4c1;line-height:1;">{counts[my_team_name]}</div>
+        <p style="font-family:'Manrope',sans-serif;font-size:0.5625rem;text-transform:uppercase;
+            letter-spacing:0.2em;color:#89938f;margin:0.5rem 0 0 0;font-weight:700;">Projected Wins</p>
+    </div>
+    <!-- Tied -->
+    <div style="
+        background:#1c1c1a; border-radius:12px; padding:2rem;
+        border-left:4px solid rgba(137,147,143,0.2);
+        display:flex; flex-direction:column; align-items:center; justify-content:center;
+        text-align:center; position:relative; overflow:hidden;
+        box-shadow:0 4px 24px rgba(0,0,0,0.3);
+    ">
+        <div style="position:absolute;top:-20%;right:-15%;width:120px;height:120px;
+            background:rgba(137,147,143,0.05);border-radius:50%;filter:blur(40px);"></div>
+        <p style="font-family:'Manrope',sans-serif;font-size:0.6875rem;text-transform:uppercase;
+            letter-spacing:0.2em;color:#89938f;margin:0 0 1rem 0;font-weight:500;">Tied</p>
+        <div style="font-family:'Newsreader',serif;font-size:4.5rem;font-weight:700;
+            color:#e5e2de;line-height:1;">{counts["Tie"]}</div>
+        <p style="font-family:'Manrope',sans-serif;font-size:0.5625rem;text-transform:uppercase;
+            letter-spacing:0.2em;color:#89938f;margin:0.5rem 0 0 0;font-weight:700;">Categories</p>
+    </div>
+    <!-- Opponent -->
+    <div style="
+        background:#1c1c1a; border-radius:12px; padding:2rem;
+        border-left:4px solid #ffb599;
+        display:flex; flex-direction:column; align-items:center; justify-content:center;
+        text-align:center; position:relative; overflow:hidden;
+        box-shadow:0 4px 24px rgba(0,0,0,0.3);
+    ">
+        <div style="position:absolute;top:-20%;right:-15%;width:120px;height:120px;
+            background:rgba(255,181,153,0.05);border-radius:50%;filter:blur(40px);"></div>
+        <p style="font-family:'Manrope',sans-serif;font-size:0.6875rem;text-transform:uppercase;
+            letter-spacing:0.2em;color:#89938f;margin:0 0 1rem 0;font-weight:500;">{opponent_name}</p>
+        <div style="font-family:'Newsreader',serif;font-size:4.5rem;font-weight:700;
+            color:#ffb599;line-height:1;">{counts[opponent_name]}</div>
+        <p style="font-family:'Manrope',sans-serif;font-size:0.5625rem;text-transform:uppercase;
+            letter-spacing:0.2em;color:#89938f;margin:0.5rem 0 0 0;font-weight:700;">Projected Wins</p>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
 # ---------------------------------------------------------------------------
 # Projection table
@@ -258,13 +317,16 @@ display_df = raw_df.drop(columns=["_winner"])
 
 def _highlight_winner(row):
     styles = [""] * len(row)
-    green = "background-color: rgba(0, 180, 0, 0.25)"
     cols = list(row.index)
     winner = winners.iloc[row.name]
     if winner == "team_a":
-        styles[cols.index(my_proj_col)] = green
+        styles[cols.index(my_proj_col)] = (
+            "background-color: rgba(38,107,92,0.15); color: #a5e9d6; font-weight: 600"
+        )
     elif winner == "team_b":
-        styles[cols.index(opp_proj_col)] = green
+        styles[cols.index(opp_proj_col)] = (
+            "background-color: rgba(147,0,10,0.1); color: #ffb599; font-weight: 600"
+        )
     return styles
 
 
@@ -318,7 +380,13 @@ def _player_breakdown(roster, lastmonth_stats, games_remaining, stat_categories)
 breakdown_fmt = {s: "{:.1f}" for s in enabled_stats}
 breakdown_fmt["Games Left"] = "{:.0f}"
 
-st.subheader("Projection breakdown")
+st.markdown("""
+<div style="display:flex;align-items:center;gap:1rem;margin:2rem 0 1rem 0;">
+    <h3 style="font-family:'Newsreader',serif;font-size:1.5rem;font-style:italic;
+        color:#e5e2de;margin:0;white-space:nowrap;">Roster Breakdown</h3>
+    <div style="flex:1;height:1px;background:rgba(63,73,69,0.2);"></div>
+</div>
+""", unsafe_allow_html=True)
 tab_my, tab_opp = st.tabs([my_team_name, opponent_name])
 
 with tab_my:
