@@ -215,6 +215,28 @@ with st.sidebar:
 
         st.session_state["league_key"] = selected_key
 
+        # Warn if the selected league uses a scoring format not yet fully supported.
+        # Don't filter it out — support for other formats is planned.
+        _SCORING_LABELS = {
+            "head":       "head-to-head categories",
+            "headpoint":  "head-to-head points",
+            "point":      "rotisserie points",
+            "rotisserie": "rotisserie categories",
+        }
+        _SUPPORTED = {"head"}
+        selected_league = next(
+            (lg for lg in leagues if lg["league_key"] == selected_key), None
+        )
+        if selected_league:
+            scoring = selected_league.get("scoring_type", "")
+            if scoring not in _SUPPORTED:
+                label = _SCORING_LABELS.get(scoring, scoring)
+                st.warning(
+                    f"This league uses **{label}** scoring. "
+                    "Full support for this format is coming soon — "
+                    "some features may not work correctly."
+                )
+
     else:
         st.warning("No active leagues found for your account.")
 
