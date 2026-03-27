@@ -97,7 +97,7 @@ if "tokens" not in st.session_state:
 [data-testid="stLinkButton"] a {
   display:inline-flex !important; align-items:center !important; justify-content:center !important;
   gap:10px !important; background:#ffffff !important; color:#6001D2 !important;
-  border-radius:8px !important; padding:13px 24px !important; width:100% !important;
+  border-radius:8px !important; padding:13px 28px !important;
   font-family:'Manrope',sans-serif !important; font-weight:700 !important;
   font-size:0.9375rem !important; text-decoration:none !important;
   box-shadow:0 2px 10px rgba(0,0,0,0.25) !important;
@@ -123,10 +123,17 @@ if "tokens" not in st.session_state:
         """, unsafe_allow_html=True)
 
         if has_creds:
-            st.link_button("Sign in with Yahoo", url=auth_url, use_container_width=True)
+            st.link_button("Sign in with Yahoo", url=auth_url)
             with st.expander("OAuth debug info"):
                 st.caption(f"Redirect URI: `{redirect_uri_used}`")
                 st.caption("This must exactly match a URI registered in your Yahoo developer console (no trailing slash).")
+        st.markdown(
+            f'<p style="font-family:\'Manrope\',sans-serif;font-size:0.5625rem;'
+            f'color:rgba(137,147,143,0.35);text-align:center;margin-top:16px;'
+            f'letter-spacing:0.1em;text-transform:uppercase;">'
+            f'build {get_build_id()}</p>',
+            unsafe_allow_html=True,
+        )
         else:
             st.error("Yahoo credentials not configured. Copy `.streamlit/secrets.toml.example` to `.streamlit/secrets.toml` and fill in your client ID and secret.")
 
