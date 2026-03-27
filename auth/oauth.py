@@ -130,7 +130,7 @@ def clear_session() -> None:
 # ---------------------------------------------------------------------------
 
 def _redirect_uri() -> str:
-    return st.secrets["yahoo"].get("redirect_uri", "https://localhost:8501")
+    return st.secrets["yahoo"].get("redirect_uri", "https://localhost:8501").strip()
 
 
 def _client_id() -> str:
