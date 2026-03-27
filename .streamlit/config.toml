@@ -1,3 +1,4 @@
 [server]
-sslCertFile = "localhost.pem"
-sslKeyFile = "localhost-key.pem"
+# SSL is handled automatically by Streamlit Community Cloud in production.
+# For local HTTPS development, add sslCertFile / sslKeyFile here and
+# git-ignore the cert files — do not commit them.
