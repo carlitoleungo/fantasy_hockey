@@ -337,6 +337,14 @@ hr {
     margin: 0.25rem 0 0 0;
     font-weight: 700;
 }
+.fh-page-instructions {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.8125rem;
+    color: var(--c-outline);
+    margin: 0.75rem 0 0 0;
+    line-height: 1.6;
+    max-width: 640px;
+}
 
 /* Section card with teal left border */
 .fh-card {

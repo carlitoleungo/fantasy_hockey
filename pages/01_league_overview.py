@@ -379,7 +379,8 @@ team_names = sorted(df["team_name"].unique())
 st.markdown("""
 <div class="fh-page-header">
     <h1 class="fh-page-title">League Overview</h1>
-    <p class="fh-page-subtitle">Weekly Performance &amp; Head-to-Head Analysis</p>
+    <p class="fh-page-subtitle">See where your team stands, week by week.</p>
+    <p class="fh-page-instructions">Select a week and two teams to compare. Green highlights the category leader for that week; red marks the weakest. The head-to-head breakdown below shows exactly which categories each team wins for the selected matchup.</p>
 </div>
 """, unsafe_allow_html=True)
 

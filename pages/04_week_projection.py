@@ -41,7 +41,8 @@ with title_col:
     st.markdown("""
     <div class="fh-page-header">
         <h1 class="fh-page-title">Week Projection</h1>
-        <p class="fh-page-subtitle">Live matchup score &amp; projected finish</p>
+        <p class="fh-page-subtitle">See how your current matchup is likely to end.</p>
+        <p class="fh-page-instructions">Select your team and your opponent. Each category is projected using rostered players&#8217; last-30-day per-game averages multiplied by their remaining NHL games this week. Hit Refresh to update rosters and live stats.</p>
     </div>
     """, unsafe_allow_html=True)
 with btn_col:

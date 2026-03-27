@@ -123,7 +123,11 @@ header_col, refresh_col = st.columns([10, 2])
 with header_col:
     st.markdown('<h1 class="fh-page-title">Waiver Wire</h1>', unsafe_allow_html=True)
     st.markdown(
-        '<p class="fh-page-subtitle">Precision scouting for the deep league manager</p>',
+        '<p class="fh-page-subtitle">Find the best available players for your weakest categories.</p>'
+        '<p class="fh-page-instructions">Pick the stats you want to improve, then narrow by position if needed. '
+        'Players are ranked by combined performance across your selected categories — lower composite rank is better. '
+        'Toggle between season totals and last 30 days to separate consistent producers from hot streaks. '
+        'Refresh pulls live availability from Yahoo.</p>',
         unsafe_allow_html=True,
     )
 with refresh_col:
