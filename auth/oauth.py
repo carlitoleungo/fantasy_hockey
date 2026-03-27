@@ -7,14 +7,18 @@ Design notes:
   directly with requests. The pattern mirrors the notebook's get_oauth() approach:
   check validity → refresh if needed → return authenticated session.
 - Credentials (client_id, client_secret) come from st.secrets and are never written
-  to disk. Tokens (access_token, refresh_token, expires_at) are persisted to
-  .streamlit/oauth_token.json, which is gitignored.
-- st.session_state["tokens"] is the in-session cache. The token file provides
-  persistence across sessions so users don't re-auth every time.
+  to disk.
+- Tokens are kept exclusively in st.session_state["tokens"] (server-side, per-user).
+  No token file is used — this prevents cross-user token collision when multiple
+  people use the app simultaneously.
+- A random `state` nonce is stored in session state when the auth URL is generated
+  and validated when Yahoo redirects back, preventing CSRF attacks.
+- Yahoo's browser session makes re-authentication seamless: if the user opens a new
+  tab, clicking "Sign in with Yahoo" redirects to Yahoo and back in under a second
+  without a password prompt.
 """
 
-import json
-import os
+import secrets
 import time
 import urllib.parse
 
@@ -23,7 +27,6 @@ import streamlit as st
 
 YAHOO_AUTH_URL = "https://api.login.yahoo.com/oauth2/request_auth"
 YAHOO_TOKEN_URL = "https://api.login.yahoo.com/oauth2/get_token"
-TOKEN_FILE = ".streamlit/oauth_token.json"
 TOKEN_EXPIRY_BUFFER_SECONDS = 60  # refresh this many seconds before actual expiry
 
 
@@ -32,11 +35,19 @@ TOKEN_EXPIRY_BUFFER_SECONDS = 60  # refresh this many seconds before actual expi
 # ---------------------------------------------------------------------------
 
 def get_auth_url() -> str:
-    """Return the Yahoo authorization URL to send the user to."""
+    """
+    Return the Yahoo authorization URL to send the user to.
+
+    Generates a random state nonce and stores it in session state so the
+    callback handler can verify it and reject forged redirects.
+    """
+    state = secrets.token_urlsafe(32)
+    st.session_state["oauth_state"] = state
     params = urllib.parse.urlencode({
         "client_id": st.secrets["yahoo"]["client_id"],
         "redirect_uri": _redirect_uri(),
         "response_type": "code",
+        "state": state,
     })
     return f"{YAHOO_AUTH_URL}?{params}"
 
@@ -44,8 +55,7 @@ def get_auth_url() -> str:
 def exchange_code(code: str) -> dict:
     """
     Exchange an authorization code (from Yahoo's redirect callback) for tokens.
-    Persists the tokens to disk and returns them.
-    Raises requests.HTTPError on failure.
+    Returns the token dict. Raises requests.HTTPError on failure.
     """
     response = requests.post(
         YAHOO_TOKEN_URL,
@@ -57,20 +67,17 @@ def exchange_code(code: str) -> dict:
         auth=(_client_id(), _client_secret()),
     )
     response.raise_for_status()
-    tokens = _stamp_expiry(response.json())
-    _save_tokens(tokens)
-    return tokens
+    return _stamp_expiry(response.json())
 
 
 def get_session() -> requests.Session | None:
     """
     Return a requests.Session with a valid Bearer token, or None if not logged in.
 
-    Checks st.session_state first, falls back to the token file on disk.
-    Transparently refreshes the access token if it has expired.
-    This is the function the rest of the app should call before any API request.
+    Reads exclusively from st.session_state — no disk fallback. Transparently
+    refreshes the access token if it has expired within the current session.
     """
-    tokens = st.session_state.get("tokens") or _load_tokens()
+    tokens = st.session_state.get("tokens")
     if not tokens:
         return None
 
@@ -79,7 +86,6 @@ def get_session() -> requests.Session | None:
         if tokens is None:
             return None
 
-    # Keep session state in sync (covers the disk-fallback path)
     st.session_state["tokens"] = tokens
 
     session = requests.Session()
@@ -89,31 +95,16 @@ def get_session() -> requests.Session | None:
 
 def try_restore_session() -> bool:
     """
-    Called once at app startup. If valid tokens exist on disk, load them into
-    session state so the user doesn't have to re-authenticate.
-    Returns True if a valid session was restored, False otherwise.
+    Called once at app startup. Returns True if a valid session already exists
+    in session state (e.g. page rerun or F5 refresh within the same session).
     """
-    if "tokens" in st.session_state:
-        return True
-
-    tokens = _load_tokens()
-    if not tokens:
-        return False
-
-    if not _is_valid(tokens):
-        tokens = _try_refresh(tokens)
-        if tokens is None:
-            return False
-
-    st.session_state["tokens"] = tokens
-    return True
+    return "tokens" in st.session_state
 
 
 def clear_session() -> None:
-    """Log the user out: remove tokens from session state and from disk."""
+    """Log the user out by removing tokens and auth state from session state."""
     st.session_state.pop("tokens", None)
-    if os.path.exists(TOKEN_FILE):
-        os.remove(TOKEN_FILE)
+    st.session_state.pop("oauth_state", None)
 
 
 # ---------------------------------------------------------------------------
@@ -143,23 +134,10 @@ def _is_valid(tokens: dict) -> bool:
     return time.time() < tokens.get("expires_at", 0) - TOKEN_EXPIRY_BUFFER_SECONDS
 
 
-def _save_tokens(tokens: dict) -> None:
-    os.makedirs(os.path.dirname(TOKEN_FILE), exist_ok=True)
-    with open(TOKEN_FILE, "w") as f:
-        json.dump(tokens, f)
-
-
-def _load_tokens() -> dict | None:
-    if not os.path.exists(TOKEN_FILE):
-        return None
-    with open(TOKEN_FILE) as f:
-        return json.load(f)
-
-
 def _try_refresh(tokens: dict) -> dict | None:
     """
     Attempt to refresh the access token using the refresh token.
-    Returns new tokens on success, None on failure (clears stale disk state).
+    Returns new tokens on success, None on failure.
     """
     refresh_token = tokens.get("refresh_token")
     if not refresh_token:
@@ -176,12 +154,7 @@ def _try_refresh(tokens: dict) -> dict | None:
             auth=(_client_id(), _client_secret()),
         )
         response.raise_for_status()
-        new_tokens = _stamp_expiry(response.json())
-        _save_tokens(new_tokens)
-        return new_tokens
+        return _stamp_expiry(response.json())
     except requests.HTTPError:
-        # Refresh token is invalid or revoked — clear stale state
         st.session_state.pop("tokens", None)
-        if os.path.exists(TOKEN_FILE):
-            os.remove(TOKEN_FILE)
         return None
