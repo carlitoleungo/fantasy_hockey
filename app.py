@@ -62,11 +62,11 @@ if "tokens" not in st.session_state:
             max-width: 100% !important;
         }
         .block-container { padding: 0 !important; max-width: 100% !important; }
-        /* Collapse CSS-injection containers so they don't appear as grey boxes.
-           Style tags inside remain active even when their parent is zero-height. */
-        [data-testid="stMarkdownContainer"] {
-            height: 0 !important; overflow: hidden !important;
-            margin: 0 !important; padding: 0 !important;
+        /* Hide CSS-injection containers (only contain a <style> tag, no real content).
+           :not(:has(*:not(style))) = has no children other than style elements.
+           Style tags remain parsed and active even when their container is hidden. */
+        [data-testid="stMarkdownContainer"]:not(:has(*:not(style))) {
+            display: none !important;
         }
         /* Match page background to the login screen so any residual containers are invisible */
         html, body, [data-testid="stAppViewContainer"],
@@ -78,29 +78,16 @@ if "tokens" not in st.session_state:
 
         try:
             auth_url = get_auth_url()
-            login_btn_html = f"""
-            <a href="{auth_url}" target="_top" style="display:flex;align-items:center;justify-content:center;gap:12px;width:100%;padding:11px 18px;background-color:#ffffff;color:#3d0091;font-family:Arial,Helvetica,sans-serif;font-size:0.9375rem;font-weight:700;text-decoration:none;border-radius:4px;border:1.5px solid #d0c0e8;">
-                <span style="background:#6001d2;color:#fff;font-family:Arial,Helvetica,sans-serif;font-weight:900;font-size:13px;padding:3px 7px;border-radius:3px;letter-spacing:-0.02em;line-height:1.2;">Y!</span>
-                Sign in with Yahoo
-            </a>
-            """
+            login_btn_html = (
+                f'<a href="{auth_url}" target="_top" style="display:flex;align-items:center;justify-content:center;gap:12px;width:100%;padding:11px 18px;background-color:#ffffff;color:#3d0091;font-family:Arial,Helvetica,sans-serif;font-size:0.9375rem;font-weight:700;text-decoration:none;border-radius:4px;border:1.5px solid #d0c0e8;">'
+                '<span style="background:#6001d2;color:#fff;font-family:Arial,Helvetica,sans-serif;font-weight:900;font-size:13px;padding:3px 7px;border-radius:3px;letter-spacing:-0.02em;line-height:1.2;">Y!</span>'
+                "Sign in with Yahoo"
+                "</a>"
+            )
             error_html = ""
         except KeyError:
             login_btn_html = ""
-            error_html = """
-            <div style="
-                background-color: rgba(147,0,10,0.15);
-                border-radius: 8px;
-                padding: 12px 16px;
-                font-family: 'Inter', sans-serif;
-                font-size: 0.8125rem;
-                color: #ffb4ab;
-            ">
-                Yahoo credentials not configured. Copy
-                <code>.streamlit/secrets.toml.example</code> to
-                <code>.streamlit/secrets.toml</code> and fill in your client ID and secret.
-            </div>
-            """
+            error_html = '<div style="background-color:rgba(147,0,10,0.15);border-radius:8px;padding:12px 16px;font-family:\'Inter\',sans-serif;font-size:0.8125rem;color:#ffb4ab;">Yahoo credentials not configured. Copy <code>.streamlit/secrets.toml.example</code> to <code>.streamlit/secrets.toml</code> and fill in your client ID and secret.</div>'
 
         # st.markdown() renders in the main page context (no iframe), so links
         # navigate the top-level window correctly. Use @import for fonts instead
