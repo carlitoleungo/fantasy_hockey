@@ -12,6 +12,7 @@ import streamlit as st
 from auth.oauth import clear_session, exchange_code, get_auth_url, get_session, try_restore_session, validate_and_consume_state
 from data.leagues import get_user_hockey_leagues
 from utils.theme import inject_css
+from utils.version import get_build_id
 
 st.set_page_config(page_title="Carlin's Fantasy Tools", layout="wide")
 
@@ -78,9 +79,11 @@ if "tokens" not in st.session_state:
 
         try:
             auth_url = get_auth_url()
+            redirect_uri_used = st.secrets["yahoo"].get("redirect_uri", "https://localhost:8501")
             has_creds = True
         except KeyError:
             auth_url = None
+            redirect_uri_used = None
             has_creds = False
 
         # Card HTML — button is a native st.link_button() rendered below,
@@ -89,8 +92,21 @@ if "tokens" not in st.session_state:
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,700;1,400;1,700&family=Manrope:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap');
 * { box-sizing: border-box; margin: 0; padding: 0; }
-/* Yahoo sign-in link button styling (no pointer-events interference) */
+/* Yahoo sign-in link button — style <a> directly; no pseudo-element overlays */
 [data-testid="stLinkButton"] { display:flex; justify-content:center; margin-top:1rem; }
+[data-testid="stLinkButton"] a {
+  display:inline-flex !important; align-items:center !important; justify-content:center !important;
+  gap:10px !important; background:#ffffff !important; color:#6001D2 !important;
+  border-radius:8px !important; padding:13px 24px !important; width:100% !important;
+  font-family:'Manrope',sans-serif !important; font-weight:700 !important;
+  font-size:0.9375rem !important; text-decoration:none !important;
+  box-shadow:0 2px 10px rgba(0,0,0,0.25) !important;
+  transition:background 0.15s,box-shadow 0.15s !important;
+}
+[data-testid="stLinkButton"] a:hover {
+  background:#f3ecff !important;
+  box-shadow:0 4px 16px rgba(96,1,210,0.25) !important;
+}
 </style>
 <div style="min-height:560px;display:flex;flex-direction:column;align-items:center;justify-content:center;background-color:#131312;background-image:radial-gradient(circle at 2px 2px,rgba(144,144,151,0.1) 1px,transparent 0);background-size:32px 32px;position:relative;overflow:hidden;padding:3rem 1rem 1.5rem 1rem;">
 <div style="position:absolute;top:-20%;left:-10%;width:60%;height:60%;background:rgba(144,212,193,0.05);border-radius:50%;filter:blur(120px);pointer-events:none;"></div>
@@ -108,6 +124,9 @@ if "tokens" not in st.session_state:
 
         if has_creds:
             st.link_button("Sign in with Yahoo", url=auth_url, use_container_width=True)
+            with st.expander("OAuth debug info"):
+                st.caption(f"Redirect URI: `{redirect_uri_used}`")
+                st.caption("This must exactly match a URI registered in your Yahoo developer console (no trailing slash).")
         else:
             st.error("Yahoo credentials not configured. Copy `.streamlit/secrets.toml.example` to `.streamlit/secrets.toml` and fill in your client ID and secret.")
 
@@ -218,6 +237,14 @@ with st.sidebar:
         for key in ("leagues", "league_key", "matchups_df", "matchups_league_key", "current_week"):
             st.session_state.pop(key, None)
         st.rerun()
+
+    st.markdown(
+        f'<p style="font-family:\'Manrope\',sans-serif;font-size:0.5625rem;'
+        f'color:rgba(137,147,143,0.4);text-align:center;margin-top:12px;'
+        f'letter-spacing:0.1em;text-transform:uppercase;">'
+        f'build {get_build_id()}</p>',
+        unsafe_allow_html=True,
+    )
 
 # ---------------------------------------------------------------------------
 # Step 6: Content navigation
