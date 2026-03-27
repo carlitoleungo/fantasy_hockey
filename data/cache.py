@@ -120,3 +120,57 @@ def is_stale(league_key: str, data_type: str, max_age_hours: float) -> bool:
     if ts is None:
         return True
     return (_now() - ts).total_seconds() > max_age_hours * 3600
+
+
+# ---------------------------------------------------------------------------
+# Player pool cache (waiver wire)
+# ---------------------------------------------------------------------------
+# Season pools are keyed by (league_key, position, stat_name) — each is a
+# 25-row parquet representing the top-25 available players sorted by that stat.
+# The lastmonth cache is a single growing parquet per league, keyed by player_key.
+
+def _pool_key(position: str, stat_name: str) -> str:
+    """Build a safe data_type string for a (position, stat_name) pool."""
+    safe_stat = stat_name.replace(" ", "_").replace("/", "_")
+    safe_pos = position if position and position != "All" else "All"
+    return f"ww_season__{safe_pos}__{safe_stat}"
+
+
+def read_player_pool(league_key: str, position: str, stat_name: str) -> "pd.DataFrame | None":
+    """Load a cached season pool slice. Returns None if absent."""
+    return read(league_key, _pool_key(position, stat_name))
+
+
+def write_player_pool(league_key: str, position: str, stat_name: str, df: "pd.DataFrame") -> None:
+    """Write a season pool slice to disk."""
+    write(league_key, _pool_key(position, stat_name), df)
+
+
+def is_player_pool_stale(
+    league_key: str, position: str, stat_name: str, max_age_hours: float = 24
+) -> bool:
+    """True if the pool slice is older than max_age_hours or doesn't exist."""
+    return is_stale(league_key, _pool_key(position, stat_name), max_age_hours)
+
+
+def read_lastmonth_cache(league_key: str) -> "pd.DataFrame | None":
+    """Load the cumulative lastmonth stats cache. Returns None if absent."""
+    return read(league_key, "ww_lastmonth")
+
+
+def upsert_lastmonth_cache(league_key: str, df: "pd.DataFrame") -> None:
+    """
+    Merge new lastmonth rows into the cache, replacing existing player_key rows.
+
+    Newer rows (from df) win over existing rows for the same player_key.
+    """
+    existing = read(league_key, "ww_lastmonth")
+    if existing is not None and not existing.empty:
+        existing = existing[~existing["player_key"].isin(df["player_key"])]
+        df = pd.concat([existing, df], ignore_index=True)
+    write(league_key, "ww_lastmonth", df)
+
+
+def is_lastmonth_stale(league_key: str, max_age_hours: float = 24) -> bool:
+    """True if the lastmonth cache is older than max_age_hours or doesn't exist."""
+    return is_stale(league_key, "ww_lastmonth", max_age_hours)

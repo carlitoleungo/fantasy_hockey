@@ -60,7 +60,8 @@ def get_available_players(
 
     while len(season_rows) < max_players:
         page_season, page_keys = _fetch_page_season(
-            session, league_key, id_to_name, start, position=position
+            session, league_key, id_to_name, start,
+            position=position, sort_stat_id="OR", count=25,
         )
         if not page_season:
             break
@@ -122,6 +123,53 @@ def get_players_lastmonth_stats(
     return result
 
 
+def fetch_season_pool(
+    session,
+    league_key: str,
+    sort_stat_id: str,
+    id_to_name: dict,
+    position: str | None = None,
+    count: int = 25,
+) -> pd.DataFrame:
+    """
+    Fetch the top-`count` available players sorted by sort_stat_id.
+
+    Returns a DataFrame with player metadata + ALL enabled season stat columns.
+    All enabled stats come back for free in the same API call (Yahoo's out=stats).
+
+    Parameters
+    ----------
+    sort_stat_id : Yahoo stat ID string (e.g. "18" for Hits) or "OR" for
+                   Overall Rank.
+    id_to_name   : {stat_id: stat_name} mapping from get_stat_categories().
+    position     : Yahoo position code for server-side filtering (e.g. "G", "D").
+    count        : Players to fetch (1–25).
+    """
+    rows, _ = _fetch_page_season(
+        session, league_key, id_to_name, start=0,
+        position=position, sort_stat_id=sort_stat_id, count=count,
+    )
+    return pd.DataFrame(rows)
+
+
+def fetch_lastmonth_batch(
+    session,
+    player_keys: list[str],
+    id_to_name: dict,
+) -> pd.DataFrame:
+    """
+    Fetch last-30-day stats for a list of player keys in a single batch call.
+
+    Returns a DataFrame with player_key as the first column and one column per
+    enabled stat. Players with no API response are omitted.
+    """
+    if not player_keys:
+        return pd.DataFrame()
+    lm_by_key = _fetch_page_lastmonth(session, player_keys, id_to_name)
+    rows = [{"player_key": pk, **stats} for pk, stats in lm_by_key.items()]
+    return pd.DataFrame(rows) if rows else pd.DataFrame()
+
+
 # ---------------------------------------------------------------------------
 # Private helpers
 # ---------------------------------------------------------------------------
@@ -132,16 +180,23 @@ def _fetch_page_season(
     id_to_name: dict,
     start: int,
     position: str | None = None,
+    sort_stat_id: str = "OR",
+    count: int = 25,
 ) -> tuple[list[dict], list[str]]:
     """
     Fetch one page of available players with season stats inline.
+
+    sort_stat_id: Yahoo stat ID to sort by (e.g. "18" for Hits), or "OR" for
+                  Overall Rank (the Yahoo default).
+    count: number of players to fetch (max 25 per Yahoo API limits).
 
     Returns (rows, player_keys). rows is empty if no more players.
     """
     pos_filter = f";position={position}" if position else ""
     url = (
         f"{BASE_URL}/leagues;league_keys={league_key}/players"
-        f";status=A{pos_filter};sort=OR;sort_type=season;out=stats;start={start};count=25"
+        f";status=A{pos_filter};sort={sort_stat_id};sort_type=season"
+        f";out=stats;start={start};count={count}"
     )
     data = _get(session, url)
     node = (

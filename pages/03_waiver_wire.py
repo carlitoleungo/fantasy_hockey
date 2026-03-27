@@ -25,7 +25,9 @@ from analysis.team_scores import stat_columns
 from analysis.waiver_ranking import filter_by_position, rank_players
 from auth.oauth import clear_session, get_session
 from data import schedule as schedule_module, scoreboard as scoreboard_module
-from data.players import get_available_players
+from data import cache as cache_module
+from data.client import get_stat_categories
+from data.players import fetch_lastmonth_batch, fetch_season_pool
 from utils.common import load_matchups, require_auth
 from utils.theme import inject_css
 
@@ -77,6 +79,41 @@ _stat_abbrev: dict[str, str] = (
     {c["stat_name"]: c["abbreviation"] for c in _stat_cats if "stat_name" in c and "abbreviation" in c}
     or _STAT_FALLBACK_ABBREV
 )
+
+# ---------------------------------------------------------------------------
+# Session-level lazy helpers
+# ---------------------------------------------------------------------------
+
+_session = None  # initialised on first authenticated API call
+
+
+def _require_session():
+    """Return an authenticated requests.Session, stopping the page on expiry."""
+    global _session
+    if _session is None:
+        _session = get_session()
+        if _session is None:
+            st.error("Your session has expired. Please log in again.")
+            clear_session()
+            st.stop()
+    return _session
+
+
+def _merge_pool(existing: pd.DataFrame, new_rows: pd.DataFrame) -> pd.DataFrame:
+    """
+    Union two DataFrames on player_key, keeping existing rows on conflict.
+
+    New rows whose player_key is already present are discarded — the existing
+    data is preferred so we don't overwrite season stats with a different sort's
+    copy of the same player.
+    """
+    if new_rows.empty:
+        return existing
+    if existing.empty:
+        return new_rows.copy()
+    fresh = new_rows[~new_rows["player_key"].isin(existing["player_key"])]
+    return pd.concat([existing, fresh], ignore_index=True)
+
 
 # ---------------------------------------------------------------------------
 # Page header (title left, refresh button right)
@@ -178,66 +215,207 @@ if not selected_cats:
     )
     st.stop()
 
-# ---------------------------------------------------------------------------
-# Fetch player data (deferred until categories are selected)
-# ---------------------------------------------------------------------------
-
 position_group = st.session_state.get("ww_position", "All")
 # Pass position to the API for specific filters so top-N results are drawn
 # from that position pool, not the overall pool where positions may be sparse.
 api_position: str | None = None if position_group == "All" else position_group
 
-players_stale = (
-    "players_season" not in st.session_state
-    or st.session_state.get("players_league_key") != league_key
-    or st.session_state.get("players_position") != position_group
-    or refresh
-)
+# ---------------------------------------------------------------------------
+# Pool state management
+# ---------------------------------------------------------------------------
+# The pool accumulates incrementally as the user selects stat categories.
+# It is invalidated (cleared) on position change, league change, or Refresh.
 
-if players_stale:
-    session = get_session()
-    if session is None:
-        st.error("Your session has expired. Please log in again.")
-        clear_session()
-        st.stop()
+def _pool_valid() -> bool:
+    return (
+        "ww_season_pool" in st.session_state
+        and st.session_state.get("ww_pool_league") == league_key
+        and st.session_state.get("ww_pool_position") == position_group
+    )
 
-    with st.spinner("Fetching available players…"):
+
+def _clear_pool() -> None:
+    for k in ("ww_season_pool", "ww_lm_pool", "ww_fetched_sorts",
+               "ww_pool_league", "ww_pool_position", "ww_page"):
+        st.session_state.pop(k, None)
+
+
+if refresh or not _pool_valid():
+    _clear_pool()
+    st.session_state["ww_pool_league"] = league_key
+    st.session_state["ww_pool_position"] = position_group
+
+if "ww_fetched_sorts" not in st.session_state:
+    st.session_state["ww_fetched_sorts"] = set()
+if "ww_season_pool" not in st.session_state:
+    st.session_state["ww_season_pool"] = pd.DataFrame()
+if "ww_lm_pool" not in st.session_state:
+    st.session_state["ww_lm_pool"] = pd.DataFrame()
+
+# ---------------------------------------------------------------------------
+# Ensure stat categories are loaded (needed for stat_name → stat_id mapping)
+# ---------------------------------------------------------------------------
+
+if st.session_state.get("ww_stat_cats_league") != league_key:
+    cats = get_stat_categories(_require_session(), league_key)
+    st.session_state["ww_stat_categories"] = cats
+    st.session_state["ww_stat_cats_league"] = league_key
+
+stat_cats = st.session_state["ww_stat_categories"]
+id_to_name: dict[str, str] = {
+    c["stat_id"]: c["stat_name"] for c in stat_cats if c["is_enabled"]
+}
+name_to_id: dict[str, str] = {
+    c["stat_name"]: c["stat_id"] for c in stat_cats if c["is_enabled"]
+}
+
+# ---------------------------------------------------------------------------
+# Fetch season pool slices for any newly-selected categories
+# ---------------------------------------------------------------------------
+
+fetched_sorts: set = st.session_state["ww_fetched_sorts"]
+season_pool: pd.DataFrame = st.session_state["ww_season_pool"]
+
+for stat in selected_cats:
+    sort_key = (position_group, stat)
+    if sort_key in fetched_sorts:
+        continue  # already in pool
+
+    sort_id = name_to_id.get(stat)
+    if sort_id is None:
+        continue  # stat not found in league's scoring categories
+
+    # Check disk cache first
+    if not cache_module.is_player_pool_stale(league_key, position_group, stat):
+        cached_df = cache_module.read_player_pool(league_key, position_group, stat)
+        if cached_df is not None and not cached_df.empty:
+            season_pool = _merge_pool(season_pool, cached_df)
+            fetched_sorts.add(sort_key)
+            continue
+
+    # Cache miss or stale — fetch from Yahoo API
+    with st.spinner(f"Fetching top players by {_stat_abbrev.get(stat, stat)}…"):
         try:
-            season_df, lastmonth_df = get_available_players(
-                session, league_key, position=api_position
+            new_df = fetch_season_pool(
+                _require_session(), league_key, sort_id, id_to_name,
+                position=api_position,
             )
-
-            current_week = int(df_matchups["week"].max())
-            sb = scoreboard_module.get_current_matchup(session, league_key, current_week)
-            week_end = date.fromisoformat(sb["week_end"])
-            from_date = max(date.today(), date.fromisoformat(sb["week_start"]))
-            all_abbrs = list(set(season_df["team_abbr"].dropna().unique()))
-            games_remaining_map = schedule_module.get_remaining_games(all_abbrs, from_date, week_end)
         except Exception as e:
             st.error(f"Failed to fetch player data: {e}")
             st.stop()
 
-    st.session_state["players_season"] = season_df
-    st.session_state["players_lastmonth"] = lastmonth_df
-    st.session_state["players_league_key"] = league_key
-    st.session_state["players_position"] = position_group
-    st.session_state["players_games_remaining"] = games_remaining_map
-    st.session_state.pop("ww_page", None)
+    if not new_df.empty:
+        cache_module.write_player_pool(league_key, position_group, stat, new_df)
+    season_pool = _merge_pool(season_pool, new_df)
+    fetched_sorts.add(sort_key)
 
-season_df = st.session_state["players_season"]
-lastmonth_df = st.session_state["players_lastmonth"]
-games_remaining_map = st.session_state.get("players_games_remaining", {})
+st.session_state["ww_season_pool"] = season_pool
+st.session_state["ww_fetched_sorts"] = fetched_sorts
+
+if season_pool.empty:
+    st.info("No available players match the selected filters.")
+    st.stop()
 
 # ---------------------------------------------------------------------------
-# Filter + rank
+# Fetch lastmonth stats lazily — only when the user requests that ranking
 # ---------------------------------------------------------------------------
 
-base_df = lastmonth_df if ranking_period == "Last 30 days" else season_df
+lm_pool: pd.DataFrame = st.session_state["ww_lm_pool"]
+
+if ranking_period == "Last 30 days":
+    pool_keys = set(season_pool["player_key"].tolist())
+    lm_keys = set(lm_pool["player_key"].tolist()) if not lm_pool.empty else set()
+    missing_keys = list(pool_keys - lm_keys)
+
+    if missing_keys:
+        # Check disk cache first
+        if not cache_module.is_lastmonth_stale(league_key):
+            disk_lm = cache_module.read_lastmonth_cache(league_key)
+            if disk_lm is not None and not disk_lm.empty:
+                cached_for_missing = disk_lm[disk_lm["player_key"].isin(missing_keys)]
+                if not cached_for_missing.empty:
+                    lm_pool = _merge_pool(lm_pool, cached_for_missing)
+                    missing_keys = [
+                        k for k in missing_keys
+                        if k not in set(cached_for_missing["player_key"].tolist())
+                    ]
+
+        # Fetch any remaining players not in disk cache
+        if missing_keys:
+            with st.spinner("Fetching last 30-day stats…"):
+                try:
+                    new_lm = fetch_lastmonth_batch(
+                        _require_session(), missing_keys, id_to_name
+                    )
+                except Exception as e:
+                    st.error(f"Failed to fetch recent stats: {e}")
+                    st.stop()
+            if not new_lm.empty:
+                cache_module.upsert_lastmonth_cache(league_key, new_lm)
+                lm_pool = _merge_pool(lm_pool, new_lm)
+
+    st.session_state["ww_lm_pool"] = lm_pool
+
+# ---------------------------------------------------------------------------
+# Schedule: games remaining this week (fetched once per session)
+# ---------------------------------------------------------------------------
+
+if (
+    "ww_games_remaining" not in st.session_state
+    or st.session_state.get("ww_schedule_league") != league_key
+    or refresh
+):
+    try:
+        current_week = int(df_matchups["week"].max())
+        sb = scoreboard_module.get_current_matchup(
+            _require_session(), league_key, current_week
+        )
+        week_end = date.fromisoformat(sb["week_end"])
+        from_date = max(date.today(), date.fromisoformat(sb["week_start"]))
+        st.session_state["ww_week_end"] = week_end
+        st.session_state["ww_from_date"] = from_date
+        st.session_state["ww_games_remaining"] = {}
+        st.session_state["ww_schedule_league"] = league_key
+    except Exception as e:
+        st.warning(f"Could not load week schedule: {e}")
+
+# Update games_remaining for any team abbrs newly seen in the pool
+week_end = st.session_state.get("ww_week_end")
+from_date_val = st.session_state.get("ww_from_date")
+games_remaining_map: dict = st.session_state.get("ww_games_remaining", {})
+
+if week_end and from_date_val and not season_pool.empty:
+    all_abbrs = set(season_pool["team_abbr"].dropna().unique())
+    new_abbrs = list(all_abbrs - set(games_remaining_map.keys()))
+    if new_abbrs:
+        try:
+            new_map = schedule_module.get_remaining_games(
+                new_abbrs, from_date_val, week_end
+            )
+            games_remaining_map.update(new_map)
+            st.session_state["ww_games_remaining"] = games_remaining_map
+        except Exception:
+            pass  # non-fatal; games_remaining column will show 0
+
+# ---------------------------------------------------------------------------
+# Build base_df + rank
+# ---------------------------------------------------------------------------
+
+if ranking_period == "Last 30 days" and not lm_pool.empty:
+    # Join metadata from season pool with lastmonth stats
+    meta_cols = ["player_key", "player_name", "team_abbr", "display_position", "status"]
+    season_meta = season_pool[[c for c in meta_cols if c in season_pool.columns]]
+    base_df = season_meta.merge(lm_pool, on="player_key", how="inner")
+else:
+    base_df = season_pool
+
+# Position filter is already applied at the API level (api_position).
+# filter_by_position is still called for "All" (no-op) and as a safety net.
 filtered_df = filter_by_position(base_df, position_group)
 ranked_df = rank_players(filtered_df, selected_cats)
 
 if ranked_df.empty:
-    st.info("No available players match the selected position filter.")
+    st.info("No available players match the selected filters.")
     st.stop()
 
 ranked_df["games_remaining"] = ranked_df["team_abbr"].map(
