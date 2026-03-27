@@ -79,7 +79,7 @@ if "tokens" not in st.session_state:
         try:
             auth_url = get_auth_url()
             login_btn_html = f"""
-            <a href="{auth_url}" target="_self" style="display:flex;align-items:center;justify-content:center;gap:12px;width:100%;padding:11px 18px;background-color:#ffffff;color:#3d0091;font-family:Arial,Helvetica,sans-serif;font-size:0.9375rem;font-weight:700;text-decoration:none;border-radius:4px;border:1.5px solid #d0c0e8;">
+            <a href="{auth_url}" target="_top" style="display:flex;align-items:center;justify-content:center;gap:12px;width:100%;padding:11px 18px;background-color:#ffffff;color:#3d0091;font-family:Arial,Helvetica,sans-serif;font-size:0.9375rem;font-weight:700;text-decoration:none;border-radius:4px;border:1.5px solid #d0c0e8;">
                 <span style="background:#6001d2;color:#fff;font-family:Arial,Helvetica,sans-serif;font-weight:900;font-size:13px;padding:3px 7px;border-radius:3px;letter-spacing:-0.02em;line-height:1.2;">Y!</span>
                 Sign in with Yahoo
             </a>
