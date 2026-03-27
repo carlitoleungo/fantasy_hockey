@@ -30,9 +30,18 @@ def get_available_players(
     session,
     league_key: str,
     max_players: int = 100,
+    position: str | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
     Fetch available (unrostered) players sorted by overall rank.
+
+    Parameters
+    ----------
+    position : Yahoo position code to pre-filter at the API level (e.g. "G",
+               "D", "C"). When None, fetches all positions (top max_players by
+               overall rank). Use this for position-specific filters so that
+               the top-N results are drawn from that position, not from the
+               overall pool where some positions may be underrepresented.
 
     Returns (season_df, lastmonth_df). Both DataFrames have the same rows and
     metadata columns; stat values reflect the respective time period.
@@ -50,7 +59,9 @@ def get_available_players(
     start = 0
 
     while len(season_rows) < max_players:
-        page_season, page_keys = _fetch_page_season(session, league_key, id_to_name, start)
+        page_season, page_keys = _fetch_page_season(
+            session, league_key, id_to_name, start, position=position
+        )
         if not page_season:
             break
 
@@ -120,15 +131,17 @@ def _fetch_page_season(
     league_key: str,
     id_to_name: dict,
     start: int,
+    position: str | None = None,
 ) -> tuple[list[dict], list[str]]:
     """
     Fetch one page of available players with season stats inline.
 
     Returns (rows, player_keys). rows is empty if no more players.
     """
+    pos_filter = f";position={position}" if position else ""
     url = (
         f"{BASE_URL}/leagues;league_keys={league_key}/players"
-        f";status=A;sort=OR;sort_type=season;out=stats;start={start};count=25"
+        f";status=A{pos_filter};sort=OR;sort_type=season;out=stats;start={start};count=25"
     )
     data = _get(session, url)
     node = (

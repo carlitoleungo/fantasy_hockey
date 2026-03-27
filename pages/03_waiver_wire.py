@@ -182,9 +182,15 @@ if not selected_cats:
 # Fetch player data (deferred until categories are selected)
 # ---------------------------------------------------------------------------
 
+position_group = st.session_state.get("ww_position", "All")
+# Pass position to the API for specific filters so top-N results are drawn
+# from that position pool, not the overall pool where positions may be sparse.
+api_position: str | None = None if position_group == "All" else position_group
+
 players_stale = (
     "players_season" not in st.session_state
     or st.session_state.get("players_league_key") != league_key
+    or st.session_state.get("players_position") != position_group
     or refresh
 )
 
@@ -197,7 +203,9 @@ if players_stale:
 
     with st.spinner("Fetching available players…"):
         try:
-            season_df, lastmonth_df = get_available_players(session, league_key)
+            season_df, lastmonth_df = get_available_players(
+                session, league_key, position=api_position
+            )
 
             current_week = int(df_matchups["week"].max())
             sb = scoreboard_module.get_current_matchup(session, league_key, current_week)
@@ -212,6 +220,7 @@ if players_stale:
     st.session_state["players_season"] = season_df
     st.session_state["players_lastmonth"] = lastmonth_df
     st.session_state["players_league_key"] = league_key
+    st.session_state["players_position"] = position_group
     st.session_state["players_games_remaining"] = games_remaining_map
     st.session_state.pop("ww_page", None)
 
@@ -223,7 +232,6 @@ games_remaining_map = st.session_state.get("players_games_remaining", {})
 # Filter + rank
 # ---------------------------------------------------------------------------
 
-position_group = st.session_state.get("ww_position", "All")
 base_df = lastmonth_df if ranking_period == "Last 30 days" else season_df
 filtered_df = filter_by_position(base_df, position_group)
 ranked_df = rank_players(filtered_df, selected_cats)

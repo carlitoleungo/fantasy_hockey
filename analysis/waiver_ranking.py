@@ -97,8 +97,15 @@ def filter_by_position(df: pd.DataFrame, position_group: str) -> pd.DataFrame:
 
 
 _POSITION_GROUPS: dict[str, frozenset[str]] = {
+    # Named groups
     "Skaters":  frozenset({"C", "LW", "RW", "F", "D"}),
     "Forwards": frozenset({"C", "LW", "RW", "F"}),
     "Defence":  frozenset({"D"}),
     "Goalies":  frozenset({"G"}),
+    # Individual position codes (used by the waiver wire pill buttons)
+    "C":  frozenset({"C"}),
+    "LW": frozenset({"LW"}),
+    "RW": frozenset({"RW"}),
+    "D":  frozenset({"D"}),
+    "G":  frozenset({"G"}),
 }
