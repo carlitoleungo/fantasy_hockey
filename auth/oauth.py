@@ -18,6 +18,8 @@ Design notes:
   without a password prompt.
 """
 
+import json
+import os
 import secrets
 import time
 import urllib.parse
@@ -27,7 +29,9 @@ import streamlit as st
 
 YAHOO_AUTH_URL = "https://api.login.yahoo.com/oauth2/request_auth"
 YAHOO_TOKEN_URL = "https://api.login.yahoo.com/oauth2/get_token"
-TOKEN_EXPIRY_BUFFER_SECONDS = 60  # refresh this many seconds before actual expiry
+TOKEN_EXPIRY_BUFFER_SECONDS = 60   # refresh this many seconds before actual expiry
+_STATE_FILE = ".streamlit/oauth_states.json"
+_STATE_TTL = 300  # nonces expire after 5 minutes
 
 
 # ---------------------------------------------------------------------------
@@ -38,11 +42,12 @@ def get_auth_url() -> str:
     """
     Return the Yahoo authorization URL to send the user to.
 
-    Generates a random state nonce and stores it in session state so the
-    callback handler can verify it and reject forged redirects.
+    Generates a random state nonce and persists it server-side with a short TTL.
+    Session state can't be used here because the browser navigates away to Yahoo
+    and back, creating a new Streamlit session on return.
     """
     state = secrets.token_urlsafe(32)
-    st.session_state["oauth_state"] = state
+    _save_state(state)
     params = urllib.parse.urlencode({
         "client_id": st.secrets["yahoo"]["client_id"],
         "redirect_uri": _redirect_uri(),
@@ -50,6 +55,20 @@ def get_auth_url() -> str:
         "state": state,
     })
     return f"{YAHOO_AUTH_URL}?{params}"
+
+
+def validate_and_consume_state(state: str) -> bool:
+    """
+    Return True if state is a known, unexpired nonce, and consume it.
+    One-time use: a valid state is deleted on first check.
+    """
+    states = _load_states()
+    now = time.time()
+    if state in states and states[state] > now:
+        del states[state]
+        _save_states({s: exp for s, exp in states.items() if exp > now})
+        return True
+    return False
 
 
 def exchange_code(code: str) -> dict:
@@ -102,9 +121,8 @@ def try_restore_session() -> bool:
 
 
 def clear_session() -> None:
-    """Log the user out by removing tokens and auth state from session state."""
+    """Log the user out by removing tokens from session state."""
     st.session_state.pop("tokens", None)
-    st.session_state.pop("oauth_state", None)
 
 
 # ---------------------------------------------------------------------------
@@ -132,6 +150,32 @@ def _stamp_expiry(tokens: dict) -> dict:
 def _is_valid(tokens: dict) -> bool:
     """True if the access token won't expire within the buffer window."""
     return time.time() < tokens.get("expires_at", 0) - TOKEN_EXPIRY_BUFFER_SECONDS
+
+
+def _save_state(state: str) -> None:
+    states = _load_states()
+    now = time.time()
+    # Prune expired entries on each write to keep the file small
+    states = {s: exp for s, exp in states.items() if exp > now}
+    states[state] = now + _STATE_TTL
+    os.makedirs(os.path.dirname(_STATE_FILE), exist_ok=True)
+    with open(_STATE_FILE, "w") as f:
+        json.dump(states, f)
+
+
+def _load_states() -> dict:
+    if not os.path.exists(_STATE_FILE):
+        return {}
+    try:
+        with open(_STATE_FILE) as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+
+def _save_states(states: dict) -> None:
+    with open(_STATE_FILE, "w") as f:
+        json.dump(states, f)
 
 
 def _try_refresh(tokens: dict) -> dict | None:

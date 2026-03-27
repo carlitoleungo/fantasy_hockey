@@ -9,7 +9,7 @@ Handles three responsibilities every page load:
 """
 import streamlit as st
 
-from auth.oauth import clear_session, exchange_code, get_auth_url, get_session, try_restore_session
+from auth.oauth import clear_session, exchange_code, get_auth_url, get_session, try_restore_session, validate_and_consume_state
 from data.leagues import get_user_hockey_leagues
 from utils.theme import inject_css
 
@@ -23,15 +23,14 @@ st.set_page_config(page_title="Carlin's Fantasy Tools", layout="wide")
 params = st.query_params
 if "code" in params and "tokens" not in st.session_state:
     # Validate state nonce to guard against CSRF
-    if params.get("state") != st.session_state.get("oauth_state"):
-        st.error("Authentication failed: invalid state parameter. Please try logging in again.")
+    if not validate_and_consume_state(params.get("state", "")):
+        st.error("Authentication failed: invalid or expired state parameter. Please try logging in again.")
         st.query_params.clear()
         st.stop()
     with st.spinner("Authenticating with Yahoo..."):
         try:
             tokens = exchange_code(params["code"])
             st.session_state["tokens"] = tokens
-            st.session_state.pop("oauth_state", None)
             st.query_params.clear()
             st.rerun()
         except Exception as e:
