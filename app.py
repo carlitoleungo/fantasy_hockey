@@ -88,28 +88,25 @@ if "tokens" not in st.session_state:
             auth_url = "#"
             has_creds = False
 
-        button_html = (
-            f'<div style="text-align:center;margin-top:1.5rem;">'
-            f'<a href="{auth_url}" target="_top" class="yahoo-btn">Sign in with Yahoo</a>'
-            f'</div>'
-        ) if has_creds else ''
-
-        st.markdown(f"""
+        st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,700;1,400;1,700&family=Manrope:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap');
-* {{ box-sizing: border-box; margin: 0; padding: 0; }}
-.yahoo-btn {{
-  display:inline-flex; align-items:center; justify-content:center;
-  gap:10px; background:#ffffff; color:#6001D2; border-radius:8px;
-  padding:13px 28px; font-family:'Manrope',sans-serif; font-weight:700;
-  font-size:0.9375rem; text-decoration:none;
-  box-shadow:0 2px 10px rgba(0,0,0,0.25);
-  transition:background 0.15s,box-shadow 0.15s;
-}}
-.yahoo-btn:hover {{
-  background:#f3ecff;
-  box-shadow:0 4px 16px rgba(96,1,210,0.25);
-}}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+/* Yahoo sign-in link button — style <a> directly; no pseudo-element overlays */
+[data-testid="stLinkButton"] { display:flex; justify-content:center; margin-top:1rem; }
+[data-testid="stLinkButton"] a {
+  display:inline-flex !important; align-items:center !important; justify-content:center !important;
+  gap:10px !important; background:#ffffff !important; color:#6001D2 !important;
+  border-radius:8px !important; padding:13px 28px !important;
+  font-family:'Manrope',sans-serif !important; font-weight:700 !important;
+  font-size:0.9375rem !important; text-decoration:none !important;
+  box-shadow:0 2px 10px rgba(0,0,0,0.25) !important;
+  transition:background 0.15s,box-shadow 0.15s !important;
+}
+[data-testid="stLinkButton"] a:hover {
+  background:#f3ecff !important;
+  box-shadow:0 4px 16px rgba(96,1,210,0.25) !important;
+}
 </style>
 <div style="min-height:560px;display:flex;flex-direction:column;align-items:center;justify-content:center;background-color:#131312;background-image:radial-gradient(circle at 2px 2px,rgba(144,144,151,0.1) 1px,transparent 0);background-size:32px 32px;position:relative;overflow:hidden;padding:3rem 1rem 1.5rem 1rem;">
 <div style="position:absolute;top:-20%;left:-10%;width:60%;height:60%;background:rgba(144,212,193,0.05);border-radius:50%;filter:blur(120px);pointer-events:none;"></div>
@@ -121,12 +118,15 @@ if "tokens" not in st.session_state:
 <div style="width:100%;max-width:420px;background:rgba(30,30,28,0.8);backdrop-filter:blur(20px);border:1px solid rgba(63,73,69,0.15);border-radius:12px;padding:2rem 2rem 1.5rem 2rem;box-shadow:0 24px 64px rgba(6,14,32,0.6);position:relative;z-index:1;">
 <div style="text-align:center;"><h2 style="font-family:'Newsreader',serif;font-size:1.25rem;font-weight:700;color:#e5e2de;margin:0 0 8px 0;letter-spacing:-0.01em;">Connect your Yahoo account</h2>
 <p style="font-family:'Inter',sans-serif;font-size:0.875rem;color:#89938f;margin:0;font-weight:500;">Sign in to access your leagues and start scouting</p></div>
-{button_html}
 </div>
 </div>
         """, unsafe_allow_html=True)
 
-        if not has_creds:
+        # st.link_button() is a native Streamlit widget — Community Cloud cannot
+        # intercept its navigation the way it does <a> tags inside st.markdown().
+        if has_creds:
+            st.link_button("Sign in with Yahoo", url=auth_url)
+        else:
             st.error("Yahoo credentials not configured. Copy `.streamlit/secrets.toml.example` to `.streamlit/secrets.toml` and fill in your client ID and secret.")
         st.markdown(
             f'<p style="font-family:\'Manrope\',sans-serif;font-size:0.5625rem;'
