@@ -78,41 +78,38 @@ if "tokens" not in st.session_state:
 
         try:
             auth_url = get_auth_url()
-            login_btn_html = (
-                f'<a href="{auth_url}" target="_top" style="display:flex;align-items:center;justify-content:center;gap:12px;width:100%;padding:11px 18px;background-color:#ffffff;color:#3d0091;font-family:Arial,Helvetica,sans-serif;font-size:0.9375rem;font-weight:700;text-decoration:none;border-radius:4px;border:1.5px solid #d0c0e8;">'
-                '<span style="background:#6001d2;color:#fff;font-family:Arial,Helvetica,sans-serif;font-weight:900;font-size:13px;padding:3px 7px;border-radius:3px;letter-spacing:-0.02em;line-height:1.2;">Y!</span>'
-                "Sign in with Yahoo"
-                "</a>"
-            )
-            error_html = ""
+            has_creds = True
         except KeyError:
-            login_btn_html = ""
-            error_html = '<div style="background-color:rgba(147,0,10,0.15);border-radius:8px;padding:12px 16px;font-family:\'Inter\',sans-serif;font-size:0.8125rem;color:#ffb4ab;">Yahoo credentials not configured. Copy <code>.streamlit/secrets.toml.example</code> to <code>.streamlit/secrets.toml</code> and fill in your client ID and secret.</div>'
+            auth_url = None
+            has_creds = False
 
-        # st.markdown() renders in the main page context (no iframe), so links
-        # navigate the top-level window correctly. Use @import for fonts instead
-        # of <link> (which st.markdown strips), and keep the HTML comment-free
-        # with no blank lines inside block elements to avoid Markdown parsing issues.
-        st.markdown(f"""
+        # Card HTML — button is a native st.link_button() rendered below,
+        # which Community Cloud cannot intercept the way it does <a> tags.
+        st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,700;1,400;1,700&family=Manrope:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap');
-* {{ box-sizing: border-box; margin: 0; padding: 0; }}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+/* Yahoo sign-in link button styling (no pointer-events interference) */
+[data-testid="stLinkButton"] { display:flex; justify-content:center; margin-top:1rem; }
 </style>
-<div style="min-height:650px;display:flex;flex-direction:column;align-items:center;justify-content:center;background-color:#131312;background-image:radial-gradient(circle at 2px 2px,rgba(144,144,151,0.1) 1px,transparent 0);background-size:32px 32px;position:relative;overflow:hidden;padding:3rem 1rem;">
+<div style="min-height:560px;display:flex;flex-direction:column;align-items:center;justify-content:center;background-color:#131312;background-image:radial-gradient(circle at 2px 2px,rgba(144,144,151,0.1) 1px,transparent 0);background-size:32px 32px;position:relative;overflow:hidden;padding:3rem 1rem 1.5rem 1rem;">
 <div style="position:absolute;top:-20%;left:-10%;width:60%;height:60%;background:rgba(144,212,193,0.05);border-radius:50%;filter:blur(120px);pointer-events:none;"></div>
 <div style="position:absolute;bottom:-10%;right:-5%;width:50%;height:50%;background:rgba(251,187,91,0.05);border-radius:50%;filter:blur(120px);pointer-events:none;"></div>
 <div style="text-align:center;margin-bottom:3rem;position:relative;z-index:1;">
 <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;border-radius:12px;background-color:#2a2a28;border:1px solid rgba(63,73,69,0.15);box-shadow:0 12px 40px rgba(6,14,32,0.4);margin-bottom:24px;"><svg xmlns="http://www.w3.org/2000/svg" height="32" width="32" viewBox="0 0 24 24" fill="#90d4c1"><path d="M9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4zm2 2H5V5h14v14zm0-16H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg></div>
 <h1 style="font-family:'Newsreader',serif;font-size:2.5rem;font-weight:900;letter-spacing:-0.04em;text-transform:uppercase;color:#e5e2de;margin:0;line-height:1.05;">Carlin's<br>Fantasy Tools</h1>
 </div>
-<div style="width:100%;max-width:420px;background:rgba(30,30,28,0.8);backdrop-filter:blur(20px);border:1px solid rgba(63,73,69,0.15);border-radius:12px;padding:2rem;box-shadow:0 24px 64px rgba(6,14,32,0.6);position:relative;z-index:1;">
-<div style="text-align:center;margin-bottom:2rem;"><h2 style="font-family:'Newsreader',serif;font-size:1.25rem;font-weight:700;color:#e5e2de;margin:0 0 8px 0;letter-spacing:-0.01em;">Connect your Yahoo account</h2>
+<div style="width:100%;max-width:420px;background:rgba(30,30,28,0.8);backdrop-filter:blur(20px);border:1px solid rgba(63,73,69,0.15);border-radius:12px;padding:2rem 2rem 1.5rem 2rem;box-shadow:0 24px 64px rgba(6,14,32,0.6);position:relative;z-index:1;">
+<div style="text-align:center;"><h2 style="font-family:'Newsreader',serif;font-size:1.25rem;font-weight:700;color:#e5e2de;margin:0 0 8px 0;letter-spacing:-0.01em;">Connect your Yahoo account</h2>
 <p style="font-family:'Inter',sans-serif;font-size:0.875rem;color:#89938f;margin:0;font-weight:500;">Sign in to access your leagues and start scouting</p></div>
-{login_btn_html}
-{error_html}
 </div>
 </div>
         """, unsafe_allow_html=True)
+
+        if has_creds:
+            st.link_button("Sign in with Yahoo", url=auth_url, use_container_width=True)
+        else:
+            st.error("Yahoo credentials not configured. Copy `.streamlit/secrets.toml.example` to `.streamlit/secrets.toml` and fill in your client ID and secret.")
 
     pg = st.navigation([st.Page(_login_page, title="Login")])
     pg.run()
