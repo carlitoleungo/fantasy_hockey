@@ -127,6 +127,8 @@ if "tokens" not in st.session_state:
             with st.expander("OAuth debug info"):
                 st.caption(f"Redirect URI: `{redirect_uri_used}`")
                 st.caption("This must exactly match a URI registered in your Yahoo developer console (no trailing slash).")
+        else:
+            st.error("Yahoo credentials not configured. Copy `.streamlit/secrets.toml.example` to `.streamlit/secrets.toml` and fill in your client ID and secret.")
         st.markdown(
             f'<p style="font-family:\'Manrope\',sans-serif;font-size:0.5625rem;'
             f'color:rgba(137,147,143,0.35);text-align:center;margin-top:16px;'
@@ -134,8 +136,6 @@ if "tokens" not in st.session_state:
             f'build {get_build_id()}</p>',
             unsafe_allow_html=True,
         )
-        else:
-            st.error("Yahoo credentials not configured. Copy `.streamlit/secrets.toml.example` to `.streamlit/secrets.toml` and fill in your client ID and secret.")
 
     pg = st.navigation([st.Page(_login_page, title="Login")])
     pg.run()
