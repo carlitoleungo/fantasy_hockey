@@ -100,15 +100,15 @@ if "tokens" not in st.session_state:
 * {{ box-sizing: border-box; margin: 0; padding: 0; }}
 .yahoo-btn {{
   display:inline-flex; align-items:center; justify-content:center;
-  gap:10px; background:#6001D2; color:#ffffff; border-radius:8px;
+  gap:10px; background:#ffffff; color:#6001D2; border-radius:8px;
   padding:13px 28px; font-family:'Manrope',sans-serif; font-weight:700;
   font-size:0.9375rem; text-decoration:none;
-  box-shadow:0 8px 20px rgba(96,1,210,0.35);
-  transition:transform 0.15s,box-shadow 0.15s;
+  box-shadow:0 2px 10px rgba(0,0,0,0.25);
+  transition:background 0.15s,box-shadow 0.15s;
 }}
 .yahoo-btn:hover {{
-  transform:scale(1.02);
-  box-shadow:0 12px 28px rgba(96,1,210,0.5);
+  background:#f3ecff;
+  box-shadow:0 4px 16px rgba(96,1,210,0.25);
 }}
 </style>
 <div style="min-height:560px;display:flex;flex-direction:column;align-items:center;justify-content:center;background-color:#131312;background-image:radial-gradient(circle at 2px 2px,rgba(144,144,151,0.1) 1px,transparent 0);background-size:32px 32px;position:relative;overflow:hidden;padding:3rem 1rem 1.5rem 1rem;">
