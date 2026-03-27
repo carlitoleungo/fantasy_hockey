@@ -285,8 +285,8 @@ for stat in selected_cats:
     if sort_id is None:
         continue  # stat not found in league's scoring categories
 
-    # Check disk cache first
-    if not cache_module.is_player_pool_stale(league_key, position_group, stat):
+    # Check disk cache first (skipped on explicit Refresh)
+    if not refresh and not cache_module.is_player_pool_stale(league_key, position_group, stat):
         cached_df = cache_module.read_player_pool(league_key, position_group, stat)
         if cached_df is not None and not cached_df.empty:
             season_pool = _merge_pool(season_pool, cached_df)
@@ -328,8 +328,8 @@ if ranking_period == "Last 30 days":
     missing_keys = list(pool_keys - lm_keys)
 
     if missing_keys:
-        # Check disk cache first
-        if not cache_module.is_lastmonth_stale(league_key):
+        # Check disk cache first (skipped on explicit Refresh)
+        if not refresh and not cache_module.is_lastmonth_stale(league_key):
             disk_lm = cache_module.read_lastmonth_cache(league_key)
             if disk_lm is not None and not disk_lm.empty:
                 cached_for_missing = disk_lm[disk_lm["player_key"].isin(missing_keys)]
