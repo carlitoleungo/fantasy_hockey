@@ -25,13 +25,14 @@ from analysis.team_scores import (
     weekly_scores_ranked,
 )
 from utils.common import load_matchups, require_auth
-from utils.theme import inject_css
+from utils.theme import inject_css, render_mobile_nav
 
 # ---------------------------------------------------------------------------
 # Guards + data load
 # ---------------------------------------------------------------------------
 
 inject_css()
+render_mobile_nav("league_overview")
 league_key = require_auth()
 load_matchups(league_key)
 
@@ -183,6 +184,18 @@ _TABLE_CSS = """
     height: 1px;
     background-color: rgba(63,73,69,0.2);
 }
+/* Sticky first column for horizontal-scrolling tables on mobile */
+.fh-table th:first-child,
+.fh-table td:first-child {
+    position: sticky;
+    left: 0;
+    background-color: var(--c-surface-low);
+    z-index: 2;
+}
+.fh-row-selected td:first-child {
+    background-color: rgba(38,107,92,0.08) !important;
+}
+
 /* Comparison detail table */
 .fh-cmp-header {
     display: grid;
@@ -384,24 +397,23 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# --- Controls: week + team selectors side-by-side ---
+# --- Controls: week selector (full width), then teams side-by-side ---
 
-ctrl_week, ctrl_a, ctrl_b = st.columns(3)
+last_complete = current_week - 1 if current_week else None
+default_idx = (
+    available_weeks.index(last_complete)
+    if last_complete in available_weeks
+    else len(available_weeks) - 1
+)
+selected_week = st.selectbox(
+    "Week",
+    options=available_weeks,
+    format_func=lambda w: f"Week {w} (in progress)" if w == current_week else f"Week {w}",
+    index=default_idx,
+    key="overview_week_selector",
+)
 
-with ctrl_week:
-    last_complete = current_week - 1 if current_week else None
-    default_idx = (
-        available_weeks.index(last_complete)
-        if last_complete in available_weeks
-        else len(available_weeks) - 1
-    )
-    selected_week = st.selectbox(
-        "Week",
-        options=available_weeks,
-        format_func=lambda w: f"Week {w} (in progress)" if w == current_week else f"Week {w}",
-        index=default_idx,
-        key="overview_week_selector",
-    )
+ctrl_a, ctrl_b = st.columns(2)
 
 with ctrl_a:
     team_a = st.selectbox("Team A", options=team_names, index=0, key="cmp_team_a")
