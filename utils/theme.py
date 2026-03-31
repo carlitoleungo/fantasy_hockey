@@ -734,7 +734,7 @@ def render_mobile_nav(active: str) -> None:
     for slug, icon, label in _pages:
         cls = "fh-mobile-nav-item active" if active == slug else "fh-mobile-nav-item"
         items_html += (
-            f'<a class="{cls}" href="/{slug}">'
+            f'<a class="{cls}" href="/{slug}" target="_top">'
             f'<span class="fh-mobile-nav-icon">{icon}</span>'
             f'<span class="fh-mobile-nav-label">{label}</span>'
             f"</a>"
