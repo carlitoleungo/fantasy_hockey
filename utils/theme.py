@@ -763,8 +763,15 @@ def render_mobile_nav(active: str) -> None:
                     var a = e.target.closest('a.fh-mobile-nav-item');
                     if (!a) return;
                     e.preventDefault();
-                    parent.history.pushState({{}}, '', a.getAttribute('href'));
-                    parent.dispatchEvent(new PopStateEvent('popstate'));
+                    // Delegate to Streamlit's own sidebar link — it's a React
+                    // Router <Link> that handles navigation without a page
+                    // reload, keeping session state intact. pushState + popstate
+                    // desync React Router's internal history index on subsequent
+                    // clicks, causing "Page not found".
+                    var href = a.getAttribute('href');
+                    var sidebar = doc.querySelector('[data-testid="stSidebar"]') || doc;
+                    var native  = sidebar.querySelector('a[href="' + href + '"]');
+                    if (native) {{ native.click(); }}
                 }});
             }}
 
