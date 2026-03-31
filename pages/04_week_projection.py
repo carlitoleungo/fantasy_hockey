@@ -25,7 +25,7 @@ from data import client, players as players_module, roster as roster_module
 from data import schedule as schedule_module
 from data import scoreboard as scoreboard_module
 from utils.common import require_auth
-from utils.theme import inject_css, render_mobile_nav
+from utils.theme import inject_css
 
 # ---------------------------------------------------------------------------
 # Embedded CSS for st.html() shadow contexts
@@ -229,7 +229,6 @@ def _build_roster_table(rows, enabled_stats):
 # ---------------------------------------------------------------------------
 
 inject_css()
-render_mobile_nav("week_projection")
 league_key = require_auth()
 
 # ---------------------------------------------------------------------------

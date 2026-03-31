@@ -27,14 +27,13 @@ from analysis.team_scores import (
 from auth.oauth import get_session
 from data.client import get_stat_categories
 from utils.common import load_matchups, require_auth
-from utils.theme import inject_css, render_mobile_nav
+from utils.theme import inject_css
 
 # ---------------------------------------------------------------------------
 # Guards + data load
 # ---------------------------------------------------------------------------
 
 inject_css()
-render_mobile_nav("league_overview")
 league_key = require_auth()
 load_matchups(league_key)
 
