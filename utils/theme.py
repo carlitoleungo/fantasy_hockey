@@ -691,11 +691,21 @@ hr {
         font-size: 1.75rem !important;
     }
 
-    /* Stack st.columns() children to full width */
+    /* Keep all column rows in a single line — let columns shrink proportionally
+       rather than wrapping to full width. Works for chip grids, position buttons,
+       and any other st.columns() layout on this page. */
+    [data-testid="stHorizontalBlock"] { flex-wrap: nowrap !important; }
     [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
-        min-width: 100% !important;
-        flex: 1 1 100% !important;
+        min-width: 0 !important;
+        flex-shrink: 1 !important;
     }
+
+    /* Score cards: 2-col on mobile, hide the Tied middle card */
+    .fh-matchup-row { grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+    .fh-matchup-card:nth-child(2) { display: none; }
+    .fh-matchup-card { padding: 1.25rem; }
+    .fh-matchup-card-value { font-size: 3rem; }
+
 }
 </style>
 """
