@@ -76,11 +76,27 @@ def get_league_settings(session, league_key: str) -> dict:
     }
 
 
+# Stat names/abbreviations where a lower value is better (e.g. goalie "against" stats).
+# Used as a heuristic when the Yahoo API does not provide sort_order information.
+_LOWER_IS_BETTER_NAMES: frozenset[str] = frozenset({
+    "Goals Against",
+    "Goals Against Average",
+    "GA",
+    "GAA",
+})
+
+
+def _is_lower_better(stat_name: str, abbreviation: str) -> bool:
+    """Return True if this stat should be ranked ascending (lower value = better)."""
+    return stat_name in _LOWER_IS_BETTER_NAMES or abbreviation in _LOWER_IS_BETTER_NAMES
+
+
 def get_stat_categories(session, league_key: str) -> list[dict]:
     """
     Return stat category metadata for the league.
 
-    Each dict has: stat_id, stat_name, abbreviation, stat_group, is_enabled.
+    Each dict has: stat_id, stat_name, abbreviation, stat_group, is_enabled,
+    lower_is_better.
     Non-scoring display stats (is_only_display_stat == '1') are included with
     is_enabled=False so callers can filter them out explicitly.
     """
@@ -95,12 +111,15 @@ def get_stat_categories(session, league_key: str) -> list[dict]:
         is_display = any(
             p.get("is_only_display_stat", "0") == "1" for p in pos_types
         )
+        name = stat["name"]
+        abbr = stat["display_name"]
         categories.append({
             "stat_id": stat["stat_id"],
-            "stat_name": stat["name"],
-            "abbreviation": stat["display_name"],
+            "stat_name": name,
+            "abbreviation": abbr,
             "stat_group": stat["group"],
             "is_enabled": not is_display,
+            "lower_is_better": _is_lower_better(name, abbr),
         })
 
     return categories

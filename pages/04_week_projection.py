@@ -19,6 +19,7 @@ import streamlit as st
 
 from analysis.matchup_sim import tally
 from analysis.projection import _is_rate_stat, compare_projections, project_team_stats
+from analysis.team_scores import lower_is_better_from_categories
 from auth.oauth import clear_session, get_session
 from data import client, players as players_module, roster as roster_module
 from data import schedule as schedule_module
@@ -413,7 +414,10 @@ opp_projected = project_team_stats(
     stat_categories,
 )
 
-comparison = compare_projections(my_projected, opp_projected, stat_categories)
+comparison = compare_projections(
+    my_projected, opp_projected, stat_categories,
+    lower_is_better=lower_is_better_from_categories(stat_categories),
+)
 
 # ---------------------------------------------------------------------------
 # Tally

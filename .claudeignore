@@ -1,0 +1,18 @@
+# Dependencies
+.venv/
+node_modules/
+package-lock.json
+
+# Generated / cache
+.cache/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Credentials / certs
+.streamlit/secrets.toml
+.localhost.pem
+.localhost-key.pem
+
+# OS noise
+.DS_Store
