@@ -33,6 +33,21 @@ LOWER_IS_BETTER: frozenset[str] = frozenset({
 _META_COLS: frozenset[str] = frozenset({"team_key", "team_name", "week", "games_played"})
 
 
+def lower_is_better_from_categories(categories: list[dict]) -> frozenset[str]:
+    """
+    Build a lower-is-better frozenset from fetched stat category dicts.
+
+    Each dict is expected to have 'stat_name' and optionally 'lower_is_better'.
+    Falls back to matching against the module-level LOWER_IS_BETTER constant for
+    any category that lacks the 'lower_is_better' field.
+    """
+    result = set()
+    for c in categories:
+        if c.get("lower_is_better") or c["stat_name"] in LOWER_IS_BETTER:
+            result.add(c["stat_name"])
+    return frozenset(result)
+
+
 def stat_columns(df: pd.DataFrame) -> list[str]:
     """Return the ordered list of stat column names (everything except metadata)."""
     return [c for c in df.columns if c not in _META_COLS]

@@ -32,7 +32,7 @@ Sort order: Team A first (best avg_rank), Team C last.
 import pandas as pd
 import pytest
 
-from analysis.team_scores import LOWER_IS_BETTER, avg_ranks, stat_columns, weekly_scores
+from analysis.team_scores import LOWER_IS_BETTER, avg_ranks, lower_is_better_from_categories, stat_columns, weekly_scores
 
 
 # ---------------------------------------------------------------------------
@@ -238,3 +238,37 @@ def test_avg_ranks_tied_teams_share_min_rank():
     assert idx.loc["Team A", "Goals"] == pytest.approx(1.0)
     assert idx.loc["Team B", "Goals"] == pytest.approx(1.0)
     assert idx.loc["Team C", "Goals"] == pytest.approx(3.0)
+
+
+# ---------------------------------------------------------------------------
+# lower_is_better_from_categories()
+# ---------------------------------------------------------------------------
+
+def test_lower_is_better_from_categories_includes_flagged_stats():
+    cats = [
+        {"stat_name": "Goals Against", "abbreviation": "GA", "lower_is_better": True},
+        {"stat_name": "Goals", "abbreviation": "G", "lower_is_better": False},
+    ]
+    result = lower_is_better_from_categories(cats)
+    assert "Goals Against" in result
+    assert "Goals" not in result
+
+
+def test_lower_is_better_from_categories_falls_back_to_constant():
+    """Categories without lower_is_better field should still match LOWER_IS_BETTER names."""
+    cats = [
+        {"stat_name": "Goals Against Average", "abbreviation": "GAA"},
+        {"stat_name": "Assists", "abbreviation": "A"},
+    ]
+    result = lower_is_better_from_categories(cats)
+    assert "Goals Against Average" in result
+    assert "Assists" not in result
+
+
+def test_lower_is_better_from_categories_empty_list():
+    assert lower_is_better_from_categories([]) == frozenset()
+
+
+def test_lower_is_better_from_categories_returns_frozenset():
+    result = lower_is_better_from_categories([])
+    assert isinstance(result, frozenset)

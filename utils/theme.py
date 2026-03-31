@@ -614,71 +614,8 @@ hr {
     display: block;
 }
 
-/* ── Mobile bottom navigation ───────────────────────────────────────────── */
-/* Hidden on desktop; shown via the @media block below */
-.fh-mobile-nav {
-    display: none;
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 64px;
-    background-color: rgba(32,32,30,0.85);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border-top: 1px solid rgba(63,73,69,0.15);
-    z-index: 999;
-    align-items: center;
-    justify-content: space-around;
-    padding-bottom: env(safe-area-inset-bottom, 0px);
-}
-.fh-mobile-nav-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 3px;
-    text-decoration: none;
-    color: var(--c-outline);
-    padding: 8px 16px;
-    min-width: 56px;
-    transition: color 0.15s;
-}
-.fh-mobile-nav-item.active { color: var(--c-primary); }
-.fh-mobile-nav-icon {
-    font-family: 'Material Symbols Outlined';
-    font-size: 1.375rem;
-    font-weight: normal;
-    font-style: normal;
-    line-height: 1;
-    letter-spacing: normal;
-    text-transform: none;
-    white-space: nowrap;
-    word-wrap: normal;
-    direction: ltr;
-    -webkit-font-smoothing: antialiased;
-    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
-}
-.fh-mobile-nav-item.active .fh-mobile-nav-icon {
-    font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
-}
-.fh-mobile-nav-label {
-    font-family: 'Manrope', sans-serif;
-    font-size: 0.5rem;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    font-weight: 700;
-}
-
 /* ── Mobile layout overrides ────────────────────────────────────────────── */
 @media (max-width: 768px) {
-    /* Show bottom nav */
-    .fh-mobile-nav { display: flex !important; }
-
-    /* Pad content so it doesn't hide under the nav bar */
-    [data-testid="stAppViewContainer"] > section.main {
-        padding-bottom: 72px !important;
-    }
-
     /* Tighten the main block container padding */
     [data-testid="stMainBlockContainer"] {
         padding-top: 1rem !important;
@@ -716,30 +653,3 @@ def inject_css() -> None:
     st.markdown(_CSS, unsafe_allow_html=True)
 
 
-def render_mobile_nav(active: str) -> None:
-    """Inject the fixed bottom navigation bar (only visible on mobile ≤768px).
-
-    Parameters
-    ----------
-    active : str
-        The slug of the current page — one of:
-        "league_overview", "waiver_wire", "week_projection".
-    """
-    _pages = [
-        ("league_overview", "sports_hockey", "League"),
-        ("waiver_wire",     "add_circle",    "Waiver"),
-        ("week_projection", "trending_up",   "Week"),
-    ]
-    items_html = ""
-    for slug, icon, label in _pages:
-        cls = "fh-mobile-nav-item active" if active == slug else "fh-mobile-nav-item"
-        items_html += (
-            f'<a class="{cls}" href="/{slug}">'
-            f'<span class="fh-mobile-nav-icon">{icon}</span>'
-            f'<span class="fh-mobile-nav-label">{label}</span>'
-            f"</a>"
-        )
-    st.markdown(
-        f'<nav class="fh-mobile-nav">{items_html}</nav>',
-        unsafe_allow_html=True,
-    )

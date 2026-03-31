@@ -20,21 +20,32 @@ import streamlit as st
 from analysis.matchup_sim import simulate, tally
 from analysis.projection import _is_rate_stat
 from analysis.team_scores import (
-    LOWER_IS_BETTER,
+    lower_is_better_from_categories,
     stat_columns,
     weekly_scores_ranked,
 )
+from auth.oauth import get_session
+from data.client import get_stat_categories
 from utils.common import load_matchups, require_auth
-from utils.theme import inject_css, render_mobile_nav
+from utils.theme import inject_css
 
 # ---------------------------------------------------------------------------
 # Guards + data load
 # ---------------------------------------------------------------------------
 
 inject_css()
-render_mobile_nav("league_overview")
 league_key = require_auth()
 load_matchups(league_key)
+
+if st.session_state.get("ov_stat_cats_league") != league_key:
+    _session = get_session()
+    if _session is not None:
+        cats = get_stat_categories(_session, league_key)
+        st.session_state["ov_stat_categories"] = cats
+        st.session_state["ov_stat_cats_league"] = league_key
+
+_stat_categories = st.session_state.get("ov_stat_categories", [])
+_lower_is_better = lower_is_better_from_categories(_stat_categories)
 
 df = st.session_state.get("matchups_df")
 current_week = st.session_state.get("current_week")
@@ -193,7 +204,8 @@ _TABLE_CSS = """
     z-index: 2;
 }
 .fh-row-selected td:first-child {
-    background-color: rgba(38,107,92,0.08) !important;
+    background-image: linear-gradient(rgba(38,107,92,0.08), rgba(38,107,92,0.08)) !important;
+    background-color: var(--c-surface-low) !important;
 }
 /* Desktop: larger text, natural column widths */
 @media (min-width: 769px) {
@@ -312,6 +324,7 @@ def _html_table(
 def _weekly_cell_colors(
     week_df: pd.DataFrame,
     stat_cols: list[str],
+    lower_is_better: frozenset[str] = frozenset(),
 ) -> dict[tuple[int, int], str]:
     """
     Return (row_idx, col_idx) → color for the weekly scores table.
@@ -319,7 +332,7 @@ def _weekly_cell_colors(
     Best value per stat → green (#4ade80).
     Worst value per stat → red (#f87171).
     Ties are handled: all rows sharing the best/worst value are coloured.
-    LOWER_IS_BETTER stats invert the green/red assignment.
+    Stats in lower_is_better invert the green/red assignment.
     """
     col_list = list(week_df.columns)
     colors: dict[tuple[int, int], str] = {}
@@ -328,7 +341,7 @@ def _weekly_cell_colors(
         if col not in week_df.columns:
             continue
         c_idx = col_list.index(col)
-        lower_better = col in LOWER_IS_BETTER
+        lower_better = col in lower_is_better
         series = week_df[col]
 
         best_val = series.min() if lower_better else series.max()
@@ -443,7 +456,7 @@ with ctrl_b:
 # Section 1: Weekly Scores
 # ---------------------------------------------------------------------------
 
-week_df = weekly_scores_ranked(df, selected_week).reset_index(drop=True)
+week_df = weekly_scores_ranked(df, selected_week, lower_is_better=_lower_is_better).reset_index(drop=True)
 stat_cols = stat_columns(df)
 
 # Abbreviation lookup for column headers
@@ -458,9 +471,8 @@ _STAT_ABBREV: dict[str, str] = {
     "Wins": "W", "Save Percentage": "SV%", "Goals Against Average": "GAA",
     "Saves": "SV", "Shutouts": "SO", "Goals Against": "GA", "Faceoffs Won": "FOW",
 }
-_stat_cats_ss = st.session_state.get("stat_categories", [])
 _stat_abbrev: dict[str, str] = (
-    {c["stat_name"]: c["abbreviation"] for c in _stat_cats_ss if "stat_name" in c and "abbreviation" in c}
+    {c["stat_name"]: c["abbreviation"] for c in _stat_categories if "stat_name" in c and "abbreviation" in c}
     or _STAT_ABBREV
 )
 
@@ -471,7 +483,7 @@ selected_rows: set[int] = {
     if row["team_name"] in {team_a, team_b}
 }
 
-cell_colors = _weekly_cell_colors(week_df, stat_cols)
+cell_colors = _weekly_cell_colors(week_df, stat_cols, lower_is_better=_lower_is_better)
 display_week_df = _fmt_weekly(week_df, stat_cols)
 
 # Rename columns: team_name → Team, stat cols → abbreviations
