@@ -195,6 +195,19 @@ _TABLE_CSS = """
 .fh-row-selected td:first-child {
     background-color: rgba(38,107,92,0.08) !important;
 }
+/* Desktop: larger text, natural column widths */
+@media (min-width: 769px) {
+    .fh-table th {
+        font-size: 0.75rem !important;
+        padding: 14px 12px !important;
+        width: auto !important;
+    }
+    .fh-table td {
+        font-size: 0.875rem !important;
+        padding: 14px 12px !important;
+        width: auto !important;
+    }
+}
 
 /* Comparison detail table */
 .fh-cmp-header {

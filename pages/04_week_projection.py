@@ -11,6 +11,7 @@ Data loading:
 - A "Refresh" button clears all projection state to re-fetch live data
 """
 
+import html as _html
 from datetime import date
 
 import pandas as pd
@@ -23,13 +24,211 @@ from data import client, players as players_module, roster as roster_module
 from data import schedule as schedule_module
 from data import scoreboard as scoreboard_module
 from utils.common import require_auth
-from utils.theme import inject_css
+from utils.theme import inject_css, render_mobile_nav
+
+# ---------------------------------------------------------------------------
+# Embedded CSS for st.html() shadow contexts
+# ---------------------------------------------------------------------------
+
+_TABLE_CSS = """
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,700;1,400;1,700&family=Manrope:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap');
+:root {
+    --c-surface:              #131312;
+    --c-surface-low:          #1c1c1a;
+    --c-surface-container:    #20201e;
+    --c-surface-highest:      #353532;
+    --c-primary:              #90d4c1;
+    --c-primary-container:    #266b5c;
+    --c-on-primary-container: #a5e9d6;
+    --c-on-surface:           #e5e2de;
+    --c-outline:              #89938f;
+    --c-outline-variant:      #3f4945;
+}
+* { box-sizing: border-box; }
+.fh-table-wrap { overflow-x: auto; }
+.fh-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.fh-table thead tr {
+    background-color: rgba(53,53,50,0.3);
+    border-bottom: 1px solid rgba(63,73,69,0.1);
+}
+.fh-table th {
+    padding: 14px 16px;
+    font-family: 'Manrope', sans-serif;
+    font-size: 0.625rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--c-outline);
+    font-weight: 700;
+    text-align: left;
+    white-space: nowrap;
+}
+.fh-table tbody tr {
+    border-bottom: 1px solid rgba(63,73,69,0.05);
+    transition: background-color 0.12s;
+}
+.fh-table tbody tr:hover { background-color: rgba(32,32,30,0.5); }
+.fh-table td {
+    padding: 14px 16px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.75rem;
+    color: var(--c-on-surface);
+    white-space: nowrap;
+}
+/* Sticky first column */
+.fh-table th:first-child,
+.fh-table td:first-child {
+    position: sticky;
+    left: 0;
+    background-color: #1c1c1a;
+    z-index: 2;
+}
+/* Winner / loser cells */
+.fh-cell-win {
+    background-color: rgba(38,107,92,0.4);
+    color: #a5e9d6;
+    font-weight: 700;
+    text-align: right;
+    padding: 14px 16px;
+    font-family: 'Manrope', sans-serif;
+}
+.fh-cell-lose {
+    color: #89938f;
+    text-align: right;
+    padding: 14px 16px;
+}
+.fh-cell-num {
+    text-align: right;
+    padding: 14px 16px;
+}
+/* Player name / meta */
+.fh-player-name {
+    font-family: 'Newsreader', serif;
+    font-size: 0.9375rem;
+    font-weight: 700;
+    color: #e5e2de;
+    margin: 0;
+    line-height: 1.2;
+}
+.fh-player-meta {
+    font-family: 'Manrope', sans-serif;
+    font-size: 0.5625rem;
+    color: #90d4c1;
+    margin: 0;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+.fh-swipe-hint {
+    font-family: 'Manrope', sans-serif;
+    font-size: 0.625rem;
+    text-align: center;
+    color: #89938f;
+    font-style: italic;
+    padding: 8px 0;
+    margin: 0;
+}
+</style>
+"""
+
+# ---------------------------------------------------------------------------
+# HTML table builders
+# ---------------------------------------------------------------------------
+
+def _build_category_table(comparison, my_team_name, opponent_name):
+    """3-column projection comparison table (Category | My Proj | Opp Proj)."""
+    my_label  = _html.escape(f"{my_team_name} (Proj)")
+    opp_label = _html.escape(f"{opponent_name} (Proj)")
+
+    header = (
+        f'<thead><tr>'
+        f'<th>Category</th>'
+        f'<th style="text-align:right;">{my_label}</th>'
+        f'<th style="text-align:right;">{opp_label}</th>'
+        f'</tr></thead>'
+    )
+
+    body_rows = []
+    for r in comparison:
+        stat   = _html.escape(r["category"])
+        winner = r["winner"]
+        fmt    = ".2f" if _is_rate_stat(r["category"]) else ".1f"
+        my_val  = format(float(r["team_a"]), fmt)
+        opp_val = format(float(r["team_b"]), fmt)
+
+        if winner == "team_a":
+            my_td  = f'<td class="fh-cell-win">{my_val}</td>'
+            opp_td = f'<td class="fh-cell-lose">{opp_val}</td>'
+        elif winner == "team_b":
+            my_td  = f'<td class="fh-cell-lose">{my_val}</td>'
+            opp_td = f'<td class="fh-cell-win">{opp_val}</td>'
+        else:
+            my_td  = f'<td class="fh-cell-num">{my_val}</td>'
+            opp_td = f'<td class="fh-cell-num">{opp_val}</td>'
+
+        body_rows.append(f'<tr><td>{stat}</td>{my_td}{opp_td}</tr>')
+
+    return (
+        f'<div class="fh-table-wrap">'
+        f'<table class="fh-table">'
+        f'{header}'
+        f'<tbody>{"".join(body_rows)}</tbody>'
+        f'</table>'
+        f'</div>'
+    )
+
+
+def _build_roster_table(rows, enabled_stats):
+    """Horizontally scrollable roster table with sticky player name column."""
+    stat_headers = "".join(
+        f'<th style="text-align:right;">{_html.escape(s)}</th>'
+        for s in ["GL"] + enabled_stats
+    )
+    header_row = (
+        f'<th style="min-width:160px;">Player</th>'
+        f'{stat_headers}'
+    )
+
+    body_rows = []
+    for p in rows:
+        safe_name = _html.escape(p["Player"])
+        meta      = _html.escape(f'{p.get("Position", "")} · {p.get("Team", "")}')
+        games_left = int(p["Games Left"])
+
+        name_cell = (
+            f'<td>'
+            f'<p class="fh-player-name">{safe_name}</p>'
+            f'<p class="fh-player-meta">{meta}</p>'
+            f'</td>'
+        )
+        stat_cells = f'<td style="text-align:right;">{games_left}</td>'
+        for s in enabled_stats:
+            fmt = ".2f" if _is_rate_stat(s) else ".1f"
+            val = format(float(p.get(s, 0.0)), fmt)
+            stat_cells += f'<td style="text-align:right;">{val}</td>'
+
+        body_rows.append(f'<tr>{name_cell}{stat_cells}</tr>')
+
+    return (
+        f'<div class="fh-table-wrap">'
+        f'<table class="fh-table" style="white-space:nowrap;">'
+        f'<thead><tr>{header_row}</tr></thead>'
+        f'<tbody>{"".join(body_rows)}</tbody>'
+        f'</table>'
+        f'</div>'
+        f'<p class="fh-swipe-hint">Swipe to view all stats</p>'
+    )
+
 
 # ---------------------------------------------------------------------------
 # Guards
 # ---------------------------------------------------------------------------
 
 inject_css()
+render_mobile_nav("week_projection")
 league_key = require_auth()
 
 # ---------------------------------------------------------------------------
@@ -235,58 +434,25 @@ sim_df = pd.DataFrame(sim_rows)
 counts = tally(sim_df, my_team_name, opponent_name)
 
 st.markdown(f"""
-<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.5rem;margin-bottom:2rem;">
-    <!-- My team -->
-    <div style="
-        background:#1c1c1a; border-radius:12px; padding:2rem;
-        border-left:4px solid #90d4c1;
-        display:flex; flex-direction:column; align-items:center; justify-content:center;
-        text-align:center; position:relative; overflow:hidden;
-        box-shadow:0 4px 24px rgba(0,0,0,0.3);
-    ">
-        <div style="position:absolute;top:-20%;right:-15%;width:120px;height:120px;
-            background:rgba(144,212,193,0.08);border-radius:50%;filter:blur(40px);"></div>
-        <p style="font-family:'Manrope',sans-serif;font-size:0.6875rem;text-transform:uppercase;
-            letter-spacing:0.2em;color:#89938f;margin:0 0 1rem 0;font-weight:500;">{my_team_name}</p>
-        <div style="font-family:'Newsreader',serif;font-size:4.5rem;font-weight:700;
-            color:#90d4c1;line-height:1;">{counts[my_team_name]}</div>
-        <p style="font-family:'Manrope',sans-serif;font-size:0.5625rem;text-transform:uppercase;
-            letter-spacing:0.2em;color:#89938f;margin:0.5rem 0 0 0;font-weight:700;">Projected Wins</p>
-    </div>
-    <!-- Tied -->
-    <div style="
-        background:#1c1c1a; border-radius:12px; padding:2rem;
-        border-left:4px solid rgba(137,147,143,0.2);
-        display:flex; flex-direction:column; align-items:center; justify-content:center;
-        text-align:center; position:relative; overflow:hidden;
-        box-shadow:0 4px 24px rgba(0,0,0,0.3);
-    ">
-        <div style="position:absolute;top:-20%;right:-15%;width:120px;height:120px;
-            background:rgba(137,147,143,0.05);border-radius:50%;filter:blur(40px);"></div>
-        <p style="font-family:'Manrope',sans-serif;font-size:0.6875rem;text-transform:uppercase;
-            letter-spacing:0.2em;color:#89938f;margin:0 0 1rem 0;font-weight:500;">Tied</p>
-        <div style="font-family:'Newsreader',serif;font-size:4.5rem;font-weight:700;
-            color:#e5e2de;line-height:1;">{counts["Tie"]}</div>
-        <p style="font-family:'Manrope',sans-serif;font-size:0.5625rem;text-transform:uppercase;
-            letter-spacing:0.2em;color:#89938f;margin:0.5rem 0 0 0;font-weight:700;">Categories</p>
-    </div>
-    <!-- Opponent -->
-    <div style="
-        background:#1c1c1a; border-radius:12px; padding:2rem;
-        border-left:4px solid #ffb599;
-        display:flex; flex-direction:column; align-items:center; justify-content:center;
-        text-align:center; position:relative; overflow:hidden;
-        box-shadow:0 4px 24px rgba(0,0,0,0.3);
-    ">
-        <div style="position:absolute;top:-20%;right:-15%;width:120px;height:120px;
-            background:rgba(255,181,153,0.05);border-radius:50%;filter:blur(40px);"></div>
-        <p style="font-family:'Manrope',sans-serif;font-size:0.6875rem;text-transform:uppercase;
-            letter-spacing:0.2em;color:#89938f;margin:0 0 1rem 0;font-weight:500;">{opponent_name}</p>
-        <div style="font-family:'Newsreader',serif;font-size:4.5rem;font-weight:700;
-            color:#ffb599;line-height:1;">{counts[opponent_name]}</div>
-        <p style="font-family:'Manrope',sans-serif;font-size:0.5625rem;text-transform:uppercase;
-            letter-spacing:0.2em;color:#89938f;margin:0.5rem 0 0 0;font-weight:700;">Projected Wins</p>
-    </div>
+<div class="fh-matchup-row">
+  <div class="fh-matchup-card" style="border-left:4px solid #90d4c1;box-shadow:0 4px 24px rgba(0,0,0,0.3);">
+    <div class="fh-matchup-card-glow" style="background:rgba(144,212,193,0.08);"></div>
+    <p class="fh-matchup-card-label">{_html.escape(my_team_name)}</p>
+    <div class="fh-matchup-card-value" style="color:#90d4c1;">{counts[my_team_name]}</div>
+    <p class="fh-matchup-card-sublabel">Projected Wins</p>
+  </div>
+  <div class="fh-matchup-card" style="border-left:4px solid rgba(137,147,143,0.2);box-shadow:0 4px 24px rgba(0,0,0,0.3);">
+    <div class="fh-matchup-card-glow" style="background:rgba(137,147,143,0.05);"></div>
+    <p class="fh-matchup-card-label">Tied</p>
+    <div class="fh-matchup-card-value" style="color:#e5e2de;">{counts["Tie"]}</div>
+    <p class="fh-matchup-card-sublabel">Categories</p>
+  </div>
+  <div class="fh-matchup-card" style="border-left:4px solid #ffb599;box-shadow:0 4px 24px rgba(0,0,0,0.3);">
+    <div class="fh-matchup-card-glow" style="background:rgba(255,181,153,0.05);"></div>
+    <p class="fh-matchup-card-label">{_html.escape(opponent_name)}</p>
+    <div class="fh-matchup-card-value" style="color:#ffb599;">{counts[opponent_name]}</div>
+    <p class="fh-matchup-card-sublabel">Projected Wins</p>
+  </div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -294,68 +460,14 @@ st.markdown(f"""
 # Projection table
 # ---------------------------------------------------------------------------
 
-my_now_col = f"{my_team_name} now"
-my_proj_col = f"{my_team_name} proj"
-opp_proj_col = f"{opponent_name} proj"
-opp_now_col = f"{opponent_name} now"
-
-rows = []
-for r in comparison:
-    stat = r["category"]
-    rows.append({
-        "Category": stat,
-        my_now_col: my_current.get(stat, 0.0),
-        my_proj_col: r["team_a"],
-        opp_proj_col: r["team_b"],
-        opp_now_col: opp_current.get(stat, 0.0),
-        "_winner": r["winner"],
-    })
-
-raw_df = pd.DataFrame(rows)
-winners = raw_df["_winner"]
-display_df = raw_df.drop(columns=["_winner"])
-
-
-def _highlight_winner(row):
-    styles = [""] * len(row)
-    cols = list(row.index)
-    winner = winners.iloc[row.name]
-    if winner == "team_a":
-        styles[cols.index(my_proj_col)] = (
-            "background-color: rgba(38,107,92,0.15); color: #a5e9d6; font-weight: 600"
-        )
-    elif winner == "team_b":
-        styles[cols.index(opp_proj_col)] = (
-            "background-color: rgba(147,0,10,0.1); color: #ffb599; font-weight: 600"
-        )
-    return styles
-
-
-format_map = {
-    my_now_col: "{:.0f}",
-    my_proj_col: "{:.1f}",
-    opp_proj_col: "{:.1f}",
-    opp_now_col: "{:.0f}",
-}
-
-n_rows = len(display_df)
-table_height = n_rows * 35 + 38
-
-styled = (
-    display_df
-    .style
-    .apply(_highlight_winner, axis=1)
-    .format(format_map)
-)
-
-st.dataframe(styled, use_container_width=True, hide_index=True, height=table_height)
+st.html(_TABLE_CSS + _build_category_table(comparison, my_team_name, opponent_name))
 
 # ---------------------------------------------------------------------------
 # Per-team player breakdown
 # ---------------------------------------------------------------------------
 
 def _player_breakdown(roster, lastmonth_stats, games_remaining, stat_categories):
-    """Build a per-player projection breakdown DataFrame for one team."""
+    """Build a per-player projection breakdown as a list of dicts for one team."""
     enabled = [c["stat_name"] for c in stat_categories if c["is_enabled"]]
     rows = []
     for player in roster:
@@ -363,8 +475,10 @@ def _player_breakdown(roster, lastmonth_stats, games_remaining, stat_categories)
         lm = lastmonth_stats.get(player["player_key"], {})
         gp = lm.get("games_played", 0)
         row = {
-            "Player": player["player_name"],
-            "Slot": player["roster_slot"],
+            "Player":    player["player_name"],
+            "Slot":      player["roster_slot"],
+            "Position":  player.get("display_position", ""),
+            "Team":      player.get("team_abbr", ""),
             "Games Left": remaining,
         }
         for stat in enabled:
@@ -375,35 +489,32 @@ def _player_breakdown(roster, lastmonth_stats, games_remaining, stat_categories)
                 row[stat] = (lm.get(stat, 0.0) / gp * remaining) if gp > 0 else 0.0
         rows.append(row)
     df = pd.DataFrame(rows)
-    return df.sort_values("Games Left", ascending=False)
+    return df.sort_values("Games Left", ascending=False).to_dict("records")
 
-
-breakdown_fmt = {s: "{:.1f}" for s in enabled_stats}
-breakdown_fmt["Games Left"] = "{:.0f}"
 
 st.markdown("""
-<div style="display:flex;align-items:center;gap:1rem;margin:2rem 0 1rem 0;">
-    <h3 style="font-family:'Newsreader',serif;font-size:1.5rem;font-style:italic;
-        color:#e5e2de;margin:0;white-space:nowrap;">Roster Breakdown</h3>
-    <div style="flex:1;height:1px;background:rgba(63,73,69,0.2);"></div>
+<div class="fh-section-header">
+    <h3 class="fh-section-title">Roster Breakdown</h3>
+    <div class="fh-section-rule"></div>
 </div>
 """, unsafe_allow_html=True)
+
 tab_my, tab_opp = st.tabs([my_team_name, opponent_name])
 
 with tab_my:
-    bd = _player_breakdown(
+    rows = _player_breakdown(
         pair_data["my_roster"],
         pair_data["lastmonth_stats"],
         pair_data["games_remaining"],
         stat_categories,
     )
-    st.dataframe(bd.style.format(breakdown_fmt), use_container_width=True, hide_index=True)
+    st.html(_TABLE_CSS + _build_roster_table(rows, enabled_stats))
 
 with tab_opp:
-    bd = _player_breakdown(
+    rows = _player_breakdown(
         pair_data["opp_roster"],
         pair_data["lastmonth_stats"],
         pair_data["games_remaining"],
         stat_categories,
     )
-    st.dataframe(bd.style.format(breakdown_fmt), use_container_width=True, hide_index=True)
+    st.html(_TABLE_CSS + _build_roster_table(rows, enabled_stats))

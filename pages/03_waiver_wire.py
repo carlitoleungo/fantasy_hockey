@@ -29,13 +29,14 @@ from data import cache as cache_module
 from data.client import get_stat_categories
 from data.players import fetch_lastmonth_batch, fetch_season_pool
 from utils.common import load_matchups, require_auth
-from utils.theme import inject_css
+from utils.theme import inject_css, render_mobile_nav
 
 # ---------------------------------------------------------------------------
 # Guards + data load
 # ---------------------------------------------------------------------------
 
 inject_css()
+render_mobile_nav("waiver_wire")
 league_key = require_auth()
 load_matchups(league_key)
 
@@ -148,64 +149,60 @@ for stat in all_stat_cols:
     if key not in st.session_state:
         st.session_state[key] = False
 
-left_col, right_col = st.columns([5, 7])
+# ── Position filter + rank by — side by side ────────────────────────────────
+pos_col, rank_col = st.columns(2)
 
-# ── Left section: position filter + rank by ─────────────────────────────────
-with left_col:
-    pos_col, rank_col = st.columns(2)
+with pos_col:
+    st.markdown('<span class="fh-control-label">Position Filter</span>', unsafe_allow_html=True)
+    # Two rows of 3 position buttons
+    row1_cols = st.columns(3)
+    row2_cols = st.columns(3)
+    for i, pos in enumerate(positions):
+        col = row1_cols[i] if i < 3 else row2_cols[i - 3]
+        is_active = st.session_state["ww_position"] == pos
+        with col:
+            if st.button(
+                pos,
+                key=f"ww_pos_{pos}",
+                type="primary" if is_active else "secondary",
+                use_container_width=True,
+            ):
+                st.session_state["ww_position"] = pos
+                st.session_state.pop("ww_page", None)
+                st.rerun()
 
-    with pos_col:
-        st.markdown('<span class="fh-control-label">Position Filter</span>', unsafe_allow_html=True)
-        # Two rows of 3 position buttons
-        row1_cols = st.columns(3)
-        row2_cols = st.columns(3)
-        for i, pos in enumerate(positions):
-            col = row1_cols[i] if i < 3 else row2_cols[i - 3]
-            is_active = st.session_state["ww_position"] == pos
-            with col:
-                if st.button(
-                    pos,
-                    key=f"ww_pos_{pos}",
-                    type="primary" if is_active else "secondary",
-                    use_container_width=True,
-                ):
-                    st.session_state["ww_position"] = pos
-                    st.session_state.pop("ww_page", None)
-                    st.rerun()
-
-    with rank_col:
-        ranking_period = st.radio(
-            "Rank by",
-            options=["Season", "Last 30 days"],
-            horizontal=False,
-            key="ww_period",
-        )
-
-# ── Right section: stat category chips ──────────────────────────────────────
-with right_col:
-    st.markdown(
-        '<span class="fh-control-label">Categories</span>',
-        unsafe_allow_html=True,
+with rank_col:
+    ranking_period = st.radio(
+        "Rank by",
+        options=["Season", "Last 30 days"],
+        horizontal=False,
+        key="ww_period",
     )
-    CHIPS_PER_ROW = 8
-    for row_start in range(0, len(all_stat_cols), CHIPS_PER_ROW):
-        row_stats = all_stat_cols[row_start : row_start + CHIPS_PER_ROW]
-        # Always create CHIPS_PER_ROW columns so every chip is the same width,
-        # even on the last (possibly shorter) row.
-        chip_cols = st.columns(CHIPS_PER_ROW)
-        for i, stat in enumerate(row_stats):
-            is_on = st.session_state[f"ww_cat_{stat}"]
-            abbrev = _stat_abbrev.get(stat, stat)
-            with chip_cols[i]:
-                if st.button(
-                    abbrev,
-                    key=f"ww_chip_{stat}",
-                    type="primary" if is_on else "secondary",
-                    use_container_width=True,
-                ):
-                    st.session_state[f"ww_cat_{stat}"] = not is_on
-                    st.session_state.pop("ww_page", None)
-                    st.rerun()
+
+# ── Stat category chips — full width below position/rank ────────────────────
+st.markdown(
+    '<span class="fh-control-label">Categories</span>',
+    unsafe_allow_html=True,
+)
+CHIPS_PER_ROW = 4
+for row_start in range(0, len(all_stat_cols), CHIPS_PER_ROW):
+    row_stats = all_stat_cols[row_start : row_start + CHIPS_PER_ROW]
+    # Always create CHIPS_PER_ROW columns so every chip is the same width,
+    # even on the last (possibly shorter) row.
+    chip_cols = st.columns(CHIPS_PER_ROW)
+    for i, stat in enumerate(row_stats):
+        is_on = st.session_state[f"ww_cat_{stat}"]
+        abbrev = _stat_abbrev.get(stat, stat)
+        with chip_cols[i]:
+            if st.button(
+                abbrev,
+                key=f"ww_chip_{stat}",
+                type="primary" if is_on else "secondary",
+                use_container_width=True,
+            ):
+                st.session_state[f"ww_cat_{stat}"] = not is_on
+                st.session_state.pop("ww_page", None)
+                st.rerun()
 
 # Derive selected categories from toggle state
 selected_cats = [s for s in all_stat_cols if st.session_state.get(f"ww_cat_{s}")]
@@ -616,6 +613,13 @@ table_html = f"""
     color: #89938f;
     font-weight: 700;
 }}
+.ww-table th:first-child,
+.ww-table td:first-child {{
+    position: sticky;
+    left: 0;
+    background-color: #1c1c1a;
+    z-index: 2;
+}}
 </style>
 <div class="ww-card">
     <div class="ww-table-wrap">
@@ -637,12 +641,12 @@ st.html(table_html)
 # Pagination controls
 # ---------------------------------------------------------------------------
 
-pg_cols = st.columns([6, 1, 1])
-with pg_cols[1]:
-    if st.button("← Prev", key="ww_prev", type="secondary", disabled=(current_page == 0)):
+pg_cols = st.columns([1, 1])
+with pg_cols[0]:
+    if st.button("← Prev", key="ww_prev", type="secondary", use_container_width=True, disabled=(current_page == 0)):
         st.session_state["ww_page"] = current_page - 1
         st.rerun()
-with pg_cols[2]:
-    if st.button("Next →", key="ww_next", type="secondary", disabled=(current_page >= total_pages - 1)):
+with pg_cols[1]:
+    if st.button("Next →", key="ww_next", type="secondary", use_container_width=True, disabled=(current_page >= total_pages - 1)):
         st.session_state["ww_page"] = current_page + 1
         st.rerun()
