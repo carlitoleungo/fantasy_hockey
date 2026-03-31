@@ -93,19 +93,19 @@ if "tokens" not in st.session_state:
 @import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,700;1,400;1,700&family=Manrope:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap');
 * { box-sizing: border-box; margin: 0; padding: 0; }
 /* Yahoo sign-in link button — style <a> directly; no pseudo-element overlays */
-[data-testid="stLinkButton"] { display:flex; justify-content:center; margin-top:1rem; }
+[data-testid="stLinkButton"] { display:flex; justify-content:center; margin-top:1rem; width:100%; }
 [data-testid="stLinkButton"] a {
   display:inline-flex !important; align-items:center !important; justify-content:center !important;
-  gap:10px !important; background:#ffffff !important; color:#6001D2 !important;
+  gap:10px !important; background:#6001D2 !important; color:#ffffff !important;
   border-radius:8px !important; padding:13px 28px !important;
   font-family:'Manrope',sans-serif !important; font-weight:700 !important;
   font-size:0.9375rem !important; text-decoration:none !important;
-  box-shadow:0 2px 10px rgba(0,0,0,0.25) !important;
+  box-shadow:0 8px 20px rgba(96,1,210,0.35) !important;
   transition:background 0.15s,box-shadow 0.15s !important;
 }
 [data-testid="stLinkButton"] a:hover {
-  background:#f3ecff !important;
-  box-shadow:0 4px 16px rgba(96,1,210,0.25) !important;
+  background:#4d00a8 !important;
+  box-shadow:0 4px 16px rgba(96,1,210,0.5) !important;
 }
 </style>
 <div style="min-height:560px;display:flex;flex-direction:column;align-items:center;justify-content:center;background-color:#131312;background-image:radial-gradient(circle at 2px 2px,rgba(144,144,151,0.1) 1px,transparent 0);background-size:32px 32px;position:relative;overflow:hidden;padding:3rem 1rem 1.5rem 1rem;">
