@@ -730,11 +730,20 @@ def render_mobile_nav(active: str) -> None:
         ("waiver_wire",     "add_circle",    "Waiver"),
         ("week_projection", "trending_up",   "Week"),
     ]
+    # Navigate via history.pushState so Streamlit's React Router picks up the
+    # route change over the existing WebSocket — avoids a full page reload that
+    # would create a new session and wipe state.
+    _nav_js = (
+        "event.preventDefault();"
+        "var w=window.parent||window;"
+        "w.history.pushState({},'',this.getAttribute('href'));"
+        "w.dispatchEvent(new PopStateEvent('popstate'));"
+    )
     items_html = ""
     for slug, icon, label in _pages:
         cls = "fh-mobile-nav-item active" if active == slug else "fh-mobile-nav-item"
         items_html += (
-            f'<a class="{cls}" href="/{slug}" target="_top">'
+            f'<a class="{cls}" href="/{slug}" onclick="{_nav_js}">'
             f'<span class="fh-mobile-nav-icon">{icon}</span>'
             f'<span class="fh-mobile-nav-label">{label}</span>'
             f"</a>"
