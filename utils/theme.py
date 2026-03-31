@@ -11,6 +11,7 @@ Handles:
 """
 
 import streamlit as st
+import streamlit.components.v1 as components
 
 # ── CSS ─────────────────────────────────────────────────────────────────────
 
@@ -719,6 +720,12 @@ def inject_css() -> None:
 def render_mobile_nav(active: str) -> None:
     """Inject the fixed bottom navigation bar (only visible on mobile ≤768px).
 
+    Uses st.components.v1.html() so that JavaScript actually executes —
+    st.markdown() sanitizes onclick handlers via DOMPurify. The script runs
+    inside a sandboxed iframe but accesses window.parent to inject the <nav>
+    element directly into the Streamlit document and wire up click handling
+    via history.pushState + popstate (same mechanism as the sidebar).
+
     Parameters
     ----------
     active : str
@@ -730,25 +737,49 @@ def render_mobile_nav(active: str) -> None:
         ("waiver_wire",     "add_circle",    "Waiver"),
         ("week_projection", "trending_up",   "Week"),
     ]
-    # Navigate via history.pushState so Streamlit's React Router picks up the
-    # route change over the existing WebSocket — avoids a full page reload that
-    # would create a new session and wipe state.
-    _nav_js = (
-        "event.preventDefault();"
-        "var w=window.parent||window;"
-        "w.history.pushState({},'',this.getAttribute('href'));"
-        "w.dispatchEvent(new PopStateEvent('popstate'));"
-    )
     items_html = ""
     for slug, icon, label in _pages:
         cls = "fh-mobile-nav-item active" if active == slug else "fh-mobile-nav-item"
         items_html += (
-            f'<a class="{cls}" href="/{slug}" onclick="{_nav_js}">'
+            f'<a class="{cls}" href="/{slug}">'
             f'<span class="fh-mobile-nav-icon">{icon}</span>'
             f'<span class="fh-mobile-nav-label">{label}</span>'
             f"</a>"
         )
-    st.markdown(
-        f'<nav class="fh-mobile-nav">{items_html}</nav>',
-        unsafe_allow_html=True,
+
+    # language=HTML
+    components.html(
+        f"""
+        <script>
+        (function () {{
+            var parent = window.parent;
+            var doc    = parent.document;
+
+            // Attach a single delegated click handler once per session so
+            // re-renders don't stack up multiple listeners.
+            if (!parent._fhNavReady) {{
+                parent._fhNavReady = true;
+                doc.addEventListener('click', function (e) {{
+                    var a = e.target.closest('a.fh-mobile-nav-item');
+                    if (!a) return;
+                    e.preventDefault();
+                    parent.history.pushState({{}}, '', a.getAttribute('href'));
+                    parent.dispatchEvent(new PopStateEvent('popstate'));
+                }});
+            }}
+
+            // Inject or update the <nav> in the parent document.
+            // The CSS for .fh-mobile-nav is already present via inject_css().
+            var nav = doc.getElementById('fh-mobile-nav');
+            if (!nav) {{
+                nav = doc.createElement('nav');
+                nav.id        = 'fh-mobile-nav';
+                nav.className = 'fh-mobile-nav';
+                doc.body.appendChild(nav);
+            }}
+            nav.innerHTML = `{items_html}`;
+        }})();
+        </script>
+        """,
+        height=0,
     )
