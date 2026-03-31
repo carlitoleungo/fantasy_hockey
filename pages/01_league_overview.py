@@ -204,7 +204,8 @@ _TABLE_CSS = """
     z-index: 2;
 }
 .fh-row-selected td:first-child {
-    background-color: rgba(38,107,92,0.08) !important;
+    background-image: linear-gradient(rgba(38,107,92,0.08), rgba(38,107,92,0.08)) !important;
+    background-color: var(--c-surface-low) !important;
 }
 /* Desktop: larger text, natural column widths */
 @media (min-width: 769px) {
