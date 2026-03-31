@@ -2,6 +2,10 @@
 .venv/
 node_modules/
 package-lock.json
+package.json
+
+# Reference / read-only snapshots
+reference/
 
 # Generated / cache
 .cache/
