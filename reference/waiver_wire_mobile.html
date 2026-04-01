@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Waiver Wire | Iron Phalanx</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,700;1,400&amp;family=Manrope:wght@400;500;600;700&amp;family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "tertiary-container": "#9b4825",
+                        "surface": "#131312",
+                        "secondary-container": "#956300",
+                        "background": "#131312",
+                        "on-secondary-fixed-variant": "#624000",
+                        "on-error": "#690005",
+                        "on-surface": "#e5e2de",
+                        "outline-variant": "#3f4945",
+                        "on-primary": "#00382e",
+                        "on-tertiary-fixed": "#370e00",
+                        "surface-variant": "#353532",
+                        "inverse-primary": "#24695a",
+                        "primary-fixed-dim": "#90d4c1",
+                        "primary-container": "#266b5c",
+                        "on-background": "#e5e2de",
+                        "on-primary-fixed-variant": "#005143",
+                        "primary": "#90d4c1",
+                        "on-secondary": "#442b00",
+                        "surface-dim": "#131312",
+                        "surface-tint": "#90d4c1",
+                        "error-container": "#93000a",
+                        "tertiary-fixed-dim": "#ffb599",
+                        "surface-container-low": "#1c1c1a",
+                        "surface-container-highest": "#353532",
+                        "outline": "#89938f",
+                        "on-error-container": "#ffdad6",
+                        "secondary-fixed": "#ffddb2",
+                        "secondary-fixed-dim": "#fbbb5b",
+                        "primary-fixed": "#acf0dd",
+                        "secondary": "#fbbb5b",
+                        "on-tertiary-fixed-variant": "#7a2f0e",
+                        "inverse-surface": "#e5e2de",
+                        "surface-container-lowest": "#0e0e0c",
+                        "tertiary-fixed": "#ffdbce",
+                        "on-primary-fixed": "#00201a",
+                        "inverse-on-surface": "#31302e",
+                        "on-secondary-container": "#ffedda",
+                        "surface-container": "#20201e",
+                        "surface-bright": "#3a3937",
+                        "on-secondary-fixed": "#291800",
+                        "surface-container-high": "#2a2a28",
+                        "on-surface-variant": "#bfc9c4",
+                        "on-tertiary": "#5a1c00",
+                        "on-primary-container": "#a5e9d6",
+                        "tertiary": "#ffb599",
+                        "on-tertiary-container": "#ffd2c2",
+                        "error": "#ffb4ab"
+                    },
+                    fontFamily: {
+                        "headline": ["Newsreader"],
+                        "body": ["Inter"],
+                        "label": ["Manrope"]
+                    },
+                    borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #1c1c1a;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #3f4945;
+            border-radius: 10px;
+        }
+        .grid-motif {
+            background-image: radial-gradient(circle, #e5e2de 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+        body {
+            -webkit-tap-highlight-color: transparent;
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface font-body selection:bg-primary/30">
+<!-- Mobile Top Bar -->
+<!-- Main Canvas (Mobile Optimized) -->
+<main class="pb-24 px-4 min-h-screen bg-[#1E1E1C] relative overflow-hidden pt-8">
+<!-- Subtle Grid Motif Overlay -->
+<div class="absolute inset-0 grid-motif opacity-[0.02] pointer-events-none"></div>
+<div class="relative z-10 max-w-full mx-auto">
+<!-- Header Section -->
+<div class="mb-6">
+<h2 class="font-headline text-3xl font-bold text-on-surface tracking-tight">Waiver Wire</h2>
+<p class="font-body text-outline mt-1 text-xs leading-relaxed">
+                Precision scouting for the deep league manager. Tactical filters applied to 14 categorical indices.
+            </p>
+</div>
+<!-- Tactical Control Section (Stacked for Mobile) -->
+<section class="bg-surface-container-low rounded-xl p-4 mb-6 shadow-sm space-y-5">
+<!-- Position Filter -->
+<div class="space-y-2">
+<label class="font-label text-[9px] uppercase tracking-[0.2em] text-outline font-bold">Position Filter</label>
+<div class="flex flex-wrap gap-1.5">
+<button class="px-3 py-1 rounded-full bg-primary-container text-on-primary-container font-label text-[10px] font-bold">ALL</button>
+<button class="px-3 py-1 rounded-full bg-surface-container-highest text-outline font-label text-[10px]">C</button>
+<button class="px-3 py-1 rounded-full bg-surface-container-highest text-outline font-label text-[10px]">LW</button>
+<button class="px-3 py-1 rounded-full bg-surface-container-highest text-outline font-label text-[10px]">RW</button>
+<button class="px-3 py-1 rounded-full bg-surface-container-highest text-outline font-label text-[10px]">D</button>
+<button class="px-3 py-1 rounded-full bg-surface-container-highest text-outline font-label text-[10px]">G</button>
+</div>
+</div>
+<!-- Rank By & Refresh -->
+<div class="flex items-center justify-between gap-4">
+<div class="space-y-2">
+<label class="font-label text-[9px] uppercase tracking-[0.2em] text-outline font-bold">Rank By</label>
+<div class="flex items-center gap-4 h-8">
+<label class="flex items-center gap-2 cursor-pointer">
+<div class="w-3.5 h-3.5 rounded-full border-2 border-primary flex items-center justify-center p-0.5">
+<div class="w-full h-full rounded-full bg-primary"></div>
+</div>
+<span class="font-label text-[11px] text-on-surface">Season</span>
+</label>
+<label class="flex items-center gap-2 cursor-pointer">
+<div class="w-3.5 h-3.5 rounded-full border-2 border-outline"></div>
+<span class="font-label text-[11px] text-outline">Last 30D</span>
+</label>
+</div>
+</div>
+<button class="bg-primary-container text-on-primary-container p-2.5 rounded shadow-sm flex items-center justify-center">
+<span class="material-symbols-outlined text-sm" data-icon="refresh">refresh</span>
+</button>
+</div>
+<!-- Stat Category Multi-Select -->
+<div class="space-y-2">
+<label class="font-label text-[9px] uppercase tracking-[0.2em] text-outline font-bold">Categorical Focus</label>
+<div class="flex flex-wrap gap-1.5">
+<button class="px-2 py-1 rounded bg-surface-container-highest text-primary border border-primary/20 font-label text-[9px] flex items-center gap-1">
+                        G <span class="material-symbols-outlined text-[10px]" data-icon="check">check</span>
+</button>
+<button class="px-2 py-1 rounded bg-surface-container-highest text-primary border border-primary/20 font-label text-[9px] flex items-center gap-1">
+                        A <span class="material-symbols-outlined text-[10px]" data-icon="check">check</span>
+</button>
+<button class="px-2 py-1 rounded bg-surface-container-highest text-outline font-label text-[9px]">P</button>
+<button class="px-2 py-1 rounded bg-surface-container-highest text-primary border border-primary/20 font-label text-[9px] flex items-center gap-1">
+                        PIM <span class="material-symbols-outlined text-[10px]" data-icon="check">check</span>
+</button>
+<button class="px-2 py-1 rounded bg-surface-container-highest text-primary border border-primary/20 font-label text-[9px] flex items-center gap-1">
+                        SOG <span class="material-symbols-outlined text-[10px]" data-icon="check">check</span>
+</button>
+<button class="px-2 py-1 rounded bg-surface-container-highest text-primary border border-primary/20 font-label text-[9px] flex items-center gap-1">
+                        HIT <span class="material-symbols-outlined text-[10px]" data-icon="check">check</span>
+</button>
+<button class="px-2 py-1 rounded bg-surface-container-highest text-outline font-label text-[9px]">BLK</button>
+</div>
+</div>
+</section>
+<!-- Waiver Wire Data Table (Mobile Horizontal Scroll with Pinned Player) -->
+<div class="bg-surface-container-low rounded-xl shadow-lg overflow-hidden border-l-4 border-primary-container mb-6">
+<div class="overflow-x-auto custom-scrollbar">
+<table class="w-full text-left border-collapse min-w-[900px]">
+<thead>
+<tr class="bg-surface-container-highest/30">
+<th class="px-3 py-3 font-label text-[9px] uppercase tracking-wider text-outline border-b border-outline-variant/20 sticky left-0 bg-[#1c1c1a] z-20">Player</th>
+<th class="px-2 py-3 font-label text-[9px] uppercase tracking-wider text-outline border-b border-outline-variant/20">Team</th>
+<th class="px-2 py-3 font-label text-[9px] uppercase tracking-wider text-outline border-b border-outline-variant/20">Pos</th>
+<th class="px-2 py-3 font-label text-[9px] uppercase tracking-wider text-outline border-b border-outline-variant/20">Stat</th>
+<th class="px-2 py-3 font-label text-[9px] uppercase tracking-wider text-primary border-b border-outline-variant/20 text-center">G</th>
+<th class="px-2 py-3 font-label text-[9px] uppercase tracking-wider text-primary border-b border-outline-variant/20 text-center">A</th>
+<th class="px-2 py-3 font-label text-[9px] uppercase tracking-wider text-outline border-b border-outline-variant/20 text-center">P</th>
+<th class="px-2 py-3 font-label text-[9px] uppercase tracking-wider text-primary border-b border-outline-variant/20 text-center">PIM</th>
+<th class="px-2 py-3 font-label text-[9px] uppercase tracking-wider text-outline border-b border-outline-variant/20 text-center">PPP</th>
+<th class="px-2 py-3 font-label text-[9px] uppercase tracking-wider text-primary border-b border-outline-variant/20 text-center">SOG</th>
+<th class="px-2 py-3 font-label text-[9px] uppercase tracking-wider text-primary border-b border-outline-variant/20 text-center">HIT</th>
+<th class="px-2 py-3 font-label text-[9px] uppercase tracking-wider text-outline border-b border-outline-variant/20 text-center">BLK</th>
+<th class="px-2 py-3 font-label text-[9px] uppercase tracking-wider text-outline border-b border-outline-variant/20 text-center">W</th>
+<th class="px-2 py-3 font-label text-[9px] uppercase tracking-wider text-outline border-b border-outline-variant/20 text-center">SV%</th>
+<th class="px-3 py-3 font-label text-[9px] uppercase tracking-wider text-secondary border-b border-outline-variant/20 text-right">Rank</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant/10">
+<!-- Player Row 1 -->
+<tr class="active:bg-surface-container transition-colors group">
+<td class="px-3 py-3 sticky left-0 bg-[#1c1c1a] group-active:bg-surface-container z-20 transition-colors border-r border-outline-variant/10">
+<div>
+<p class="font-headline font-bold text-on-surface text-sm truncate max-w-[120px]">Wyatt Johnston</p>
+<p class="font-label text-[9px] text-primary">DAL - C/RW</p>
+</div>
+</td>
+<td class="px-2 py-3 font-body text-[11px] text-on-surface">DAL</td>
+<td class="px-2 py-3 font-body text-[11px] text-on-surface">C/RW</td>
+<td class="px-2 py-3">
+<span class="px-1.5 py-0.5 rounded-full bg-surface-container-highest text-outline text-[8px] font-label">ACT</span>
+</td>
+<td class="px-2 py-3 font-body text-[11px] text-center text-on-surface">14</td>
+<td class="px-2 py-3 font-body text-[11px] text-center text-on-surface">19</td>
+<td class="px-2 py-3 font-body text-[11px] text-center text-on-surface">33</td>
+<td class="px-2 py-3 font-body text-[11px] text-center text-on-surface">12</td>
+<td class="px-2 py-3 font-body text-[11px] text-center text-on-surface">9</td>
+<td class="px-2 py-3 font-body text-[11px] text-center text-on-surface">112</td>
+<td class="px-2 py-3 font-body text-[11px] text-center text-on-surface">24</td>
+<td class="px-2 py-3 font-body text-[11px] text-center text-on-surface">18</td>
+<td class="px-2 py-3 font-body text-[11px] text-center text-outline">-</td>
+<td class="px-2 py-3 font-body text-[11px] text-center text-outline">-</td>
+<td class="px-3 py-3 font-body text-[11px] text-right text-secondary-fixed-dim font-bold italic">#14</td>
+</tr>
+<!-- Player Row 2 -->
+<tr class="active:bg-surface-container transition-colors group">
+<td class="px-3 py-3 sticky left-0 bg-[#1c1c1a] group-active:bg-surface-container z-20 transition-colors border-r border-outline-variant/10">
+<div>
+<p class="font-headline font-bold text-on-surface text-sm truncate max-w-[120px]">Radko Gudas</p>
+<p class="font-label text-[9px] text-primary">ANA - D</p>
+</div>
+</td>
+<td class="px-2 py-3 font-body text-[11px] text-on-surface">ANA</td>
+<td class="px-2 py-3 font-body text-[11px] text-on-surface">D</td>
+<td class="px-2 py-3">
+<span class="px-1.5 py-0.5 rounded-full bg-tertiary-container/30 text-tertiary text-[8px] font-label">DTD</span>
+</td>
+<td class="px-2 py-3 font-body text-[11px] text-center text-on-surface">2</td>
+<td class="px-2 py-3 font-body text-[11px] text-center text-on-surface">6</td>
+<td class="px-2 py-3 font-body text-[11px] text-center text-on-surface">8</td>
+<td class="px-2 py-3 font-body text-[11px] text-center text-on-surface">64</td>
+<td class="px-2 py-3 font-body text-[11px] text-center text-on-surface">1</td>
+<td class="px-2 py-3 font-body text-[11px] text-center text-on-surface">54</td>
+<td class="px-2 py-3 font-body text-[11px] text-center text-on-surface">142</td>
+<td class="px-2 py-3 font-body text-[11px] text-center text-on-surface">88</td>
+<td class="px-2 py-3 font-body text-[11px] text-center text-outline">-</td>
+<td class="px-2 py-3 font-body text-[11px] text-center text-outline">-</td>
+<td class="px-3 py-3 font-body text-[11px] text-right text-secondary-fixed-dim font-bold italic">#22</td>
+</tr>
+<!-- Player Row 3 -->
+<tr class="active:bg-surface-container transition-colors group">
+<td class="px-3 py-3 sticky left-0 bg-[#1c1c1a] group-active:bg-surface-container z-20 transition-colors border-r border-outline-variant/10">
+<div>
+<p class="font-headline font-bold text-on-surface text-sm truncate max-w-[120px]">Semyon Varlamov</p>
+<p class="font-label text-[9px] text-primary">NYI - G</p>
+</div>
+</td>
+<td class="px-2 py-3 font-body text-[11px] text-on-surface">NYI</td>
+<td class="px-2 py-3 font-body text-[11px] text-on-surface">G</td>
+<td class="px-2 py-3">
+<span class="px-1.5 py-0.5 rounded-full bg-surface-container-highest text-outline text-[8px] font-label">ACT</span>
+</td>
+<td class="px-2 py-3 font-body text-[11px] text-center text-outline">-</td>
+<td class="px-2 py-3 font-body text-[11px] text-center text-outline">-</td>
+<td class="px-2 py-3 font-body text-[11px] text-center text-outline">-</td>
+<td class="px-2 py-3 font-body text-[11px] text-center text-outline">-</td>
+<td class="px-2 py-3 font-body text-[11px] text-center text-outline">-</td>
+<td class="px-2 py-3 font-body text-[11px] text-center text-outline">-</td>
+<td class="px-2 py-3 font-body text-[11px] text-center text-outline">-</td>
+<td class="px-2 py-3 font-body text-[11px] text-center text-on-surface">8</td>
+<td class="px-2 py-3 font-body text-[11px] text-center text-on-surface">8</td>
+<td class="px-2 py-3 font-body text-[11px] text-center text-on-surface">.918</td>
+<td class="px-3 py-3 font-body text-[11px] text-right text-secondary-fixed-dim font-bold italic">#47</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Table Footer (Compact) -->
+<div class="px-4 py-3 bg-surface-container-highest/20 flex items-center justify-between">
+<div class="flex items-center gap-1">
+<span class="font-label text-[9px] text-outline uppercase">Page 1/12</span>
+</div>
+<div class="flex gap-2">
+<button class="w-7 h-7 flex items-center justify-center rounded bg-surface-container text-outline">
+<span class="material-symbols-outlined text-base" data-icon="chevron_left">chevron_left</span>
+</button>
+<button class="w-7 h-7 flex items-center justify-center rounded bg-surface-container text-outline">
+<span class="material-symbols-outlined text-base" data-icon="chevron_right">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+<p class="text-center font-label text-[9px] text-outline/50 uppercase tracking-widest pb-4">Top 25 available assets shown</p>
+</div>
+</main>
+<!-- Bottom Navigation Bar -->
+<nav class="fixed bottom-0 left-0 right-0 h-16 bg-[#131312] border-t border-[#1c1c1a] z-50 flex items-center justify-around pb-safe">
+<button class="flex flex-col items-center gap-1 text-outline">
+<span class="material-symbols-outlined text-xl" data-icon="leaderboard">leaderboard</span>
+<span class="font-label text-[9px] uppercase tracking-tighter">League</span>
+</button>
+<button class="flex flex-col items-center gap-1 text-primary">
+<span class="material-symbols-outlined text-xl" data-icon="swap_horizontal_circle" style="font-variation-settings: 'FILL' 1;">swap_horizontal_circle</span>
+<span class="font-label text-[9px] uppercase tracking-tighter">Waiver</span>
+</button>
+<button class="flex flex-col items-center gap-1 text-outline">
+<span class="material-symbols-outlined text-xl" data-icon="query_stats">query_stats</span>
+<span class="font-label text-[9px] uppercase tracking-tighter">Stats</span>
+</button>
+<button class="flex flex-col items-center gap-1 text-outline">
+<span class="material-symbols-outlined text-xl" data-icon="person">person</span>
+<span class="font-label text-[9px] uppercase tracking-tighter">Team</span>
+</button>
+</nav>
+</body></html>

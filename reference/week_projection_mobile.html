@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Iron Phalanx | Week Projection</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,600;0,700;1,400&amp;family=Manrope:wght@400;500;600;700&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "tertiary-container": "#9b4825",
+              "surface": "#131312",
+              "secondary-container": "#956300",
+              "background": "#131312",
+              "on-secondary-fixed-variant": "#624000",
+              "on-error": "#690005",
+              "on-surface": "#e5e2de",
+              "outline-variant": "#3f4945",
+              "on-primary": "#00382e",
+              "on-tertiary-fixed": "#370e00",
+              "surface-variant": "#353532",
+              "inverse-primary": "#24695a",
+              "primary-fixed-dim": "#90d4c1",
+              "primary-container": "#266b5c",
+              "on-background": "#e5e2de",
+              "on-primary-fixed-variant": "#005143",
+              "primary": "#90d4c1",
+              "on-secondary": "#442b00",
+              "surface-dim": "#131312",
+              "surface-tint": "#90d4c1",
+              "error-container": "#93000a",
+              "tertiary-fixed-dim": "#ffb599",
+              "surface-container-low": "#1c1c1a",
+              "surface-container-highest": "#353532",
+              "outline": "#89938f",
+              "on-error-container": "#ffdad6",
+              "secondary-fixed": "#ffddb2",
+              "secondary-fixed-dim": "#fbbb5b",
+              "primary-fixed": "#acf0dd",
+              "secondary": "#fbbb5b",
+              "on-tertiary-fixed-variant": "#7a2f0e",
+              "inverse-surface": "#e5e2de",
+              "surface-container-lowest": "#0e0e0c",
+              "tertiary-fixed": "#ffdbce",
+              "on-primary-fixed": "#00201a",
+              "inverse-on-surface": "#31302e",
+              "on-secondary-container": "#ffedda",
+              "surface-container": "#20201e",
+              "surface-bright": "#3a3937",
+              "on-secondary-fixed": "#291800",
+              "surface-container-high": "#2a2a28",
+              "on-surface-variant": "#bfc9c4",
+              "on-tertiary": "#5a1c00",
+              "on-primary-container": "#a5e9d6",
+              "tertiary": "#ffb599",
+              "on-tertiary-container": "#ffd2c2",
+              "error": "#ffb4ab"
+            },
+            fontFamily: {
+              "headline": ["Newsreader", "serif"],
+              "body": ["Inter", "sans-serif"],
+              "label": ["Manrope", "sans-serif"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+      body { background-color: #131312; color: #e5e2de; font-family: 'Inter', sans-serif; min-height: 100dvh; }
+      .grid-motif { background-image: radial-gradient(circle, #e5e2de 1px, transparent 1px); background-size: 24px 24px; opacity: 0.02; }
+      .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+      .editorial-shadow { box-shadow: 0 0 32px 0 rgba(229, 226, 222, 0.06); }
+      .category-win { background-color: rgba(38, 107, 92, 0.15); }
+      .category-loss { background-color: rgba(147, 0, 10, 0.1); }
+      .hide-scrollbar::-webkit-scrollbar { display: none; }
+      .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-surface text-on-surface overflow-x-hidden pb-24">
+<div class="fixed inset-0 pointer-events-none grid-motif z-0"></div>
+<!-- Top AppBar (Mobile) -->
+<header class="fixed top-0 w-full z-50 bg-[#131312]/80 backdrop-blur-xl border-b border-[#1c1c1a] h-16 flex items-center justify-between px-4">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-lg bg-primary-container flex items-center justify-center overflow-hidden">
+<img alt="Logo" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBmT63PJhfXEB_qSCzwx3qIsCsBlnFpzm86y5ALdDO1CBqQaWf82NrdnrdSBFLCtaeQBVq79KNuzV-59meJZh9ej3HVvpJRoDeH_PdVFtik6Z6QvISWYvNhOUdGgCSWloV0qRllUG_fJyLdDFuEChtrPuv5dI-g5DC72-Rs1sz2S109CPPnUgOirk-W5yqrd2kHaoBJk5LPcR2v67jBjlW-v8HiEZFuqWr3qxtszMb6EIvoDKwovwJPxMbnjvqtxAnpbXvQaOTz3KU"/>
+</div>
+<span class="font-headline italic text-lg text-on-surface">Iron Phalanx</span>
+</div>
+<button class="w-10 h-10 flex items-center justify-center text-outline">
+<span class="material-symbols-outlined">account_circle</span>
+</button>
+</header>
+<!-- Main Content -->
+<main class="pt-20 px-4 relative z-10 space-y-6">
+<!-- Header Section -->
+<section>
+<p class="font-label text-outline uppercase tracking-[0.2em] text-[10px] mb-1">Week 14 Matchup</p>
+<h1 class="text-3xl font-headline font-bold text-on-surface leading-tight">Phalanx vs. <span class="italic font-normal">Raiders</span></h1>
+</section>
+<!-- Matchup Overview Cards (Bento Style Mobile) -->
+<section class="grid grid-cols-2 gap-3">
+<div class="bg-surface-container-low rounded-xl p-4 border-l-4 border-outline/20 editorial-shadow flex flex-col items-center text-center">
+<span class="font-label text-[10px] uppercase tracking-widest text-outline mb-2">Wins</span>
+<div class="text-3xl font-headline font-bold text-on-surface">9</div>
+</div>
+<div class="bg-surface-container-low rounded-xl p-4 border-l-4 border-tertiary editorial-shadow flex flex-col items-center text-center">
+<span class="font-label text-[10px] uppercase tracking-widest text-outline mb-2">Losses</span>
+<div class="text-3xl font-headline font-bold text-tertiary">4</div>
+</div>
+</section>
+<!-- Category Projection Table -->
+<section class="bg-surface-container-low rounded-xl overflow-hidden editorial-shadow">
+<div class="px-5 py-4 border-b border-surface-container-highest flex justify-between items-center">
+<h4 class="font-headline text-lg font-semibold">Category Breakdown</h4>
+<span class="font-label text-[10px] uppercase text-outline">14 Categories</span>
+</div>
+<div class="overflow-x-auto hide-scrollbar">
+<table class="w-full text-left">
+<thead>
+<tr class="bg-surface-container-high/50 font-label text-[10px] uppercase tracking-widest text-outline">
+<th class="px-5 py-3">Category</th>
+<th class="px-5 py-3 text-right">You (P)</th>
+<th class="px-5 py-3 text-right">Opp (P)</th>
+</tr>
+</thead>
+<tbody class="font-body text-sm divide-y divide-surface-container-highest/30">
+<tr>
+<td class="px-5 py-3 font-label font-medium">Goals (G)</td>
+<td class="px-5 py-3 text-right category-win text-primary font-bold">12.4</td>
+<td class="px-5 py-3 text-right">9.2</td>
+</tr>
+<tr>
+<td class="px-5 py-3 font-label font-medium">Assists (A)</td>
+<td class="px-5 py-3 text-right category-win text-primary font-bold">18.1</td>
+<td class="px-5 py-3 text-right">14.5</td>
+</tr>
+<tr>
+<td class="px-5 py-3 font-label font-medium">Points (P)</td>
+<td class="px-5 py-3 text-right category-win text-primary font-bold">30.5</td>
+<td class="px-5 py-3 text-right">23.7</td>
+</tr>
+<tr>
+<td class="px-5 py-3 font-label font-medium">Plus/Minus</td>
+<td class="px-5 py-3 text-right">+4.2</td>
+<td class="px-5 py-3 text-right category-win text-tertiary font-bold">+6.1</td>
+</tr>
+<tr>
+<td class="px-5 py-3 font-label font-medium">SOG</td>
+<td class="px-5 py-3 text-right category-win text-primary font-bold">142.1</td>
+<td class="px-5 py-3 text-right">128.4</td>
+</tr>
+<tr>
+<td class="px-5 py-3 font-label font-medium">Hits (HIT)</td>
+<td class="px-5 py-3 text-right">68.2</td>
+<td class="px-5 py-3 text-right category-win text-tertiary font-bold">74.5</td>
+</tr>
+<tr>
+<td class="px-5 py-3 font-label font-medium">Blocks (BLK)</td>
+<td class="px-5 py-3 text-right category-win text-primary font-bold">44.3</td>
+<td class="px-5 py-3 text-right">41.2</td>
+</tr>
+<tr>
+<td class="px-5 py-3 font-label font-medium">SV%</td>
+<td class="px-5 py-3 text-right category-win text-primary font-bold">.922</td>
+<td class="px-5 py-3 text-right">.914</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<!-- Detailed Roster Projections -->
+<section class="space-y-4">
+<div class="flex items-center justify-between border-b border-surface-container-highest pb-2">
+<h3 class="font-headline text-xl font-bold">Roster Forecast</h3>
+<span class="text-[10px] font-label text-outline uppercase tracking-widest">Sorted by Proj Pts</span>
+</div>
+<div class="bg-surface-container-low rounded-xl overflow-hidden editorial-shadow">
+<div class="overflow-x-auto">
+<table class="w-full text-left whitespace-nowrap">
+<thead class="bg-surface-container-highest/20 text-[10px] font-label text-outline uppercase tracking-widest">
+<tr>
+<th class="px-4 py-4 min-w-[140px]">Player</th>
+<th class="px-3 py-4 text-center">GP</th>
+<th class="px-3 py-4 text-center">G</th>
+<th class="px-3 py-4 text-center">A</th>
+<th class="px-3 py-4 text-center">P</th>
+<th class="px-3 py-4 text-center">+/-</th>
+<th class="px-3 py-4 text-center">PPP</th>
+<th class="px-3 py-4 text-center">SOG</th>
+<th class="px-3 py-4 text-center">HIT</th>
+<th class="px-3 py-4 text-center">BLK</th>
+<th class="px-3 py-4 text-center">W</th>
+<th class="px-3 py-4 text-center text-primary font-bold">Proj</th>
+</tr>
+</thead>
+<tbody class="text-xs font-body divide-y divide-surface-container-highest/30">
+<tr class="hover:bg-surface-container-highest/10">
+<td class="px-4 py-4 sticky left-0 bg-surface-container-low">
+<p class="font-semibold text-on-surface">Cale Makar</p>
+<p class="text-[10px] text-outline uppercase tracking-tighter">D | COL</p>
+</td>
+<td class="px-3 py-4 text-center">3</td>
+<td class="px-3 py-4 text-center text-secondary">0.8</td>
+<td class="px-3 py-4 text-center text-secondary">2.4</td>
+<td class="px-3 py-4 text-center">3.2</td>
+<td class="px-3 py-4 text-center">+0.5</td>
+<td class="px-3 py-4 text-center">1.2</td>
+<td class="px-3 py-4 text-center">11.5</td>
+<td class="px-3 py-4 text-center">2.1</td>
+<td class="px-3 py-4 text-center">4.5</td>
+<td class="px-3 py-4 text-center">-</td>
+<td class="px-3 py-4 text-center font-bold text-primary">14.2</td>
+</tr>
+<tr class="hover:bg-surface-container-highest/10">
+<td class="px-4 py-4 sticky left-0 bg-surface-container-low">
+<p class="font-semibold text-on-surface">A. Matthews</p>
+<p class="text-[10px] text-outline uppercase tracking-tighter">C | TOR</p>
+</td>
+<td class="px-3 py-4 text-center">4</td>
+<td class="px-3 py-4 text-center text-secondary">2.1</td>
+<td class="px-3 py-4 text-center text-secondary">1.8</td>
+<td class="px-3 py-4 text-center">3.9</td>
+<td class="px-3 py-4 text-center">+1.2</td>
+<td class="px-3 py-4 text-center">1.5</td>
+<td class="px-3 py-4 text-center">16.4</td>
+<td class="px-3 py-4 text-center">3.0</td>
+<td class="px-3 py-4 text-center">2.2</td>
+<td class="px-3 py-4 text-center">-</td>
+<td class="px-3 py-4 text-center font-bold text-primary">18.5</td>
+</tr>
+<tr class="hover:bg-surface-container-highest/10">
+<td class="px-4 py-4 sticky left-0 bg-surface-container-low">
+<p class="font-semibold text-on-surface">C. Hellebuyck</p>
+<p class="text-[10px] text-outline uppercase tracking-tighter">G | WPG</p>
+</td>
+<td class="px-3 py-4 text-center">2</td>
+<td class="px-3 py-4 text-center">-</td>
+<td class="px-3 py-4 text-center">-</td>
+<td class="px-3 py-4 text-center">-</td>
+<td class="px-3 py-4 text-center">-</td>
+<td class="px-3 py-4 text-center">-</td>
+<td class="px-3 py-4 text-center">-</td>
+<td class="px-3 py-4 text-center">-</td>
+<td class="px-3 py-4 text-center">-</td>
+<td class="px-3 py-4 text-center text-secondary">1.8</td>
+<td class="px-3 py-4 text-center font-bold text-primary">18.4</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p class="text-[10px] text-center text-outline italic">Swipe horizontally to view all metrics</p>
+</section>
+</main>
+<!-- Bottom Navigation Bar (Mobile) -->
+<nav class="fixed bottom-0 left-0 w-full flex justify-around items-center h-20 px-2 pb-safe bg-[#131312]/80 backdrop-blur-2xl border-t border-[#1c1c1a] z-50">
+<button class="flex flex-col items-center justify-center text-outline px-4 py-1 hover:text-primary transition-all">
+<span class="material-symbols-outlined mb-1">dashboard</span>
+<span class="font-label font-medium text-[10px] uppercase tracking-widest">League</span>
+</button>
+<button class="flex flex-col items-center justify-center text-outline px-4 py-1 hover:text-primary transition-all">
+<span class="material-symbols-outlined mb-1">swap_horiz</span>
+<span class="font-label font-medium text-[10px] uppercase tracking-widest">Waiver</span>
+</button>
+<button class="flex flex-col items-center justify-center text-primary bg-primary/10 rounded-xl px-4 py-1">
+<span class="material-symbols-outlined mb-1">analytics</span>
+<span class="font-label font-medium text-[10px] uppercase tracking-widest">Week</span>
+</button>
+</nav>
+</body></html>

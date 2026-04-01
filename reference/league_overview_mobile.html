@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Iron Phalanx | League Overview</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,300;0,400;0,700;0,900;1,300;1,400;1,700;1,900&amp;family=Manrope:wght@200..800&amp;family=Inter:wght@100..900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "tertiary-container": "#9b4825",
+              "surface": "#131312",
+              "secondary-container": "#956300",
+              "background": "#131312",
+              "on-secondary-fixed-variant": "#624000",
+              "on-error": "#690005",
+              "on-surface": "#e5e2de",
+              "outline-variant": "#3f4945",
+              "on-primary": "#00382e",
+              "on-tertiary-fixed": "#370e00",
+              "surface-variant": "#353532",
+              "inverse-primary": "#24695a",
+              "primary-fixed-dim": "#90d4c1",
+              "primary-container": "#266b5c",
+              "on-background": "#e5e2de",
+              "on-primary-fixed-variant": "#005143",
+              "primary": "#90d4c1",
+              "on-secondary": "#442b00",
+              "surface-dim": "#131312",
+              "surface-tint": "#90d4c1",
+              "error-container": "#93000a",
+              "tertiary-fixed-dim": "#ffb599",
+              "surface-container-low": "#1c1c1a",
+              "surface-container-highest": "#353532",
+              "outline": "#89938f",
+              "on-error-container": "#ffdad6",
+              "secondary-fixed": "#ffddb2",
+              "secondary-fixed-dim": "#fbbb5b",
+              "primary-fixed": "#acf0dd",
+              "secondary": "#fbbb5b",
+              "on-tertiary-fixed-variant": "#7a2f0e",
+              "inverse-surface": "#e5e2de",
+              "surface-container-lowest": "#0e0e0c",
+              "tertiary-fixed": "#ffdbce",
+              "on-primary-fixed": "#00201a",
+              "inverse-on-surface": "#31302e",
+              "on-secondary-container": "#ffedda",
+              "surface-container": "#20201e",
+              "surface-bright": "#3a3937",
+              "on-secondary-fixed": "#291800",
+              "surface-container-high": "#2a2a28",
+              "on-surface-variant": "#bfc9c4",
+              "on-tertiary": "#5a1c00",
+              "on-primary-container": "#a5e9d6",
+              "tertiary": "#ffb599",
+              "on-tertiary-container": "#ffd2c2",
+              "error": "#ffb4ab"
+            },
+            fontFamily: {
+              "headline": ["Merriweather", "serif"],
+              "body": ["Inter", "sans-serif"],
+              "label": ["Manrope", "sans-serif"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      }
+      .grid-motif {
+        background-image: radial-gradient(circle, rgba(229, 226, 222, 0.02) 1px, transparent 1px);
+        background-size: 24px 24px;
+      }
+      ::-webkit-scrollbar { width: 6px; height: 6px; }
+      ::-webkit-scrollbar-track { background: #131312; }
+      ::-webkit-scrollbar-thumb { background: #353532; border-radius: 10px; }
+      .tactical-border { border: 1px solid rgba(144, 212, 193, 0.1); }
+      body { min-height: 100dvh; }
+    </style>
+</head>
+<body class="bg-[#131312] text-on-surface font-body selection:bg-primary/30 antialiased">
+<!-- Mobile App Bar -->
+<!-- Main Canvas -->
+<main class="pt-24 pb-32 px-4 min-h-screen bg-[#1E1E1C] grid-motif relative overflow-x-hidden">
+<!-- Control Row - Stacked for Mobile -->
+<div class="flex flex-col gap-3 mb-8">
+<div class="relative w-full">
+<select class="w-full bg-surface-container border border-outline-variant/20 rounded-lg py-3 px-4 text-xs font-label text-on-surface focus:ring-1 focus:ring-primary focus:border-primary appearance-none">
+<option>Week 14 Performance</option>
+<option>Week 13 Performance</option>
+<option>Week 12 Performance</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-outline text-sm">expand_more</span>
+</div>
+<div class="flex gap-2">
+<div class="relative flex-1">
+<select class="w-full bg-surface-container border border-outline-variant/20 rounded-lg py-3 px-4 text-[10px] font-label text-on-surface focus:ring-1 focus:ring-primary focus:border-primary appearance-none">
+<option>North Stars (A)</option>
+<option>Desert Coyotes</option>
+<option>Glacier Kings</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-outline text-sm">expand_more</span>
+</div>
+<div class="relative flex-1">
+<select class="w-full bg-surface-container border border-outline-variant/20 rounded-lg py-3 px-4 text-[10px] font-label text-on-surface focus:ring-1 focus:ring-primary focus:border-primary appearance-none">
+<option>Iron Phalanx (B)</option>
+<option>Tundra Wolves</option>
+<option>Glacier Kings</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-outline text-sm">expand_more</span>
+</div>
+</div>
+</div>
+<!-- Page Header -->
+<div class="mb-8">
+<h2 class="font-headline text-3xl italic text-on-surface leading-tight">Week 14 Performance</h2>
+<p class="font-label text-outline text-[10px] mt-1 uppercase tracking-widest">Tactical Assessment Feed | Region 02</p>
+</div>
+<!-- Weekly Scores Section -->
+<section class="bg-surface-container-low rounded-xl mb-10 overflow-hidden shadow-xl relative border-l-4 border-primary-container">
+<div class="p-5 border-b border-outline-variant/5 flex items-center justify-between">
+<h3 class="font-headline text-xl text-on-surface">Weekly Leaderboard</h3>
+<span class="material-symbols-outlined text-outline text-sm animate-pulse" data-icon="swipe_left">swipe_left</span>
+</div>
+<div class="overflow-x-auto scrollbar-hide">
+<table class="w-full text-left border-collapse min-w-[800px]">
+<thead>
+<tr class="bg-surface-container-highest/30 border-b border-outline-variant/10">
+<th class="p-3 font-label text-[9px] uppercase tracking-tighter text-outline sticky left-0 bg-surface-container-low z-10">Team Name</th>
+<th class="p-3 font-label text-[9px] uppercase tracking-tighter text-outline text-center">G</th>
+<th class="p-3 font-label text-[9px] uppercase tracking-tighter text-outline text-center">A</th>
+<th class="p-3 font-label text-[9px] uppercase tracking-tighter text-outline text-center">PTS</th>
+<th class="p-3 font-label text-[9px] uppercase tracking-tighter text-outline text-center">+/-</th>
+<th class="p-3 font-label text-[9px] uppercase tracking-tighter text-outline text-center">PIM</th>
+<th class="p-3 font-label text-[9px] uppercase tracking-tighter text-outline text-center">PPP</th>
+<th class="p-3 font-label text-[9px] uppercase tracking-tighter text-outline text-center">SOG</th>
+<th class="p-3 font-label text-[9px] uppercase tracking-tighter text-outline text-center">HIT</th>
+<th class="p-3 font-label text-[9px] uppercase tracking-tighter text-outline text-center">BLK</th>
+<th class="p-3 font-label text-[9px] uppercase tracking-tighter text-outline text-center">W</th>
+<th class="p-3 font-label text-[9px] uppercase tracking-tighter text-outline text-center">SV</th>
+<th class="p-3 font-label text-[9px] uppercase tracking-tighter text-outline text-center">SV%</th>
+<th class="p-3 font-label text-[9px] uppercase tracking-tighter text-outline text-center">GAA</th>
+<th class="p-3 font-label text-[9px] uppercase tracking-tighter text-outline text-center">SHO</th>
+</tr>
+</thead>
+<tbody class="font-body text-[11px]">
+<tr class="border-b border-outline-variant/5 hover:bg-surface-container/50 transition-colors bg-primary-container/10">
+<td class="p-3 font-label font-bold text-primary sticky left-0 bg-surface-container-low/95 backdrop-blur z-10">North Stars (A)</td>
+<td class="p-3 bg-primary-container/40 text-on-primary-container font-bold text-center">14</td>
+<td class="p-3 text-center">22</td>
+<td class="p-3 font-bold text-center">36</td>
+<td class="p-3 text-center">+8</td>
+<td class="p-3 text-center">12</td>
+<td class="p-3 text-center">6</td>
+<td class="p-3 text-center">102</td>
+<td class="p-3 text-center">55</td>
+<td class="p-3 text-center">32</td>
+<td class="p-3 text-center">3</td>
+<td class="p-3 text-center">88</td>
+<td class="p-3 text-center">.914</td>
+<td class="p-3 text-center">2.45</td>
+<td class="p-3 text-center">1</td>
+</tr>
+<tr>
+<td class="p-3 font-label text-on-surface sticky left-0 bg-surface-container-low z-10 border-b border-outline-variant/5">Desert Coyotes</td>
+<td class="p-3 border-b border-outline-variant/5 text-center">9</td>
+<td class="p-3 border-b border-outline-variant/5 text-center">18</td>
+<td class="p-3 border-b border-outline-variant/5 text-center">27</td>
+<td class="p-3 border-b border-outline-variant/5 text-error bg-error-container/20 text-center">-4</td>
+<td class="p-3 border-b border-outline-variant/5 text-center">18</td>
+<td class="p-3 border-b border-outline-variant/5 text-center">4</td>
+<td class="p-3 border-b border-outline-variant/5 text-center">88</td>
+<td class="p-3 border-b border-outline-variant/5 text-center">42</td>
+<td class="p-3 border-b border-outline-variant/5 text-center">28</td>
+<td class="p-3 border-b border-outline-variant/5 text-center">2</td>
+<td class="p-3 border-b border-outline-variant/5 text-center">72</td>
+<td class="p-3 border-b border-outline-variant/5 text-center">.901</td>
+<td class="p-3 border-b border-outline-variant/5 text-center">3.12</td>
+<td class="p-3 border-b border-outline-variant/5 text-center">0</td>
+</tr>
+<tr class="border-b border-outline-variant/5 hover:bg-surface-container/50 transition-colors bg-secondary-container/10">
+<td class="p-3 font-label font-bold text-secondary sticky left-0 bg-surface-container-low/95 backdrop-blur z-10">Iron Phalanx (B)</td>
+<td class="p-3 text-center">11</td>
+<td class="p-3 bg-primary-container/40 text-on-primary-container font-bold text-center">28</td>
+<td class="p-3 font-bold text-center">39</td>
+<td class="p-3 text-center">+5</td>
+<td class="p-3 text-center">8</td>
+<td class="p-3 bg-primary-container/40 text-on-primary-container font-bold text-center">9</td>
+<td class="p-3 text-center">112</td>
+<td class="p-3 text-center">38</td>
+<td class="p-3 text-center">22</td>
+<td class="p-3 text-center">2</td>
+<td class="p-3 text-center">94</td>
+<td class="p-3 text-center">.922</td>
+<td class="p-3 text-center">2.21</td>
+<td class="p-3 text-center">0</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<!-- Team Comparison Section -->
+<div class="space-y-8">
+<div class="flex flex-col gap-4">
+<div class="flex items-center gap-3">
+<h3 class="font-headline text-xl italic whitespace-nowrap">Head-to-Head</h3>
+<div class="h-[1px] flex-1 bg-outline-variant/20"></div>
+</div>
+<!-- Summary Cards Stacked -->
+<div class="grid grid-cols-3 gap-2 mb-4">
+<div class="bg-surface-container p-3 rounded-xl border border-primary/20 flex flex-col justify-between h-full">
+<div class="flex flex-col">
+<span class="text-[8px] uppercase tracking-tighter text-primary font-bold leading-none mb-1">North Stars Wins</span>
+<div class="text-2xl font-headline italic font-bold text-on-surface">8</div>
+</div>
+</div>
+<div class="bg-surface-container p-3 rounded-xl border border-outline-variant/20 flex flex-col justify-between h-full">
+<div class="flex flex-col">
+<span class="text-[8px] uppercase tracking-tighter text-outline font-bold leading-none mb-1">Category Ties</span>
+<div class="text-2xl font-headline italic font-bold text-on-surface">2</div>
+</div>
+</div>
+<div class="bg-surface-container p-3 rounded-xl border border-secondary/20 flex flex-col justify-between h-full">
+<div class="flex flex-col">
+<span class="text-[8px] uppercase tracking-tighter text-secondary font-bold leading-none mb-1">Iron Phalanx Wins</span>
+<div class="text-2xl font-headline italic font-bold text-on-surface">4</div>
+</div>
+</div>
+</div>
+<!-- Detailed Comparison Table -->
+<div class="bg-surface-container-low rounded-xl border border-outline-variant/10 overflow-hidden mt-2">
+<div class="grid grid-cols-3 p-4 bg-surface-container-highest/20 border-b border-outline-variant/10">
+<div class="text-[9px] font-bold uppercase tracking-widest text-outline">Category</div>
+<div class="text-[9px] font-bold uppercase tracking-widest text-primary text-center">North Stars</div>
+<div class="text-[9px] font-bold uppercase tracking-widest text-secondary text-center">Iron Phalanx</div>
+</div>
+<div class="divide-y divide-outline-variant/5">
+<!-- Stat Row 1 -->
+<div class="grid grid-cols-3 items-center hover:bg-white/5 transition-colors">
+<div class="p-4 text-[10px] font-label text-on-surface-variant uppercase tracking-tighter">G</div>
+<div class="p-4 text-center bg-[#266B5C]">
+<span class="font-label font-bold text-on-primary-container text-xs">14</span>
+</div>
+<div class="p-4 text-center font-label text-outline text-xs">11</div>
+</div>
+<!-- Stat Row 2 -->
+<div class="grid grid-cols-3 items-center bg-surface-container/30 hover:bg-white/5 transition-colors">
+<div class="p-4 text-[10px] font-label text-on-surface-variant uppercase tracking-tighter">A</div>
+<div class="p-4 text-center font-label text-outline text-xs">22</div>
+<div class="p-4 text-center bg-[#266B5C]">
+<span class="font-label font-bold text-on-primary-container text-xs">28</span>
+</div>
+</div>
+<!-- Stat Row 3 -->
+<div class="grid grid-cols-3 items-center hover:bg-white/5 transition-colors">
+<div class="p-4 text-[10px] font-label text-on-surface-variant uppercase tracking-tighter">SOG</div>
+<div class="p-4 text-center font-label text-outline text-xs">102</div>
+<div class="p-4 text-center bg-[#266B5C]">
+<span class="font-label font-bold text-on-primary-container text-xs">112</span>
+</div>
+</div>
+<!-- Stat Row 4 -->
+<div class="grid grid-cols-3 items-center bg-surface-container/30 hover:bg-white/5 transition-colors">
+<div class="p-4 text-[10px] font-label text-on-surface-variant uppercase tracking-tighter">SV%</div>
+<div class="p-4 text-center font-label text-outline text-xs">.914</div>
+<div class="p-4 text-center bg-[#266B5C]">
+<span class="font-label font-bold text-on-primary-container text-xs">.922</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Background Decorative Elements -->
+<div class="fixed top-1/2 -right-40 w-64 h-64 bg-primary-container/10 blur-[80px] rounded-full -z-10 pointer-events-none"></div>
+<div class="fixed bottom-0 -left-40 w-80 h-80 bg-tertiary-container/5 blur-[100px] rounded-full -z-10 pointer-events-none"></div>
+</main>
+<!-- Bottom Mobile Navigation -->
+<nav class="fixed bottom-0 left-0 right-0 h-20 bg-[#131312]/95 backdrop-blur-xl border-t border-outline-variant/10 px-6 pb-safe z-50 flex items-center justify-between">
+<a class="flex flex-col items-center gap-1 text-primary" href="#">
+<div class="bg-primary/10 px-4 py-1 rounded-full mb-1">
+<span class="material-symbols-outlined text-2xl" style="font-variation-settings: 'FILL' 1;">leaderboard</span>
+</div>
+<span class="font-label text-[9px] uppercase tracking-widest font-bold">Overview</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-outline hover:text-on-surface" href="#">
+<span class="material-symbols-outlined text-2xl">swap_horizontal_circle</span>
+<span class="font-label text-[9px] uppercase tracking-widest">Waiver</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-outline hover:text-on-surface" href="#">
+<span class="material-symbols-outlined text-2xl">query_stats</span>
+<span class="font-label text-[9px] uppercase tracking-widest">Projection</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-outline hover:text-on-surface" href="#">
+<span class="material-symbols-outlined text-2xl">logout</span>
+<span class="font-label text-[9px] uppercase tracking-widest">Exit</span>
+</a>
+</nav>
+</body></html>
