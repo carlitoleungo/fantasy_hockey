@@ -232,13 +232,36 @@ inject_css()
 league_key = require_auth()
 
 if st.session_state.get("demo_mode"):
-    st.markdown('<h1 class="fh-page-title">Week Projection</h1>', unsafe_allow_html=True)
+    from data import demo as _demo
     st.info(
-        "Week Projection is not available in demo mode — it requires live roster "
-        "and schedule data from Yahoo. Use the Waiver Wire or League Overview pages "
-        "to explore the demo."
+        "Demo mode — showing a fixed Week 14 snapshot. "
+        "Rosters and projections are based on real player data from that week."
     )
-    st.stop()
+    if (
+        "projection_data" not in st.session_state
+        or st.session_state.get("projection_league_key") != league_key
+    ):
+        st.session_state["projection_data"] = _demo.get_projection_context()
+        st.session_state["projection_league_key"] = league_key
+    _pair = _demo.get_projection_pair_data()
+    # Pre-populate both orderings. The reverse ordering swaps my/opp rosters so
+    # the roster breakdown tabs are always correct whichever team is selected.
+    _fwd_key = f"proj_{_pair['my_team_key']}_{_pair['opp_team_key']}"
+    _rev_key = f"proj_{_pair['opp_team_key']}_{_pair['my_team_key']}"
+    if _fwd_key not in st.session_state:
+        st.session_state[_fwd_key] = {
+            "my_roster":       _pair["my_roster"],
+            "opp_roster":      _pair["opp_roster"],
+            "lastmonth_stats": _pair["lastmonth_stats"],
+            "games_remaining": _pair["games_remaining"],
+        }
+    if _rev_key not in st.session_state:
+        st.session_state[_rev_key] = {
+            "my_roster":       _pair["opp_roster"],
+            "opp_roster":      _pair["my_roster"],
+            "lastmonth_stats": _pair["lastmonth_stats"],
+            "games_remaining": _pair["games_remaining"],
+        }
 
 # ---------------------------------------------------------------------------
 # Header + refresh

@@ -1,0 +1,1050 @@
+{
+  "my_team_key": "465.l.8977.t.8",
+  "opp_team_key": "465.l.8977.t.5",
+  "my_roster": [
+    {
+      "player_key": "465.p.7535",
+      "player_name": "Robert Thomas",
+      "team_abbr": "STL",
+      "display_position": "C",
+      "roster_slot": "C"
+    },
+    {
+      "player_key": "465.p.6083",
+      "player_name": "Andrew Copp",
+      "team_abbr": "DET",
+      "display_position": "C,LW",
+      "roster_slot": "C"
+    },
+    {
+      "player_key": "465.p.6777",
+      "player_name": "Sebastian Aho",
+      "team_abbr": "CAR",
+      "display_position": "C",
+      "roster_slot": "C"
+    },
+    {
+      "player_key": "465.p.32763",
+      "player_name": "Macklin Celebrini",
+      "team_abbr": "SJ",
+      "display_position": "C",
+      "roster_slot": "C"
+    },
+    {
+      "player_key": "465.p.30227",
+      "player_name": "Matthew Knies",
+      "team_abbr": "TOR",
+      "display_position": "LW",
+      "roster_slot": "LW"
+    },
+    {
+      "player_key": "465.p.9264",
+      "player_name": "Pavol Regenda",
+      "team_abbr": "SJ",
+      "display_position": "LW",
+      "roster_slot": "LW"
+    },
+    {
+      "player_key": "465.p.3638",
+      "player_name": "Evgeni Malkin",
+      "team_abbr": "PIT",
+      "display_position": "C,LW,RW",
+      "roster_slot": "LW"
+    },
+    {
+      "player_key": "465.p.7961",
+      "player_name": "Jack McBain",
+      "team_abbr": "UTA",
+      "display_position": "C,LW",
+      "roster_slot": "LW"
+    },
+    {
+      "player_key": "465.p.4351",
+      "player_name": "Brad Marchand",
+      "team_abbr": "FLA",
+      "display_position": "LW,RW",
+      "roster_slot": "RW"
+    },
+    {
+      "player_key": "465.p.30139",
+      "player_name": "Alex Laferriere",
+      "team_abbr": "LA",
+      "display_position": "C,LW,RW",
+      "roster_slot": "RW"
+    },
+    {
+      "player_key": "465.p.7527",
+      "player_name": "Martin Necas",
+      "team_abbr": "COL",
+      "display_position": "RW",
+      "roster_slot": "RW"
+    },
+    {
+      "player_key": "465.p.4988",
+      "player_name": "Charlie Coyle",
+      "team_abbr": "CBJ",
+      "display_position": "C,RW",
+      "roster_slot": "RW"
+    },
+    {
+      "player_key": "465.p.5769",
+      "player_name": "Shayne Gostisbehere",
+      "team_abbr": "CAR",
+      "display_position": "D",
+      "roster_slot": "D"
+    },
+    {
+      "player_key": "465.p.8296",
+      "player_name": "Thomas Harley",
+      "team_abbr": "DAL",
+      "display_position": "D",
+      "roster_slot": "D"
+    },
+    {
+      "player_key": "465.p.4064",
+      "player_name": "Kris Letang",
+      "team_abbr": "PIT",
+      "display_position": "D",
+      "roster_slot": "D"
+    },
+    {
+      "player_key": "465.p.5010",
+      "player_name": "Justin Faulk",
+      "team_abbr": "DET",
+      "display_position": "D",
+      "roster_slot": "D"
+    },
+    {
+      "player_key": "465.p.7920",
+      "player_name": "K'Andre Miller",
+      "team_abbr": "CAR",
+      "display_position": "D",
+      "roster_slot": "D"
+    },
+    {
+      "player_key": "465.p.7124",
+      "player_name": "Jakob Chychrun",
+      "team_abbr": "WSH",
+      "display_position": "D",
+      "roster_slot": "D"
+    },
+    {
+      "player_key": "465.p.5362",
+      "player_name": "Ryan Nugent-Hopkins",
+      "team_abbr": "EDM",
+      "display_position": "C,LW",
+      "roster_slot": "BN"
+    },
+    {
+      "player_key": "465.p.6374",
+      "player_name": "William Nylander",
+      "team_abbr": "TOR",
+      "display_position": "C,RW",
+      "roster_slot": "BN"
+    },
+    {
+      "player_key": "465.p.31161",
+      "player_name": "Sam Malinski",
+      "team_abbr": "COL",
+      "display_position": "D",
+      "roster_slot": null
+    },
+    {
+      "player_key": "465.p.8887",
+      "player_name": "Cole Sillinger",
+      "team_abbr": "CBJ",
+      "display_position": "C,RW",
+      "roster_slot": null
+    },
+    {
+      "player_key": "465.p.7557",
+      "player_name": "Eetu Luostarinen",
+      "team_abbr": "FLA",
+      "display_position": "LW",
+      "roster_slot": null
+    },
+    {
+      "player_key": "465.p.8291",
+      "player_name": "Spencer Knight",
+      "team_abbr": "CHI",
+      "display_position": "G",
+      "roster_slot": "G"
+    },
+    {
+      "player_key": "465.p.4589",
+      "player_name": "Jake Allen",
+      "team_abbr": "NJ",
+      "display_position": "G",
+      "roster_slot": "G"
+    },
+    {
+      "player_key": "465.p.5085",
+      "player_name": "Philipp Grubauer",
+      "team_abbr": "SEA",
+      "display_position": "G",
+      "roster_slot": "BN"
+    },
+    {
+      "player_key": "465.p.5699",
+      "player_name": "Andrei Vasilevskiy",
+      "team_abbr": "TB",
+      "display_position": "G",
+      "roster_slot": "BN"
+    }
+  ],
+  "opp_roster": [
+    {
+      "player_key": "465.p.5441",
+      "player_name": "Blake Coleman",
+      "team_abbr": "CGY",
+      "display_position": "C,LW,RW",
+      "roster_slot": "C"
+    },
+    {
+      "player_key": "465.p.5405",
+      "player_name": "Boone Jenner",
+      "team_abbr": "CBJ",
+      "display_position": "C,LW",
+      "roster_slot": "C"
+    },
+    {
+      "player_key": "465.p.6744",
+      "player_name": "Jack Eichel",
+      "team_abbr": "VGK",
+      "display_position": "C",
+      "roster_slot": "C"
+    },
+    {
+      "player_key": "465.p.9306",
+      "player_name": "Fraser Minten",
+      "team_abbr": "BOS",
+      "display_position": "C",
+      "roster_slot": "C"
+    },
+    {
+      "player_key": "465.p.30109",
+      "player_name": "Josh Doan",
+      "team_abbr": "BUF",
+      "display_position": "LW,RW",
+      "roster_slot": "LW"
+    },
+    {
+      "player_key": "465.p.5096",
+      "player_name": "Zach Hyman",
+      "team_abbr": "EDM",
+      "display_position": "LW,RW",
+      "roster_slot": "LW"
+    },
+    {
+      "player_key": "465.p.6377",
+      "player_name": "Kevin Fiala",
+      "team_abbr": "LA",
+      "display_position": "LW",
+      "roster_slot": "LW"
+    },
+    {
+      "player_key": "465.p.8885",
+      "player_name": "Dylan Guenther",
+      "team_abbr": "UTA",
+      "display_position": "LW,RW",
+      "roster_slot": "LW"
+    },
+    {
+      "player_key": "465.p.5425",
+      "player_name": "Nikita Kucherov",
+      "team_abbr": "TB",
+      "display_position": "RW",
+      "roster_slot": "RW"
+    },
+    {
+      "player_key": "465.p.7947",
+      "player_name": "Kirill Marchenko",
+      "team_abbr": "CBJ",
+      "display_position": "RW",
+      "roster_slot": "RW"
+    },
+    {
+      "player_key": "465.p.4240",
+      "player_name": "Patrick Kane",
+      "team_abbr": "DET",
+      "display_position": "RW",
+      "roster_slot": "RW"
+    },
+    {
+      "player_key": "465.p.8290",
+      "player_name": "Matt Boldy",
+      "team_abbr": "MIN",
+      "display_position": "LW,RW",
+      "roster_slot": "RW"
+    },
+    {
+      "player_key": "465.p.6005",
+      "player_name": "Shea Theodore",
+      "team_abbr": "VGK",
+      "display_position": "D",
+      "roster_slot": "D"
+    },
+    {
+      "player_key": "465.p.6367",
+      "player_name": "Aaron Ekblad",
+      "team_abbr": "FLA",
+      "display_position": "D",
+      "roster_slot": "D"
+    },
+    {
+      "player_key": "465.p.7930",
+      "player_name": "Mattias Samuelsson",
+      "team_abbr": "BUF",
+      "display_position": "D",
+      "roster_slot": "D"
+    },
+    {
+      "player_key": "465.p.8882",
+      "player_name": "Simon Edvinsson",
+      "team_abbr": "DET",
+      "display_position": "D",
+      "roster_slot": "D"
+    },
+    {
+      "player_key": "465.p.4475",
+      "player_name": "Luke Schenn",
+      "team_abbr": "BUF",
+      "display_position": "D",
+      "roster_slot": "D"
+    },
+    {
+      "player_key": "465.p.7851",
+      "player_name": "Zach Whitecloud",
+      "team_abbr": "CGY",
+      "display_position": "D",
+      "roster_slot": "D"
+    },
+    {
+      "player_key": "465.p.5765",
+      "player_name": "Esa Lindell",
+      "team_abbr": "DAL",
+      "display_position": "D",
+      "roster_slot": "BN"
+    },
+    {
+      "player_key": "465.p.31759",
+      "player_name": "Cutter Gauthier",
+      "team_abbr": "ANA",
+      "display_position": "C,LW,RW",
+      "roster_slot": "BN"
+    },
+    {
+      "player_key": "465.p.8656",
+      "player_name": "Kaiden Guhle",
+      "team_abbr": "MTL",
+      "display_position": "D",
+      "roster_slot": "BN"
+    },
+    {
+      "player_key": "465.p.30145",
+      "player_name": "Matt Coronato",
+      "team_abbr": "CGY",
+      "display_position": "RW",
+      "roster_slot": null
+    },
+    {
+      "player_key": "465.p.5407",
+      "player_name": "John Gibson",
+      "team_abbr": "DET",
+      "display_position": "G",
+      "roster_slot": "G"
+    },
+    {
+      "player_key": "465.p.6818",
+      "player_name": "Adin Hill",
+      "team_abbr": "VGK",
+      "display_position": "G",
+      "roster_slot": "G"
+    },
+    {
+      "player_key": "465.p.8895",
+      "player_name": "Jesper Wallstedt",
+      "team_abbr": "MIN",
+      "display_position": "G",
+      "roster_slot": "BN"
+    },
+    {
+      "player_key": "465.p.8709",
+      "player_name": "Leevi Merilainen",
+      "team_abbr": "OTT",
+      "display_position": "G",
+      "roster_slot": null
+    }
+  ],
+  "lastmonth_stats": {
+    "465.p.7535": {
+      "games_played": 55,
+      "Goals": 16.0,
+      "Assists": 33.0,
+      "Points": 49.0,
+      "Plus/Minus": 15.0,
+      "Penalty Minutes": 22.0,
+      "Powerplay Points": 11.0,
+      "Shots on Goal": 83.0,
+      "Faceoffs Won": 457.0,
+      "Hits": 10.0,
+      "Blocks": 37.0
+    },
+    "465.p.6083": {
+      "games_played": 71,
+      "Goals": 9.0,
+      "Assists": 30.0,
+      "Points": 39.0,
+      "Plus/Minus": 3.0,
+      "Penalty Minutes": 22.0,
+      "Powerplay Points": 8.0,
+      "Shots on Goal": 103.0,
+      "Faceoffs Won": 477.0,
+      "Hits": 41.0,
+      "Blocks": 55.0
+    },
+    "465.p.6777": {
+      "games_played": 74,
+      "Goals": 25.0,
+      "Assists": 50.0,
+      "Points": 75.0,
+      "Plus/Minus": 7.0,
+      "Penalty Minutes": 42.0,
+      "Powerplay Points": 26.0,
+      "Shots on Goal": 178.0,
+      "Faceoffs Won": 560.0,
+      "Hits": 62.0,
+      "Blocks": 21.0
+    },
+    "465.p.32763": {
+      "games_played": 72,
+      "Goals": 38.0,
+      "Assists": 63.0,
+      "Points": 101.0,
+      "Plus/Minus": 2.0,
+      "Penalty Minutes": 40.0,
+      "Powerplay Points": 30.0,
+      "Shots on Goal": 253.0,
+      "Faceoffs Won": 549.0,
+      "Hits": 46.0,
+      "Blocks": 45.0
+    },
+    "465.p.30227": {
+      "games_played": 72,
+      "Goals": 21.0,
+      "Assists": 39.0,
+      "Points": 60.0,
+      "Plus/Minus": -22.0,
+      "Penalty Minutes": 29.0,
+      "Powerplay Points": 14.0,
+      "Shots on Goal": 132.0,
+      "Faceoffs Won": 1.0,
+      "Hits": 141.0,
+      "Blocks": 30.0
+    },
+    "465.p.9264": {
+      "games_played": 22,
+      "Goals": 9.0,
+      "Assists": 1.0,
+      "Points": 10.0,
+      "Plus/Minus": -1.0,
+      "Penalty Minutes": 10.0,
+      "Powerplay Points": 4.0,
+      "Shots on Goal": 42.0,
+      "Faceoffs Won": 11.0,
+      "Hits": 52.0,
+      "Blocks": 6.0
+    },
+    "465.p.3638": {
+      "games_played": 51,
+      "Goals": 15.0,
+      "Assists": 38.0,
+      "Points": 53.0,
+      "Plus/Minus": 13.0,
+      "Penalty Minutes": 57.0,
+      "Powerplay Points": 19.0,
+      "Shots on Goal": 134.0,
+      "Faceoffs Won": 109.0,
+      "Hits": 22.0,
+      "Blocks": 16.0
+    },
+    "465.p.7961": {
+      "games_played": 74,
+      "Goals": 9.0,
+      "Assists": 16.0,
+      "Points": 25.0,
+      "Plus/Minus": 11.0,
+      "Penalty Minutes": 84.0,
+      "Powerplay Points": 0.0,
+      "Shots on Goal": 106.0,
+      "Faceoffs Won": 325.0,
+      "Hits": 269.0,
+      "Blocks": 42.0
+    },
+    "465.p.4351": {
+      "games_played": 52,
+      "Goals": 27.0,
+      "Assists": 27.0,
+      "Points": 54.0,
+      "Plus/Minus": -16.0,
+      "Penalty Minutes": 38.0,
+      "Powerplay Points": 20.0,
+      "Shots on Goal": 138.0,
+      "Faceoffs Won": 1.0,
+      "Hits": 36.0,
+      "Blocks": 16.0
+    },
+    "465.p.30139": {
+      "games_played": 73,
+      "Goals": 18.0,
+      "Assists": 18.0,
+      "Points": 36.0,
+      "Plus/Minus": 1.0,
+      "Penalty Minutes": 16.0,
+      "Powerplay Points": 3.0,
+      "Shots on Goal": 177.0,
+      "Faceoffs Won": 172.0,
+      "Hits": 225.0,
+      "Blocks": 45.0
+    },
+    "465.p.7527": {
+      "games_played": 70,
+      "Goals": 35.0,
+      "Assists": 57.0,
+      "Points": 92.0,
+      "Plus/Minus": 45.0,
+      "Penalty Minutes": 30.0,
+      "Powerplay Points": 22.0,
+      "Shots on Goal": 177.0,
+      "Faceoffs Won": 9.0,
+      "Hits": 78.0,
+      "Blocks": 24.0
+    },
+    "465.p.4988": {
+      "games_played": 75,
+      "Goals": 18.0,
+      "Assists": 38.0,
+      "Points": 56.0,
+      "Plus/Minus": 7.0,
+      "Penalty Minutes": 14.0,
+      "Powerplay Points": 12.0,
+      "Shots on Goal": 129.0,
+      "Faceoffs Won": 563.0,
+      "Hits": 97.0,
+      "Blocks": 50.0
+    },
+    "465.p.5769": {
+      "games_played": 48,
+      "Goals": 13.0,
+      "Assists": 33.0,
+      "Points": 46.0,
+      "Plus/Minus": 9.0,
+      "Penalty Minutes": 16.0,
+      "Powerplay Points": 16.0,
+      "Shots on Goal": 105.0,
+      "Faceoffs Won": 0.0,
+      "Hits": 22.0,
+      "Blocks": 56.0
+    },
+    "465.p.8296": {
+      "games_played": 63,
+      "Goals": 6.0,
+      "Assists": 27.0,
+      "Points": 33.0,
+      "Plus/Minus": -1.0,
+      "Penalty Minutes": 22.0,
+      "Powerplay Points": 6.0,
+      "Shots on Goal": 99.0,
+      "Faceoffs Won": 0.0,
+      "Hits": 35.0,
+      "Blocks": 137.0
+    },
+    "465.p.4064": {
+      "games_played": 69,
+      "Goals": 3.0,
+      "Assists": 28.0,
+      "Points": 31.0,
+      "Plus/Minus": -6.0,
+      "Penalty Minutes": 36.0,
+      "Powerplay Points": 9.0,
+      "Shots on Goal": 102.0,
+      "Faceoffs Won": 0.0,
+      "Hits": 93.0,
+      "Blocks": 88.0
+    },
+    "465.p.5010": {
+      "games_played": 72,
+      "Goals": 12.0,
+      "Assists": 23.0,
+      "Points": 35.0,
+      "Plus/Minus": -7.0,
+      "Penalty Minutes": 36.0,
+      "Powerplay Points": 9.0,
+      "Shots on Goal": 131.0,
+      "Faceoffs Won": 0.0,
+      "Hits": 65.0,
+      "Blocks": 124.0
+    },
+    "465.p.7920": {
+      "games_played": 66,
+      "Goals": 6.0,
+      "Assists": 26.0,
+      "Points": 32.0,
+      "Plus/Minus": 5.0,
+      "Penalty Minutes": 50.0,
+      "Powerplay Points": 3.0,
+      "Shots on Goal": 112.0,
+      "Faceoffs Won": 0.0,
+      "Hits": 92.0,
+      "Blocks": 71.0
+    },
+    "465.p.7124": {
+      "games_played": 73,
+      "Goals": 24.0,
+      "Assists": 32.0,
+      "Points": 56.0,
+      "Plus/Minus": 20.0,
+      "Penalty Minutes": 57.0,
+      "Powerplay Points": 16.0,
+      "Shots on Goal": 210.0,
+      "Faceoffs Won": 0.0,
+      "Hits": 55.0,
+      "Blocks": 106.0
+    },
+    "465.p.5362": {
+      "games_played": 65,
+      "Goals": 18.0,
+      "Assists": 35.0,
+      "Points": 53.0,
+      "Plus/Minus": -7.0,
+      "Penalty Minutes": 19.0,
+      "Powerplay Points": 27.0,
+      "Shots on Goal": 119.0,
+      "Faceoffs Won": 141.0,
+      "Hits": 24.0,
+      "Blocks": 29.0
+    },
+    "465.p.6374": {
+      "games_played": 58,
+      "Goals": 26.0,
+      "Assists": 45.0,
+      "Points": 71.0,
+      "Plus/Minus": -5.0,
+      "Penalty Minutes": 16.0,
+      "Powerplay Points": 18.0,
+      "Shots on Goal": 136.0,
+      "Faceoffs Won": 26.0,
+      "Hits": 9.0,
+      "Blocks": 23.0
+    },
+    "465.p.31161": {
+      "games_played": 73,
+      "Goals": 5.0,
+      "Assists": 29.0,
+      "Points": 34.0,
+      "Plus/Minus": 41.0,
+      "Penalty Minutes": 18.0,
+      "Powerplay Points": 1.0,
+      "Shots on Goal": 140.0,
+      "Faceoffs Won": 0.0,
+      "Hits": 37.0,
+      "Blocks": 82.0
+    },
+    "465.p.8887": {
+      "games_played": 74,
+      "Goals": 8.0,
+      "Assists": 25.0,
+      "Points": 33.0,
+      "Plus/Minus": 5.0,
+      "Penalty Minutes": 37.0,
+      "Powerplay Points": 1.0,
+      "Shots on Goal": 127.0,
+      "Faceoffs Won": 45.0,
+      "Hits": 103.0,
+      "Blocks": 42.0
+    },
+    "465.p.7557": {
+      "games_played": 65,
+      "Goals": 9.0,
+      "Assists": 18.0,
+      "Points": 27.0,
+      "Plus/Minus": -1.0,
+      "Penalty Minutes": 26.0,
+      "Powerplay Points": 1.0,
+      "Shots on Goal": 96.0,
+      "Faceoffs Won": 61.0,
+      "Hits": 114.0,
+      "Blocks": 50.0
+    },
+    "465.p.8291": {
+      "games_played": 50,
+      "Wins": 18.0,
+      "Goals Against Average": 2.74,
+      "Saves": 1325.0,
+      "Shutouts": 3.0
+    },
+    "465.p.4589": {
+      "games_played": 33,
+      "Wins": 15.0,
+      "Goals Against Average": 2.6363636363636362,
+      "Saves": 826.0,
+      "Shutouts": 1.0
+    },
+    "465.p.5085": {
+      "games_played": 30,
+      "Wins": 13.0,
+      "Goals Against Average": 2.433333333333333,
+      "Saves": 745.0,
+      "Shutouts": 0.0
+    },
+    "465.p.5699": {
+      "games_played": 52,
+      "Wins": 35.0,
+      "Goals Against Average": 2.2884615384615383,
+      "Saves": 1217.0,
+      "Shutouts": 2.0
+    },
+    "465.p.5441": {
+      "games_played": 62,
+      "Goals": 17.0,
+      "Assists": 13.0,
+      "Points": 30.0,
+      "Plus/Minus": 12.0,
+      "Penalty Minutes": 45.0,
+      "Powerplay Points": 1.0,
+      "Shots on Goal": 159.0,
+      "Faceoffs Won": 12.0,
+      "Hits": 142.0,
+      "Blocks": 40.0
+    },
+    "465.p.5405": {
+      "games_played": 60,
+      "Goals": 11.0,
+      "Assists": 23.0,
+      "Points": 34.0,
+      "Plus/Minus": 2.0,
+      "Penalty Minutes": 42.0,
+      "Powerplay Points": 3.0,
+      "Shots on Goal": 114.0,
+      "Faceoffs Won": 160.0,
+      "Hits": 133.0,
+      "Blocks": 58.0
+    },
+    "465.p.6744": {
+      "games_played": 67,
+      "Goals": 25.0,
+      "Assists": 53.0,
+      "Points": 78.0,
+      "Plus/Minus": 13.0,
+      "Penalty Minutes": 16.0,
+      "Powerplay Points": 25.0,
+      "Shots on Goal": 237.0,
+      "Faceoffs Won": 515.0,
+      "Hits": 35.0,
+      "Blocks": 40.0
+    },
+    "465.p.9306": {
+      "games_played": 75,
+      "Goals": 16.0,
+      "Assists": 17.0,
+      "Points": 33.0,
+      "Plus/Minus": 21.0,
+      "Penalty Minutes": 18.0,
+      "Powerplay Points": 3.0,
+      "Shots on Goal": 107.0,
+      "Faceoffs Won": 369.0,
+      "Hits": 131.0,
+      "Blocks": 47.0
+    },
+    "465.p.30109": {
+      "games_played": 75,
+      "Goals": 23.0,
+      "Assists": 24.0,
+      "Points": 47.0,
+      "Plus/Minus": -7.0,
+      "Penalty Minutes": 23.0,
+      "Powerplay Points": 17.0,
+      "Shots on Goal": 160.0,
+      "Faceoffs Won": 4.0,
+      "Hits": 74.0,
+      "Blocks": 29.0
+    },
+    "465.p.5096": {
+      "games_played": 56,
+      "Goals": 31.0,
+      "Assists": 20.0,
+      "Points": 51.0,
+      "Plus/Minus": 13.0,
+      "Penalty Minutes": 28.0,
+      "Powerplay Points": 14.0,
+      "Shots on Goal": 157.0,
+      "Faceoffs Won": 0.0,
+      "Hits": 52.0,
+      "Blocks": 18.0
+    },
+    "465.p.6377": {
+      "games_played": 56,
+      "Goals": 18.0,
+      "Assists": 22.0,
+      "Points": 40.0,
+      "Plus/Minus": -11.0,
+      "Penalty Minutes": 34.0,
+      "Powerplay Points": 17.0,
+      "Shots on Goal": 147.0,
+      "Faceoffs Won": 7.0,
+      "Hits": 39.0,
+      "Blocks": 24.0
+    },
+    "465.p.8885": {
+      "games_played": 72,
+      "Goals": 36.0,
+      "Assists": 26.0,
+      "Points": 62.0,
+      "Plus/Minus": 5.0,
+      "Penalty Minutes": 28.0,
+      "Powerplay Points": 18.0,
+      "Shots on Goal": 224.0,
+      "Faceoffs Won": 26.0,
+      "Hits": 59.0,
+      "Blocks": 26.0
+    },
+    "465.p.5425": {
+      "games_played": 68,
+      "Goals": 40.0,
+      "Assists": 81.0,
+      "Points": 121.0,
+      "Plus/Minus": 42.0,
+      "Penalty Minutes": 48.0,
+      "Powerplay Points": 36.0,
+      "Shots on Goal": 211.0,
+      "Faceoffs Won": 0.0,
+      "Hits": 35.0,
+      "Blocks": 26.0
+    },
+    "465.p.7947": {
+      "games_played": 69,
+      "Goals": 26.0,
+      "Assists": 37.0,
+      "Points": 63.0,
+      "Plus/Minus": 10.0,
+      "Penalty Minutes": 32.0,
+      "Powerplay Points": 22.0,
+      "Shots on Goal": 201.0,
+      "Faceoffs Won": 4.0,
+      "Hits": 53.0,
+      "Blocks": 38.0
+    },
+    "465.p.4240": {
+      "games_played": 59,
+      "Goals": 13.0,
+      "Assists": 34.0,
+      "Points": 47.0,
+      "Plus/Minus": 1.0,
+      "Penalty Minutes": 14.0,
+      "Powerplay Points": 15.0,
+      "Shots on Goal": 153.0,
+      "Faceoffs Won": 4.0,
+      "Hits": 19.0,
+      "Blocks": 24.0
+    },
+    "465.p.8290": {
+      "games_played": 70,
+      "Goals": 38.0,
+      "Assists": 38.0,
+      "Points": 76.0,
+      "Plus/Minus": 14.0,
+      "Penalty Minutes": 28.0,
+      "Powerplay Points": 27.0,
+      "Shots on Goal": 233.0,
+      "Faceoffs Won": 53.0,
+      "Hits": 57.0,
+      "Blocks": 52.0
+    },
+    "465.p.6005": {
+      "games_played": 63,
+      "Goals": 9.0,
+      "Assists": 26.0,
+      "Points": 35.0,
+      "Plus/Minus": 12.0,
+      "Penalty Minutes": 20.0,
+      "Powerplay Points": 5.0,
+      "Shots on Goal": 115.0,
+      "Faceoffs Won": 0.0,
+      "Hits": 2.0,
+      "Blocks": 83.0
+    },
+    "465.p.6367": {
+      "games_played": 72,
+      "Goals": 4.0,
+      "Assists": 22.0,
+      "Points": 26.0,
+      "Plus/Minus": -5.0,
+      "Penalty Minutes": 55.0,
+      "Powerplay Points": 5.0,
+      "Shots on Goal": 97.0,
+      "Faceoffs Won": 0.0,
+      "Hits": 84.0,
+      "Blocks": 103.0
+    },
+    "465.p.7930": {
+      "games_played": 72,
+      "Goals": 12.0,
+      "Assists": 28.0,
+      "Points": 40.0,
+      "Plus/Minus": 32.0,
+      "Penalty Minutes": 26.0,
+      "Powerplay Points": 0.0,
+      "Shots on Goal": 102.0,
+      "Faceoffs Won": 0.0,
+      "Hits": 123.0,
+      "Blocks": 143.0
+    },
+    "465.p.8882": {
+      "games_played": 64,
+      "Goals": 9.0,
+      "Assists": 13.0,
+      "Points": 22.0,
+      "Plus/Minus": 9.0,
+      "Penalty Minutes": 73.0,
+      "Powerplay Points": 1.0,
+      "Shots on Goal": 79.0,
+      "Faceoffs Won": 0.0,
+      "Hits": 84.0,
+      "Blocks": 135.0
+    },
+    "465.p.4475": {
+      "games_played": 48,
+      "Goals": 1.0,
+      "Assists": 6.0,
+      "Points": 7.0,
+      "Plus/Minus": -13.0,
+      "Penalty Minutes": 41.0,
+      "Powerplay Points": 0.0,
+      "Shots on Goal": 34.0,
+      "Faceoffs Won": 0.0,
+      "Hits": 144.0,
+      "Blocks": 56.0
+    },
+    "465.p.7851": {
+      "games_played": 70,
+      "Goals": 2.0,
+      "Assists": 11.0,
+      "Points": 13.0,
+      "Plus/Minus": -10.0,
+      "Penalty Minutes": 28.0,
+      "Powerplay Points": 0.0,
+      "Shots on Goal": 61.0,
+      "Faceoffs Won": 0.0,
+      "Hits": 113.0,
+      "Blocks": 117.0
+    },
+    "465.p.5765": {
+      "games_played": 75,
+      "Goals": 5.0,
+      "Assists": 23.0,
+      "Points": 28.0,
+      "Plus/Minus": 25.0,
+      "Penalty Minutes": 18.0,
+      "Powerplay Points": 1.0,
+      "Shots on Goal": 73.0,
+      "Faceoffs Won": 0.0,
+      "Hits": 28.0,
+      "Blocks": 166.0
+    },
+    "465.p.31759": {
+      "games_played": 73,
+      "Goals": 38.0,
+      "Assists": 27.0,
+      "Points": 65.0,
+      "Plus/Minus": -2.0,
+      "Penalty Minutes": 26.0,
+      "Powerplay Points": 18.0,
+      "Shots on Goal": 271.0,
+      "Faceoffs Won": 102.0,
+      "Hits": 59.0,
+      "Blocks": 20.0
+    },
+    "465.p.8656": {
+      "games_played": 34,
+      "Goals": 2.0,
+      "Assists": 8.0,
+      "Points": 10.0,
+      "Plus/Minus": 5.0,
+      "Penalty Minutes": 39.0,
+      "Powerplay Points": 0.0,
+      "Shots on Goal": 32.0,
+      "Faceoffs Won": 0.0,
+      "Hits": 75.0,
+      "Blocks": 57.0
+    },
+    "465.p.30145": {
+      "games_played": 73,
+      "Goals": 17.0,
+      "Assists": 22.0,
+      "Points": 39.0,
+      "Plus/Minus": -26.0,
+      "Penalty Minutes": 24.0,
+      "Powerplay Points": 13.0,
+      "Shots on Goal": 181.0,
+      "Faceoffs Won": 60.0,
+      "Hits": 19.0,
+      "Blocks": 22.0
+    },
+    "465.p.5407": {
+      "games_played": 51,
+      "Wins": 27.0,
+      "Goals Against Average": 2.4705882352941178,
+      "Saves": 1185.0,
+      "Shutouts": 4.0
+    },
+    "465.p.6818": {
+      "games_played": 26,
+      "Wins": 10.0,
+      "Goals Against Average": 2.8076923076923075,
+      "Saves": 481.0,
+      "Shutouts": 1.0
+    },
+    "465.p.8895": {
+      "games_played": 31,
+      "Wins": 15.0,
+      "Goals Against Average": 2.5806451612903225,
+      "Saves": 820.0,
+      "Shutouts": 4.0
+    },
+    "465.p.8709": {
+      "games_played": 20,
+      "Wins": 8.0,
+      "Goals Against Average": 3.2,
+      "Saves": 393.0,
+      "Shutouts": 0.0
+    }
+  },
+  "games_remaining": {
+    "FLA": 2,
+    "WSH": 3,
+    "NJ": 2,
+    "CGY": 3,
+    "DET": 2,
+    "CHI": 3,
+    "PIT": 3,
+    "CBJ": 3,
+    "ANA": 2,
+    "CAR": 2,
+    "SEA": 2,
+    "STL": 3,
+    "MIN": 2,
+    "MTL": 3,
+    "BUF": 2,
+    "DAL": 2,
+    "BOS": 3,
+    "SJ": 3,
+    "EDM": 2,
+    "TOR": 2,
+    "OTT": 3,
+    "LA": 3,
+    "COL": 2,
+    "VGK": 3,
+    "UTA": 3,
+    "TB": 1
+  }
+}

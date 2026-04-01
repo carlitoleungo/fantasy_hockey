@@ -13,5 +13,6 @@ node_modules
 .claude/
 .streamlit/oauth_states.json
 .streamlit/demo_token.json
+.streamlit/script_token.json
 package-lock.json
 package.json
