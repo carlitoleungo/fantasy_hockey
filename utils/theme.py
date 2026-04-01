@@ -630,11 +630,27 @@ hr {
 
     /* Keep all column rows in a single line — let columns shrink proportionally
        rather than wrapping to full width. Works for chip grids, position buttons,
-       and any other st.columns() layout on this page. */
-    [data-testid="stHorizontalBlock"] { flex-wrap: nowrap !important; }
-    [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
+       and any other st.columns() layout on this page.
+       Exception: the waiver wire filter row (.ww-cat-marker) wraps differently — see below. */
+    [data-testid="stHorizontalBlock"]:not(:has(.ww-cat-marker)) { flex-wrap: nowrap !important; }
+    [data-testid="stHorizontalBlock"]:not(:has(.ww-cat-marker)) > [data-testid="stColumn"] {
         min-width: 0 !important;
         flex-shrink: 1 !important;
+    }
+
+    /* Waiver wire filter row: pos + rank side by side, categories full-width below */
+    [data-testid="stHorizontalBlock"]:has(.ww-cat-marker) {
+        flex-wrap: wrap !important;
+    }
+    [data-testid="stHorizontalBlock"]:has(.ww-cat-marker) > [data-testid="stColumn"]:nth-child(1),
+    [data-testid="stHorizontalBlock"]:has(.ww-cat-marker) > [data-testid="stColumn"]:nth-child(2) {
+        flex: 0 0 50% !important;
+        max-width: 50% !important;
+        min-width: 0 !important;
+    }
+    [data-testid="stHorizontalBlock"]:has(.ww-cat-marker) > [data-testid="stColumn"]:nth-child(3) {
+        flex: 0 0 100% !important;
+        max-width: 100% !important;
     }
 
     /* Score cards: 2-col on mobile, hide the Tied middle card */

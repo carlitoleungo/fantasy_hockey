@@ -119,11 +119,14 @@ def _merge_pool(existing: pd.DataFrame, new_rows: pd.DataFrame) -> pd.DataFrame:
 # Page header (title left, refresh button right)
 # ---------------------------------------------------------------------------
 
-header_col, refresh_col = st.columns([10, 2])
-with header_col:
-    st.markdown('<h1 class="fh-page-title">Waiver Wire</h1>', unsafe_allow_html=True)
+st.markdown(
+    '<h1 class="fh-page-title">Waiver Wire</h1>'
+    '<p class="fh-page-subtitle">Find the best available players for your weakest categories.</p>',
+    unsafe_allow_html=True,
+)
+instr_col, refresh_col = st.columns([10, 2])
+with instr_col:
     st.markdown(
-        '<p class="fh-page-subtitle">Find the best available players for your weakest categories.</p>'
         '<p class="fh-page-instructions">Pick the stats you want to improve, then narrow by position if needed. '
         'Players are ranked by combined performance across your selected categories — lower composite rank is better. '
         'Toggle between season totals and last 30 days to separate consistent producers from hot streaks. '
@@ -131,7 +134,7 @@ with header_col:
         unsafe_allow_html=True,
     )
 with refresh_col:
-    refresh = st.button("↻ Refresh", key="ww_refresh", type="primary")
+    refresh = st.button("↻", key="ww_refresh", type="primary")
 
 # ---------------------------------------------------------------------------
 # Controls panel — three sections side by side:
@@ -148,8 +151,8 @@ for stat in all_stat_cols:
     if key not in st.session_state:
         st.session_state[key] = False
 
-# ── Position filter + rank by — side by side ────────────────────────────────
-pos_col, rank_col = st.columns(2)
+# ── Position filter | Rank by | Stat categories — all side by side on desktop
+pos_col, rank_col, cat_col = st.columns([1, 1, 2])
 
 with pos_col:
     st.markdown('<span class="fh-control-label">Position Filter</span>', unsafe_allow_html=True)
@@ -178,30 +181,27 @@ with rank_col:
         key="ww_period",
     )
 
-# ── Stat category chips — full width below position/rank ────────────────────
-st.markdown(
-    '<span class="fh-control-label">Categories</span>',
-    unsafe_allow_html=True,
-)
-CHIPS_PER_ROW = 4
-for row_start in range(0, len(all_stat_cols), CHIPS_PER_ROW):
-    row_stats = all_stat_cols[row_start : row_start + CHIPS_PER_ROW]
-    # Always create CHIPS_PER_ROW columns so every chip is the same width,
-    # even on the last (possibly shorter) row.
-    chip_cols = st.columns(CHIPS_PER_ROW)
-    for i, stat in enumerate(row_stats):
-        is_on = st.session_state[f"ww_cat_{stat}"]
-        abbrev = _stat_abbrev.get(stat, stat)
-        with chip_cols[i]:
-            if st.button(
-                abbrev,
-                key=f"ww_chip_{stat}",
-                type="primary" if is_on else "secondary",
-                use_container_width=True,
-            ):
-                st.session_state[f"ww_cat_{stat}"] = not is_on
-                st.session_state.pop("ww_page", None)
-                st.rerun()
+with cat_col:
+    st.markdown('<span class="fh-control-label ww-cat-marker">Categories</span>', unsafe_allow_html=True)
+    CHIPS_PER_ROW = 3
+    for row_start in range(0, len(all_stat_cols), CHIPS_PER_ROW):
+        row_stats = all_stat_cols[row_start : row_start + CHIPS_PER_ROW]
+        # Always create CHIPS_PER_ROW columns so every chip is the same width,
+        # even on the last (possibly shorter) row.
+        chip_cols = st.columns(CHIPS_PER_ROW)
+        for i, stat in enumerate(row_stats):
+            is_on = st.session_state[f"ww_cat_{stat}"]
+            abbrev = _stat_abbrev.get(stat, stat)
+            with chip_cols[i]:
+                if st.button(
+                    abbrev,
+                    key=f"ww_chip_{stat}",
+                    type="primary" if is_on else "secondary",
+                    use_container_width=True,
+                ):
+                    st.session_state[f"ww_cat_{stat}"] = not is_on
+                    st.session_state.pop("ww_page", None)
+                    st.rerun()
 
 # Derive selected categories from toggle state
 selected_cats = [s for s in all_stat_cols if st.session_state.get(f"ww_cat_{s}")]
@@ -515,7 +515,7 @@ for _, row in page_df.iterrows():
             team = row.get("team_abbr", "")
             pos  = row.get("display_position", "")
             cells.append(
-                f'<td style="min-width:160px;">'
+                f'<td style="min-width:110px;">'
                 f'<p class="fh-player-name">{val}</p>'
                 f'<p class="fh-player-meta">{team} · {pos}</p>'
                 f'</td>'
@@ -618,6 +618,12 @@ table_html = f"""
     left: 0;
     background-color: #1c1c1a;
     z-index: 2;
+}}
+@media (max-width: 768px) {{
+    .ww-table {{ table-layout: fixed; }}
+    .ww-table th:first-child,
+    .ww-table td:first-child {{ width: 130px; overflow: hidden; }}
+    .fh-player-name {{ font-size: 0.75rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
 }}
 </style>
 <div class="ww-card">
