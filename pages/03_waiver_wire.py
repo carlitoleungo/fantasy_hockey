@@ -39,9 +39,37 @@ inject_css()
 league_key = require_auth()
 load_matchups(league_key)
 
+demo_mode: bool = st.session_state.get("demo_mode", False)
+
+# In demo mode, pre-populate all pools and stat categories from static files
+# so that filter interactions never trigger API calls.
+if demo_mode and st.session_state.get("ww_pool_league") != league_key:
+    from data.demo import (
+        get_games_remaining as _demo_games_remaining,
+        get_stat_categories as _demo_stat_cats,
+        load_lastmonth_pool as _demo_lm_pool,
+        load_season_pool as _demo_season_pool,
+    )
+    st.session_state["ww_season_pool"] = _demo_season_pool()
+    st.session_state["ww_lm_pool"] = _demo_lm_pool()
+    st.session_state["ww_fetched_sorts"] = {"__demo__"}  # sentinel: pool already complete
+    st.session_state["ww_pool_league"] = league_key
+    st.session_state["ww_pool_position"] = "All"
+    st.session_state["ww_stat_categories"] = _demo_stat_cats()
+    st.session_state["ww_stat_cats_league"] = league_key
+    st.session_state["ww_games_remaining"] = _demo_games_remaining()
+    st.session_state["ww_schedule_league"] = league_key
+
 df_matchups = st.session_state.get("matchups_df")
 if df_matchups is None or df_matchups.empty:
-    st.info("No league data available yet — the season may not have started.")
+    if st.session_state.get("demo_mode"):
+        st.warning(
+            "Demo data files are missing. "
+            "Run `python scripts/generate_demo_data.py` from the project root to generate them, "
+            "then commit `demo/data/` to the repo."
+        )
+    else:
+        st.info("No league data available yet — the season may not have started.")
     st.stop()
 
 all_stat_cols = stat_columns(df_matchups)
@@ -240,7 +268,15 @@ def _clear_pool() -> None:
         st.session_state.pop(k, None)
 
 
-if refresh or not _pool_valid():
+if demo_mode:
+    # In demo mode the full player pool is pre-loaded for all positions, so
+    # position changes don't need a re-fetch — just update the position marker.
+    # Refresh re-triggers the demo init block by clearing the league marker.
+    if refresh:
+        st.session_state.pop("ww_pool_league", None)
+        st.rerun()
+    st.session_state["ww_pool_position"] = position_group
+elif refresh or not _pool_valid():
     _clear_pool()
     st.session_state["ww_pool_league"] = league_key
     st.session_state["ww_pool_position"] = position_group
@@ -256,7 +292,7 @@ if "ww_lm_pool" not in st.session_state:
 # Ensure stat categories are loaded (needed for stat_name → stat_id mapping)
 # ---------------------------------------------------------------------------
 
-if st.session_state.get("ww_stat_cats_league") != league_key:
+if not demo_mode and st.session_state.get("ww_stat_cats_league") != league_key:
     cats = get_stat_categories(_require_session(), league_key)
     st.session_state["ww_stat_categories"] = cats
     st.session_state["ww_stat_cats_league"] = league_key
@@ -278,8 +314,8 @@ season_pool: pd.DataFrame = st.session_state["ww_season_pool"]
 
 for stat in selected_cats:
     sort_key = (position_group, stat)
-    if sort_key in fetched_sorts:
-        continue  # already in pool
+    if sort_key in fetched_sorts or demo_mode:
+        continue  # already in pool (or demo pool is pre-loaded)
 
     sort_id = name_to_id.get(stat)
     if sort_id is None:
@@ -322,7 +358,7 @@ if season_pool.empty:
 
 lm_pool: pd.DataFrame = st.session_state["ww_lm_pool"]
 
-if ranking_period == "Last 30 days":
+if ranking_period == "Last 30 days" and not demo_mode:
     pool_keys = set(season_pool["player_key"].tolist())
     lm_keys = set(lm_pool["player_key"].tolist()) if not lm_pool.empty else set()
     missing_keys = list(pool_keys - lm_keys)
@@ -360,7 +396,7 @@ if ranking_period == "Last 30 days":
 # Schedule: games remaining this week (fetched once per session)
 # ---------------------------------------------------------------------------
 
-if (
+if not demo_mode and (
     "ww_games_remaining" not in st.session_state
     or st.session_state.get("ww_schedule_league") != league_key
     or refresh

@@ -38,11 +38,14 @@ league_key = require_auth()
 load_matchups(league_key)
 
 if st.session_state.get("ov_stat_cats_league") != league_key:
-    _session = get_session()
-    if _session is not None:
-        cats = get_stat_categories(_session, league_key)
-        st.session_state["ov_stat_categories"] = cats
-        st.session_state["ov_stat_cats_league"] = league_key
+    if st.session_state.get("demo_mode"):
+        from data.demo import get_stat_categories as _demo_stat_cats
+        cats = _demo_stat_cats()
+    else:
+        _session = get_session()
+        cats = get_stat_categories(_session, league_key) if _session is not None else []
+    st.session_state["ov_stat_categories"] = cats
+    st.session_state["ov_stat_cats_league"] = league_key
 
 _stat_categories = st.session_state.get("ov_stat_categories", [])
 _lower_is_better = lower_is_better_from_categories(_stat_categories)
@@ -51,7 +54,14 @@ df = st.session_state.get("matchups_df")
 current_week = st.session_state.get("current_week")
 
 if df is None or df.empty:
-    st.info("No matchup data available yet — the season may not have started.")
+    if st.session_state.get("demo_mode"):
+        st.warning(
+            "Demo data files are missing. "
+            "Run `python scripts/generate_demo_data.py` from the project root to generate them, "
+            "then commit `demo/data/` to the repo."
+        )
+    else:
+        st.info("No matchup data available yet — the season may not have started.")
     st.stop()
 
 # ---------------------------------------------------------------------------

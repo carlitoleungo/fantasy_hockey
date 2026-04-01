@@ -19,8 +19,11 @@ def require_auth() -> str:
 
     Call this at the top of every page before any other logic. Returns the
     league_key from session state so callers don't need to read it separately.
+
+    In demo mode, bypasses the token check — the league_key is set during
+    demo init in app.py.
     """
-    if "tokens" not in st.session_state:
+    if not st.session_state.get("demo_mode") and "tokens" not in st.session_state:
         st.warning("Please log in first.")
         st.stop()
     league_key = st.session_state.get("league_key")
@@ -40,26 +43,37 @@ def load_matchups(league_key: str) -> None:
       st.session_state["matchups_league_key"] — league the data belongs to
       st.session_state["current_week"]        — current week number
 
-    Stops the page on auth expiry or fetch failure.
+    In demo mode, loads from static files instead of hitting the API.
+    Stops the page on auth expiry or fetch failure (live mode only).
     """
-    if (
-        "matchups_df" not in st.session_state
-        or st.session_state.get("matchups_league_key") != league_key
-    ):
-        session = get_session()
-        if session is None:
-            st.error("Your session has expired. Please log in again.")
-            clear_session()
+    already_loaded = (
+        "matchups_df" in st.session_state
+        and st.session_state.get("matchups_league_key") == league_key
+    )
+    if already_loaded:
+        return
+
+    if st.session_state.get("demo_mode"):
+        from data.demo import get_matchups as demo_get_matchups, get_current_week as demo_get_week
+        st.session_state["matchups_df"] = demo_get_matchups()
+        st.session_state["matchups_league_key"] = league_key
+        st.session_state["current_week"] = demo_get_week()
+        return
+
+    session = get_session()
+    if session is None:
+        st.error("Your session has expired. Please log in again.")
+        clear_session()
+        st.stop()
+
+    with st.spinner("Loading matchup data…"):
+        try:
+            df = matchups.get_matchups(session, league_key)
+            current_week = get_current_week(session, league_key)
+        except Exception as e:
+            st.error(f"Failed to load matchup data: {e}")
             st.stop()
 
-        with st.spinner("Loading matchup data…"):
-            try:
-                df = matchups.get_matchups(session, league_key)
-                current_week = get_current_week(session, league_key)
-            except Exception as e:
-                st.error(f"Failed to load matchup data: {e}")
-                st.stop()
-
-        st.session_state["matchups_df"] = df
-        st.session_state["matchups_league_key"] = league_key
-        st.session_state["current_week"] = current_week
+    st.session_state["matchups_df"] = df
+    st.session_state["matchups_league_key"] = league_key
+    st.session_state["current_week"] = current_week

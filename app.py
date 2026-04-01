@@ -49,9 +49,21 @@ if "code" in params and "tokens" not in st.session_state:
 try_restore_session()
 
 # ---------------------------------------------------------------------------
+# Demo mode helper — called from both login page and no-leagues dead end
+# ---------------------------------------------------------------------------
+def _enter_demo() -> None:
+    from data.demo import get_demo_league_context
+    ctx = get_demo_league_context()
+    st.session_state["demo_mode"] = True
+    st.session_state["leagues"] = [ctx]
+    st.session_state["league_key"] = ctx["league_key"]
+    st.rerun()
+
+
+# ---------------------------------------------------------------------------
 # Step 3: Unauthenticated — show only the Login page
 # ---------------------------------------------------------------------------
-if "tokens" not in st.session_state:
+if "tokens" not in st.session_state and not st.session_state.get("demo_mode"):
     def _login_page():
         inject_css()
         # Hide the Streamlit header/toolbar and centre the content for the login page
@@ -133,12 +145,20 @@ if "tokens" not in st.session_state:
 
         # st.link_button() is a native Streamlit widget — Community Cloud cannot
         # intercept its navigation the way it does <a> tags inside st.markdown().
-        if has_creds:
-            _, col, _ = st.columns([3, 2, 3])
-            with col:
+        _, col, _ = st.columns([3, 2, 3])
+        with col:
+            if has_creds:
                 st.link_button("Sign in with Yahoo", url=auth_url, use_container_width=True)
-        else:
-            st.error("Yahoo credentials not configured. Copy `.streamlit/secrets.toml.example` to `.streamlit/secrets.toml` and fill in your client ID and secret.")
+            else:
+                st.error("Yahoo credentials not configured. Copy `.streamlit/secrets.toml.example` to `.streamlit/secrets.toml` and fill in your client ID and secret.")
+            st.markdown(
+                '<p style="font-family:\'Manrope\',sans-serif;font-size:0.75rem;'
+                'color:rgba(137,147,143,0.6);text-align:center;margin:12px 0 8px 0;">'
+                'or</p>',
+                unsafe_allow_html=True,
+            )
+            if st.button("Try Demo", use_container_width=True, key="login_demo_btn"):
+                _enter_demo()
         st.markdown(
             f'<p style="font-family:\'Manrope\',sans-serif;font-size:0.5625rem;'
             f'color:rgba(137,147,143,0.35);text-align:center;margin-top:16px;'
@@ -159,8 +179,9 @@ inject_css()
 # ---------------------------------------------------------------------------
 # Step 4: Authenticated — load leagues once per session
 # Filter to the current (most recent) season so past-season leagues are hidden.
+# Skipped in demo mode — leagues are already set by _enter_demo().
 # ---------------------------------------------------------------------------
-if "leagues" not in st.session_state:
+if "leagues" not in st.session_state and not st.session_state.get("demo_mode"):
     session = get_session()
     if session is None:
         st.warning("Your session has expired. Please log in again.")
@@ -196,6 +217,9 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
+    if st.session_state.get("demo_mode"):
+        st.info("Demo mode — viewing sample data")
+
     if leagues:
         league_keys = [lg["league_key"] for lg in leagues]
         league_labels = {
@@ -224,36 +248,47 @@ with st.sidebar:
 
         # Warn if the selected league uses a scoring format not yet fully supported.
         # Don't filter it out — support for other formats is planned.
-        _SCORING_LABELS = {
-            "head":       "head-to-head categories",
-            "headpoint":  "head-to-head points",
-            "point":      "rotisserie points",
-            "rotisserie": "rotisserie categories",
-        }
-        _SUPPORTED = {"head"}
-        selected_league = next(
-            (lg for lg in leagues if lg["league_key"] == selected_key), None
-        )
-        if selected_league:
-            scoring = selected_league.get("scoring_type", "")
-            if scoring not in _SUPPORTED:
-                label = _SCORING_LABELS.get(scoring, scoring)
-                st.warning(
-                    f"This league uses **{label}** scoring. "
-                    "Full support for this format is coming soon — "
-                    "some features may not work correctly."
-                )
+        # Demo league is always scoring_type="head", so skip this check in demo mode.
+        if not st.session_state.get("demo_mode"):
+            _SCORING_LABELS = {
+                "head":       "head-to-head categories",
+                "headpoint":  "head-to-head points",
+                "point":      "rotisserie points",
+                "rotisserie": "rotisserie categories",
+            }
+            _SUPPORTED = {"head"}
+            selected_league = next(
+                (lg for lg in leagues if lg["league_key"] == selected_key), None
+            )
+            if selected_league:
+                scoring = selected_league.get("scoring_type", "")
+                if scoring not in _SUPPORTED:
+                    label = _SCORING_LABELS.get(scoring, scoring)
+                    st.warning(
+                        f"This league uses **{label}** scoring. "
+                        "Full support for this format is coming soon — "
+                        "some features may not work correctly."
+                    )
 
     else:
-        st.warning("No active leagues found for your account.")
+        st.warning("No active fantasy categories leagues found for your account.")
+        if st.button("Try Demo", use_container_width=True, key="noleague_demo_btn"):
+            _enter_demo()
 
     st.markdown('<div style="height:1px;background:rgba(63,73,69,0.1);margin:8px 0 4px 0;"></div>', unsafe_allow_html=True)
 
-    if st.button("Log out", use_container_width=True, key="sidebar_logout"):
-        clear_session()
-        for key in ("leagues", "league_key", "matchups_df", "matchups_league_key", "current_week"):
-            st.session_state.pop(key, None)
-        st.rerun()
+    if st.session_state.get("demo_mode"):
+        if st.button("Exit demo", use_container_width=True, key="sidebar_exit_demo"):
+            for key in ("demo_mode", "leagues", "league_key", "matchups_df",
+                        "matchups_league_key", "current_week"):
+                st.session_state.pop(key, None)
+            st.rerun()
+    else:
+        if st.button("Log out", use_container_width=True, key="sidebar_logout"):
+            clear_session()
+            for key in ("leagues", "league_key", "matchups_df", "matchups_league_key", "current_week"):
+                st.session_state.pop(key, None)
+            st.rerun()
 
     st.markdown(
         f'<p style="font-family:\'Manrope\',sans-serif;font-size:0.5625rem;'

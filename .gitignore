@@ -12,5 +12,6 @@ node_modules
 .venv/
 .claude/
 .streamlit/oauth_states.json
+.streamlit/demo_token.json
 package-lock.json
 package.json

@@ -231,6 +231,15 @@ def _build_roster_table(rows, enabled_stats):
 inject_css()
 league_key = require_auth()
 
+if st.session_state.get("demo_mode"):
+    st.markdown('<h1 class="fh-page-title">Week Projection</h1>', unsafe_allow_html=True)
+    st.info(
+        "Week Projection is not available in demo mode — it requires live roster "
+        "and schedule data from Yahoo. Use the Waiver Wire or League Overview pages "
+        "to explore the demo."
+    )
+    st.stop()
+
 # ---------------------------------------------------------------------------
 # Header + refresh
 # ---------------------------------------------------------------------------

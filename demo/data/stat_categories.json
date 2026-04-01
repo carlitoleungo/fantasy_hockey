@@ -1,0 +1,122 @@
+[
+  {
+    "stat_id": "1",
+    "stat_name": "Goals",
+    "abbreviation": "G",
+    "stat_group": "offense",
+    "is_enabled": true,
+    "lower_is_better": false
+  },
+  {
+    "stat_id": "2",
+    "stat_name": "Assists",
+    "abbreviation": "A",
+    "stat_group": "offense",
+    "is_enabled": true,
+    "lower_is_better": false
+  },
+  {
+    "stat_id": "3",
+    "stat_name": "Points",
+    "abbreviation": "P",
+    "stat_group": "offense",
+    "is_enabled": true,
+    "lower_is_better": false
+  },
+  {
+    "stat_id": "4",
+    "stat_name": "Plus/Minus",
+    "abbreviation": "+/-",
+    "stat_group": "offense",
+    "is_enabled": true,
+    "lower_is_better": false
+  },
+  {
+    "stat_id": "5",
+    "stat_name": "Penalty Minutes",
+    "abbreviation": "PIM",
+    "stat_group": "offense",
+    "is_enabled": true,
+    "lower_is_better": false
+  },
+  {
+    "stat_id": "8",
+    "stat_name": "Powerplay Points",
+    "abbreviation": "PPP",
+    "stat_group": "offense",
+    "is_enabled": true,
+    "lower_is_better": false
+  },
+  {
+    "stat_id": "14",
+    "stat_name": "Shots on Goal",
+    "abbreviation": "SOG",
+    "stat_group": "offense",
+    "is_enabled": true,
+    "lower_is_better": false
+  },
+  {
+    "stat_id": "16",
+    "stat_name": "Faceoffs Won",
+    "abbreviation": "FW",
+    "stat_group": "offense",
+    "is_enabled": true,
+    "lower_is_better": false
+  },
+  {
+    "stat_id": "31",
+    "stat_name": "Hits",
+    "abbreviation": "HIT",
+    "stat_group": "offense",
+    "is_enabled": true,
+    "lower_is_better": false
+  },
+  {
+    "stat_id": "32",
+    "stat_name": "Blocks",
+    "abbreviation": "BLK",
+    "stat_group": "offense",
+    "is_enabled": true,
+    "lower_is_better": false
+  },
+  {
+    "stat_id": "19",
+    "stat_name": "Wins",
+    "abbreviation": "W",
+    "stat_group": "goaltending",
+    "is_enabled": true,
+    "lower_is_better": false
+  },
+  {
+    "stat_id": "22",
+    "stat_name": "Goals Against",
+    "abbreviation": "GA",
+    "stat_group": "goaltending",
+    "is_enabled": false,
+    "lower_is_better": true
+  },
+  {
+    "stat_id": "23",
+    "stat_name": "Goals Against Average",
+    "abbreviation": "GAA",
+    "stat_group": "goaltending",
+    "is_enabled": true,
+    "lower_is_better": true
+  },
+  {
+    "stat_id": "25",
+    "stat_name": "Saves",
+    "abbreviation": "SV",
+    "stat_group": "goaltending",
+    "is_enabled": true,
+    "lower_is_better": false
+  },
+  {
+    "stat_id": "27",
+    "stat_name": "Shutouts",
+    "abbreviation": "SHO",
+    "stat_group": "goaltending",
+    "is_enabled": true,
+    "lower_is_better": false
+  }
+]
