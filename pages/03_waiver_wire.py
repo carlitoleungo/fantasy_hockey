@@ -532,8 +532,11 @@ def _col_label(col: str) -> str:
         return _COL_LABELS[col]
     return _stat_abbrev.get(col, col)
 
+render_cols = [c for c in display_df.columns
+               if c not in ("team_abbr", "display_position", "status")]
+
 header_cells = []
-for col in display_df.columns:
+for col in render_cols:
     label = _col_label(col)
     color = "#90d4c1" if col in selected_cats else "#89938f"
     header_cells.append(
@@ -543,27 +546,27 @@ for col in display_df.columns:
 row_htmls = []
 for _, row in page_df.iterrows():
     cells = []
-    for col in display_df.columns:
+    for col in render_cols:
         val = row[col]
 
         if col == "player_name":
-            # Two-line player cell
+            # Two-line player cell with optional inline status badge
             team = row.get("team_abbr", "")
             pos  = row.get("display_position", "")
+            status_val = str(row.get("status", ""))
+            meta_line = f'{team} · {pos}'
+            if status_val and status_val not in ("Healthy", "nan", ""):
+                s_style, s_label = _STATUS_COLORS.get(
+                    status_val,
+                    ("background-color:rgba(155,72,37,0.3);color:#ffb599;", status_val)
+                )
+                meta_line += f' &nbsp;<span class="fh-badge" style="{s_style}">{s_label}</span>'
             cells.append(
-                f'<td style="min-width:160px;">'
+                f'<td style="min-width:120px;">'
                 f'<p class="fh-player-name">{val}</p>'
-                f'<p class="fh-player-meta">{team} · {pos}</p>'
+                f'<p class="fh-player-meta">{meta_line}</p>'
                 f'</td>'
             )
-        elif col == "status":
-            style, label = _STATUS_COLORS.get(str(val), ("background-color:#353532;color:#89938f;", str(val)))
-            cells.append(
-                f'<td><span class="fh-badge" style="{style}">{label}</span></td>'
-            )
-        elif col in ("team_abbr", "display_position"):
-            # Already shown in the player name cell
-            cells.append(f'<td style="color:#89938f;font-size:0.6875rem;">{val}</td>')
         else:
             cells.append(f'<td style="text-align:right;">{val}</td>')
 
@@ -582,9 +585,13 @@ table_html = f"""
 }}
 .ww-table-wrap {{ overflow-x: auto; }}
 .ww-table {{
-    width: 100%;
+    width: auto;
     border-collapse: collapse;
-    min-width: 900px;
+}}
+@media (min-width: 768px) {{
+    .ww-table {{
+        width: 100%;
+    }}
 }}
 .ww-table thead tr {{
     background-color: rgba(53,53,50,0.3);
