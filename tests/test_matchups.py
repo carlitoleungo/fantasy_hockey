@@ -8,7 +8,7 @@ Tests focus on the delta-fetch logic: which weeks get fetched, that new rows
 are appended correctly, and that the returned DataFrame has the expected shape.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 import pandas as pd
 import pytest
@@ -232,3 +232,59 @@ def test_one_api_call_per_week(monkeypatch):
 
     # 3 weeks = 3 API calls (not 3 weeks × 2 teams = 6)
     assert api_calls == [1, 2, 3]
+
+
+# ---------------------------------------------------------------------------
+# Prev-week re-fetch based on cache last_updated date
+# ---------------------------------------------------------------------------
+
+def test_prev_week_refetched_when_cache_updated_today(monkeypatch):
+    """When the cache was last written today, the most recently completed week is re-fetched."""
+    seed = pd.DataFrame([
+        {"team_key": "nhl.l.99999.t.1", "team_name": "Team Alpha", "week": 4, "Goals": 8.0, "Assists": 12.0},
+        {"team_key": "nhl.l.99999.t.2", "team_name": "Team Beta",  "week": 4, "Goals": 6.0, "Assists": 9.0},
+    ])
+    cache.write(LEAGUE_KEY, "matchups", seed)
+    today = datetime.now(timezone.utc)
+    monkeypatch.setattr(cache, "last_updated", lambda league, dtype: today)
+
+    fetched_weeks = []
+
+    def tracking_stats(session, league_key, week, stat_categories):
+        fetched_weeks.append(week)
+        return fake_all_teams_week_stats(session, league_key, week, stat_categories)
+
+    monkeypatch.setattr(client, "get_league_settings", lambda s, k: make_settings(current_week=5))
+    monkeypatch.setattr(client, "get_stat_categories", lambda s, k: STAT_CATEGORIES)
+    monkeypatch.setattr(client, "get_all_teams_week_stats", tracking_stats)
+
+    matchups.get_matchups(None, LEAGUE_KEY)
+
+    assert 4 in fetched_weeks   # prev_week re-fetched because cache was written today
+    assert 5 in fetched_weeks   # new current week also fetched
+
+
+def test_prev_week_not_refetched_when_cache_updated_yesterday(monkeypatch):
+    """When the cache was last written yesterday, the most recently completed week is not re-fetched."""
+    seed = pd.DataFrame([
+        {"team_key": "nhl.l.99999.t.1", "team_name": "Team Alpha", "week": 4, "Goals": 8.0, "Assists": 12.0},
+        {"team_key": "nhl.l.99999.t.2", "team_name": "Team Beta",  "week": 4, "Goals": 6.0, "Assists": 9.0},
+    ])
+    cache.write(LEAGUE_KEY, "matchups", seed)
+    yesterday = datetime.now(timezone.utc) - timedelta(days=1)
+    monkeypatch.setattr(cache, "last_updated", lambda league, dtype: yesterday)
+
+    fetched_weeks = []
+
+    def tracking_stats(session, league_key, week, stat_categories):
+        fetched_weeks.append(week)
+        return fake_all_teams_week_stats(session, league_key, week, stat_categories)
+
+    monkeypatch.setattr(client, "get_league_settings", lambda s, k: make_settings(current_week=5))
+    monkeypatch.setattr(client, "get_stat_categories", lambda s, k: STAT_CATEGORIES)
+    monkeypatch.setattr(client, "get_all_teams_week_stats", tracking_stats)
+
+    matchups.get_matchups(None, LEAGUE_KEY)
+
+    assert 4 not in fetched_weeks  # prev_week not re-fetched — cache was written yesterday
+    assert 5 in fetched_weeks      # new current week still fetched

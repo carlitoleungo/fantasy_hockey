@@ -209,3 +209,19 @@ def test_compare_custom_lower_is_better():
 
     by_cat = {r["category"]: r["winner"] for r in result}
     assert by_cat["Goals"] == "team_a"  # 5 < 8, lower is better here
+
+
+# ---------------------------------------------------------------------------
+# _is_rate_stat
+# ---------------------------------------------------------------------------
+
+def test_is_rate_stat():
+    from analysis.projection import _is_rate_stat
+
+    assert _is_rate_stat("GAA") is True
+    assert _is_rate_stat("SV%") is True
+    assert _is_rate_stat("Goals Against Average") is True
+    assert _is_rate_stat("Save Percentage") is True
+
+    assert _is_rate_stat("Goals") is False
+    assert _is_rate_stat("Assists") is False
