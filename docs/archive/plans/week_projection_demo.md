@@ -1,3 +1,7 @@
+> **Archived — Streamlit prototype only.** This plan was written and implemented for the original Streamlit prototype. The static demo data files it generated (`demo/data/projection_context.json`, `demo/data/projection_pair_data.json`) and the `data/demo.py` loader functions are preserved. The integration points described here — `pages/04_week_projection.py` and the session state injection pattern — are Streamlit-specific and have been replaced. The data shape documentation (JSON structure for `projection_context` and `projection_pair_data`) remains a valid reference when building the FastAPI week projection route. See [`docs/ARCHITECTURE.md`](../../ARCHITECTURE.md) for the current architecture.
+
+---
+
 # Plan: Extend Demo Mode to Cover Week Projection
 
 ## Context

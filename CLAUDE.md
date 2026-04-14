@@ -1,7 +1,7 @@
 # Fantasy Hockey Manager Tool
 
 ## Project Purpose
-A Streamlit web app that helps fantasy hockey managers make better add/drop decisions by surfacing team weaknesses and ranking available waiver wire players against those weaknesses.
+A public-facing web app that helps fantasy hockey managers evaluate waiver wire add/drop decisions using Yahoo Fantasy API data. Users authenticate with their own Yahoo account; the backend fetches their league, matchup, and player data; the frontend renders stat tables and rankings. A demo mode lets unauthenticated users explore a pre-snapshotted dataset.
 
 ## Key Documentation
 - Yahoo Fantasy Sports API (official): https://developer.yahoo.com/fantasysports/guide/#player-resource
@@ -12,49 +12,11 @@ Auth flow and API patterns are established in `auth/oauth.py` and `data/client.p
 
 ## Architecture
 
-```
-fantasy_hockey/
-  CLAUDE.md
-  app.py                        # Streamlit entry point — run with `streamlit run app.py`
-  reference/
-    waiver_wire_notebook.ipynb  # read-only reference, do not execute
-  auth/
-    oauth.py                    # Yahoo OAuth flow, token storage/refresh
-  data/
-    client.py                   # raw Yahoo API calls, rate limit handling
-    cache.py                    # read/write local parquet files, delta fetch logic
-    leagues.py                  # fetch games, leagues, return list for selection
-    matchups.py                 # fetch matchup data — checks cache first, fetches missing weeks
-    players.py                  # fetch available players, season + 30-day stats
-  analysis/
-    team_scores.py              # weekly scores across all teams, avg rank per team
-    matchup_sim.py              # head-to-head simulation using period averages
-    waiver_ranking.py           # rank available players by selected stat categories
-  pages/
-    01_league_overview.py       # weekly team scores view
-    02_matchup_sim.py           # head-to-head simulation view
-    03_waiver_wire.py           # player ranking view
-  tests/
-    fixtures/                   # saved API responses for offline testing
-  .cache/
-    {league_key}/
-      matchups.parquet          # all historical matchup data, appended incrementally
-      players.parquet           # player stats snapshot
-      last_updated.json         # timestamps per data type
-```
-
-The data/ and analysis/ layers are pure Python with no Streamlit dependencies — they take inputs and return dataframes. The pages/ layer handles all Streamlit UI code. app.py handles auth state and routes to pages.
-
-Each layer only imports from the layer below it. Streamlit UI code never lives outside of app.py or pages/.
+See `docs/ARCHITECTURE.md` for directory structure and layer rules.
 
 ## Tech Stack
-- Python 3.11+
-- streamlit for the web UI
-- yahoo_oauth for OAuth token management
-- requests or yahoo_fantasy_api wrapper for API calls (check notebook for what's already working)
-- pandas for data transformation
-- pyarrow for parquet read/write (comes with pandas)
-- pytest for tests
+
+See `docs/ARCHITECTURE.md` for stack decisions.
 
 ## Caching Strategy
 
@@ -86,34 +48,6 @@ On first run with an empty cache, this fetches all weeks. On subsequent runs it 
 
 ### Cache files are gitignored
 Add .cache/ to .gitignore. Cache files contain league-specific data and can always be regenerated from the API.
-
-## Streamlit-Specific Patterns
-
-### Session State
-```python
-if "league_key" not in st.session_state:
-    st.session_state.league_key = None
-```
-
-### In-session Caching
-```python
-@st.cache_data(ttl=3600)
-def get_matchup_data(league_key, week):
-    ...
-```
-
-`@st.cache_data` is for within-session performance. The `.cache/` parquet files handle persistence across sessions. These are two separate caching layers — do not conflate them.
-
-### Auth Flow
-On app load, check for a valid token in session state. If none exists, show a login button that initiates the Yahoo OAuth flow. Once authenticated, store the token in st.session_state and rerun. Never store tokens in st.cache_data — use session state only.
-
-### Page Structure
-Guard each page with an auth check at the top:
-```python
-if "token" not in st.session_state:
-    st.warning("Please log in first.")
-    st.stop()
-```
 
 ## Secrets & Auth
 - Yahoo OAuth credentials stored in .streamlit/secrets.toml (gitignored)
@@ -150,9 +84,17 @@ client_secret = "your_client_secret"
 - Do not make live API calls in tests
 
 ## Running Locally
+
+### Streamlit prototype
 ```bash
 pip install -r requirements.txt
 streamlit run app.py
+```
+
+### FastAPI app
+```bash
+pip install -r requirements-web.txt
+uvicorn web.main:app --reload
 ```
 
 ## Development Workflow

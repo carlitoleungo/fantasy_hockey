@@ -1,3 +1,7 @@
+> **Archived — Streamlit prototype only.** This plan was written and implemented for the original Streamlit prototype. The data generation scripts (`scripts/generate_demo_data.py`, `scripts/extend_demo_data.py`) and the static demo data files (`demo/data/`) are preserved and still used. The `data/demo.py` loader functions are also preserved. However, the integration points described here — `app.py`, `utils/common.py`, `pages/03_waiver_wire.py`, `pages/04_week_projection.py` — are all Streamlit-specific and have been replaced. See [`docs/ARCHITECTURE.md`](../../ARCHITECTURE.md) for how demo mode will work in the FastAPI stack (`web/routes/demo.py`).
+
+---
+
 # Demo Mode — Implementation Plan
 
 ## Context
@@ -200,13 +204,9 @@ Guard each API-calling block with `if not demo_mode`:
 | Line | Block | Guard |
 |------|-------|-------|
 | 259–262 | `get_stat_categories()` call | `if not demo_mode and ...` |
-| 296–310 | `fetch_season_pool()` call inside the for-loop | `if not demo_mode:` wrapping the API branch (cache check still runs, but pool already populated so the for-loop body is a no-op since `sort_key in fetched_sorts` is True for `__demo__`... **actually**: use `if not demo_mode and sort_key not in fetched_sorts`) |
+| 296–310 | `fetch_season_pool()` call inside the for-loop | `if not demo_mode and sort_key not in fetched_sorts` |
 | 330–355 | `fetch_lastmonth_batch()` call | wrap with `if not demo_mode` |
 | 363–398 | `scoreboard_module / schedule_module` calls | wrap with `if not demo_mode` |
-
-The position filter pool-invalidation (`_clear_pool()` call at line 243) will still fire in demo mode on position change — that's correct. Re-running `_clear_pool()` then re-entering the demo init block at the top will re-populate from static files for the new position. **However**, since the static files contain all positions, we can re-populate with the same full dataset and let `filter_by_position()` handle the client-side filter. That means `_clear_pool()` on position change is fine — demo init at top re-fills it every time.
-
-**Refresh button:** In demo mode, suppress the live-fetch effect of the Refresh button. The demo init block already re-populates if `ww_pool_league` doesn't match. To handle Refresh in demo mode: clear pool league key before rerun, or add `if not demo_mode` to the `if refresh or not _pool_valid(): _clear_pool()` block — keeping `_clear_pool()` but skipping the subsequent live-fetch guards.
 
 ---
 

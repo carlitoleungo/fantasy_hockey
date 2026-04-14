@@ -30,6 +30,7 @@ client-side toggles. No JS build pipeline.
 
 | Path | What it does | Status |
 |------|-------------|--------|
+| `data/__init__.py` | Package marker | Unchanged |
 | `data/client.py` | Yahoo API calls, XML→dict parsing, `_as_list`/`_coerce` helpers | Unchanged |
 | `data/cache.py` | Parquet + metadata JSON disk cache; delta-fetch, TTL, append patterns | Unchanged (`CACHE_DIR` pointed at `/data/cache/`) |
 | `data/matchups.py` | Incremental matchup fetch with delta-fetch pattern | Unchanged |
@@ -40,6 +41,7 @@ client-side toggles. No JS build pipeline.
 | `data/scoreboard.py` | Scoreboard data | Unchanged |
 | `data/demo.py` | Demo mode static file loader | Unchanged |
 | `demo/data/` | Static parquet/JSON snapshot for demo mode | Unchanged |
+| `analysis/__init__.py` | Package marker | Unchanged |
 | `analysis/waiver_ranking.py` | Composite player ranking by stat category | Unchanged |
 | `analysis/team_scores.py` | Weekly team standings and avg rank | Unchanged |
 | `analysis/matchup_sim.py` | Head-to-head simulation | Unchanged |
@@ -51,6 +53,7 @@ client-side toggles. No JS build pipeline.
 | Old | New | Why |
 |-----|-----|-----|
 | `app.py` | `web/main.py` | Streamlit entry point → FastAPI app factory |
+| `pages/__init__.py` | (removed — no equivalent in FastAPI structure) | Streamlit package marker → not needed |
 | `pages/01_league_overview.py` | `web/routes/leagues.py` + templates | Streamlit page → FastAPI route + Jinja2 |
 | `pages/03_waiver_wire.py` | `web/routes/waiver.py` + templates | Streamlit page → FastAPI route + Jinja2 |
 | `pages/04_week_projection.py` | `web/routes/projection.py` + templates | Streamlit page → FastAPI route + Jinja2 |
@@ -168,6 +171,7 @@ Browser → /demo/* route → data/demo.py loads static parquet/JSON → Jinja2 
 
 | Date | Decision | Rationale | Alternatives considered |
 |------|----------|-----------|------------------------|
+| 2026-04-10 | FastAPI over Flask or Django as the backend framework | FastAPI's async-native request handling supports concurrent per-user Yahoo OAuth callbacks without threading configuration; automatic OpenAPI docs aid single-engineer maintenance; Pydantic validation integrates cleanly with the existing Python data stack. Flask lacks native async support and requires extra libs (Flask-Login, Blueprints) to reach feature parity. Django's ORM, admin, and templating are heavy for a thin API-proxy app, and its opinionated project layout conflicts with the existing `data/`/`analysis/` module structure | Flask (synchronous by default, OAuth callback handling requires extra libs); Django (high-ceremony ORM + settings overhead; incompatible project layout assumptions) |
 | 2026-04-10 | FastAPI + HTMX + Jinja2; no JS build pipeline | Single-engineer Python team; UI is tables and filters, not a rich SPA; HTMX handles partial-page updates without a JS framework or build step | React + FastAPI (adds build pipeline and a language context switch); Vue (same trade-offs as React at smaller scale) |
 | 2026-04-10 | Responsive web only; PWA deferred | Waiver wire UX (select filters, scan table, pick player) fits a mobile browser without native code; native adds two codebases and app-store friction for marginal UX gain | React Native (rejected); PWA (deferred — manifest.json can be added later without architecture change) |
 | 2026-04-10 | Single uvicorn worker | SQLite is not safe for concurrent writes across multiple processes; a single worker eliminates write-lock contention with no throughput cost at the expected scale (dozens–low hundreds of concurrent users) | Multiple workers with Postgres (adds managed DB cost and ops complexity) |

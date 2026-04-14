@@ -1,3 +1,7 @@
+> **Archived — Streamlit prototype only.** This backlog tracked small improvements to the original Streamlit prototype. Completed items are preserved as a record of what was built. Pending items should be re-evaluated against the new FastAPI stack before being re-ticketed — most have direct equivalents but the implementation details differ. Use [`.team/backlog.md`](../../.team/backlog.md) for new backlog items. See [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md) for the current architecture.
+
+---
+
 # Improvements Backlog
 
 Tracks pending and completed small fixes and improvements to the app.
@@ -16,4 +20,5 @@ Tracks pending and completed small fixes and improvements to the app.
 
 ## Pending
 
-<!-- Add future improvements here -->
+<!-- Items here were not implemented before the Streamlit prototype was superseded.
+     Re-evaluate against the FastAPI stack before picking up. -->

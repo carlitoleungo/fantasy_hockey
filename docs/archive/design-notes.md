@@ -1,3 +1,7 @@
+> **Archived — Streamlit prototype only.** This document captures design notes and architectural thinking written for the original Streamlit prototype. Section 1 (Responsive Design) describes Streamlit-specific layout constraints that no longer apply. Section 2 (Architecture for Variations) contains useful multi-sport/points-league thinking but all implementation details are Streamlit-specific (`st.session_state`, `app.py` routing via `st.navigation()`). The conceptual approach — `LeagueConfig` dataclass, per-sport `LOWER_IS_BETTER` config, `game_code` filtering — is worth revisiting when multi-sport support is scoped for the FastAPI stack. See [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md) for the current architecture.
+
+---
+
 # Design Notes
 
 ## 1. Responsive Design / Mobile Support

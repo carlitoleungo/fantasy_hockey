@@ -1,3 +1,7 @@
+> **Archived — Streamlit prototype only.** This plan was written and implemented for the original Streamlit prototype. The data layer it describes (`data/players.py`, `analysis/waiver_ranking.py`) is preserved and unchanged. The UI layer (`pages/03_waiver_wire.py`) is being replaced by `web/routes/waiver.py` + Jinja2 templates. The API endpoint research, two-call-per-page pattern, and ranking approach documented here all remain valid and should be referenced when building the FastAPI waiver route. See [`docs/ARCHITECTURE.md`](../../ARCHITECTURE.md) for the current architecture.
+
+---
+
 # Plan: Waiver Wire Player Ranking (Features 5 & 6)
 
 ## What we're building
