@@ -35,6 +35,8 @@ The core logic already exists in `auth/oauth.py`. `_is_valid(tokens)` checks `ti
 
 **Exemption list**: store exempt path prefixes as a `frozenset` constant or configuration value, not as inline string comparisons. This makes it easy to add new public routes later without hunting through middleware logic.
 
+**`_try_refresh` exception scope**: `_try_refresh` catches only `requests.HTTPError`. Network-level failures (timeout, DNS) will propagate uncaught. The middleware must wrap its `_try_refresh` call in a `except requests.RequestException` block and treat any failure the same as a `None` return — redirect to login and delete the session row.
+
 **Key edge case**: token with `expires_at = time.time() + 59` must trigger refresh; `expires_at = time.time() + 61` must not. Write a parameterised test covering both boundaries. Also verify the middleware does not refresh on every request for a healthy session — two sequential requests with the same session cookie and a healthy token should result in zero `requests.post` calls total.
 
 ## Notes for QA
