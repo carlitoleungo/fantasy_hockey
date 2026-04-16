@@ -6,7 +6,7 @@ import time
 
 import pytest
 
-from auth.oauth import _stamp_expiry, _is_valid
+from auth.oauth import TOKEN_EXPIRY_BUFFER_SECONDS, _is_valid, _stamp_expiry
 
 
 # ---------------------------------------------------------------------------
@@ -39,8 +39,8 @@ def test_is_valid_returns_false_when_expired():
 
 
 def test_is_valid_returns_false_within_buffer():
-    # 30 seconds from now is inside the 60-second buffer window
-    tokens = {"expires_at": time.time() + 30}
+    # TOKEN_EXPIRY_BUFFER_SECONDS - 1 is inside the buffer window
+    tokens = {"expires_at": time.time() + TOKEN_EXPIRY_BUFFER_SECONDS - 1}
     assert _is_valid(tokens) is False
 
 

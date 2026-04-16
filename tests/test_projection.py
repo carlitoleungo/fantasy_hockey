@@ -3,6 +3,7 @@ Unit tests for analysis/projection.py.
 All tests use in-memory inputs — no fixtures or API calls needed.
 """
 from analysis import projection
+from analysis.projection import _is_rate_stat
 
 STAT_CATEGORIES = [
     {"stat_id": "1", "stat_name": "Goals",   "is_enabled": True},
@@ -216,8 +217,6 @@ def test_compare_custom_lower_is_better():
 # ---------------------------------------------------------------------------
 
 def test_is_rate_stat():
-    from analysis.projection import _is_rate_stat
-
     assert _is_rate_stat("GAA") is True
     assert _is_rate_stat("SV%") is True
     assert _is_rate_stat("Goals Against Average") is True

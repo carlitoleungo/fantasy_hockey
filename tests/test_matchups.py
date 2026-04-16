@@ -8,7 +8,7 @@ Tests focus on the delta-fetch logic: which weeks get fetched, that new rows
 are appended correctly, and that the returned DataFrame has the expected shape.
 """
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 
 import pandas as pd
 import pytest
