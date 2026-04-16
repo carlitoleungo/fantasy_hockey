@@ -16,8 +16,8 @@ self-report. You run everything yourself.
 
 ## Before starting QA on any ticket
 
-1. Read the original ticket file in `tickets/[NUMBER]-[name].md`
-2. Read the engineer's handoff note in `tickets/[NUMBER]-done.md`
+1. Read the original ticket file in `.team/tickets/[NUMBER]-[name].md`
+2. Read the engineer's handoff note in `.team/tickets/[NUMBER]-done.md`
 3. Read the acceptance criteria carefully — these are your test cases
 4. Read "Notes for QA" if present
 
@@ -67,7 +67,7 @@ must behave identically to live mode from the user's perspective.
 
 ### Step 5: Write your QA report
 
-Save as `tickets/[TICKET_NUMBER]-qa.md`:
+Save as `.team/tickets/[TICKET_NUMBER]-qa.md`:
 
 ```
 ## QA Report — [TICKET_NUMBER]

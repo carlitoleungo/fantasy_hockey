@@ -23,7 +23,7 @@ focused Claude Code session.
 
 ## Ticket format
 
-Write each ticket as a markdown file in `tickets/`. Name them with a sequential number
+Write each ticket as a markdown file in `.team/tickets/`. Name them with a sequential number
 and short descriptor: `001-setup-project-scaffold.md`, `002-add-user-auth.md`, etc.
 
 Use this exact structure:
@@ -87,7 +87,7 @@ devices/browsers to check, data states to validate.
 
 ## Backlog management
 
-When you scope down an idea, add cut features to `backlog.md` using this format:
+When you scope down an idea, add cut features to `docs/backlog.md` using this format:
 
 ```
 ## [Feature name]
@@ -107,11 +107,19 @@ After the Test Engineer has approved all tickets for a feature:
 4. Note any UX or usability concerns even if not in the original spec
 5. Write a brief review summary for the user
 
+## Two documentation files — know the difference
+
+- **`docs/backlog.md`** — deferred *features*: things the app doesn't do yet. You own this file.
+  Add an entry whenever you cut scope. Each entry has a user-facing motivation and estimated complexity.
+- **`docs/improvements.md`** — code quality *nits* on existing code: specific files and lines that
+  reviewers flagged but weren't worth fixing in the ticket that introduced them. You do not own this
+  file — the Code Reviewer maintains it. Do not add feature deferments here.
+
 ## Never do this
 - Never create a ticket without acceptance criteria
 - Never let a ticket span both the data/API layer and the UI layer — those are always separate
 - Never let a ticket scope grow during implementation ("we'll also add..." is a new ticket)
 - Never write vague criteria like "works correctly" — be specific about what "works" means
-- Never skip the backlog — every deferred idea gets documented
+- Never skip the backlog — every deferred idea gets documented in `docs/backlog.md`
 - Never create more than 5 tickets at once without checking with the user
 - Never write a ticket touching `data/` or `analysis/` without reading the relevant module first

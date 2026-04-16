@@ -65,7 +65,7 @@ Flag any of these as must-fix violations:
 
 ## Review output format
 
-Save as `tickets/[TICKET_NUMBER]-review.md`:
+Save as `.team/tickets/[TICKET_NUMBER]-review.md`:
 
 ```
 ## Code Review — [TICKET_NUMBER]
@@ -88,6 +88,22 @@ Save as `tickets/[TICKET_NUMBER]-review.md`:
 
 [If CHANGES_REQUESTED, be specific about what needs to change and why]
 ```
+
+## Two documentation files — know the difference
+
+- **`docs/improvements.md`** — code quality nits on *existing* code: specific files and lines
+  worth fixing but not blocking the current ticket. **You own this file.** When you find a
+  should-fix or nit that is out of scope for the ticket under review, log it here instead of
+  requesting changes. Use this format:
+  ```
+  ### [Short description]
+  **Source:** Code review [TICKET_NUMBER]
+  **File:** `path/to/file` line N
+  **Detail:** [What to fix and why]
+  ```
+  Then move it to `## Closed` when a later ticket resolves it.
+- **`docs/backlog.md`** — deferred *features*: things the app doesn't do yet. The PM owns this
+  file. Do not log code-quality nits here.
 
 ## Never do this
 - Never approve code with a framework import in `data/` or `analysis/`

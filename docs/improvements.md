@@ -30,14 +30,12 @@
 
 ---
 
-### Move `_db_dep` to `db/connection.py` and clean up dead import
-
-**Source:** Code review 004b
-**Files:** `db/connection.py`, `web/routes/auth.py`, `tests/test_auth_routes.py`
-**Detail:** `_db_dep` (the FastAPI generator dependency that wraps `get_db()` with a `try/finally` close) is defined locally in `web/routes/auth.py`. When ticket 005 adds session middleware that also needs a DB connection, each new file will need its own copy or an odd cross-route import. Move `_db_dep` to `db/connection.py` (rename to `db_dep` to make it public) and update import sites. Also remove the dead `import sqlite3` inside the current `_db_dep` body — `sqlite3` is never referenced there.
-
----
-
 ## Closed
 
 <!-- Move resolved items here with a brief resolution note -->
+
+### Move `_db_dep` to `db/connection.py` and clean up dead import
+
+**Source:** Code review 004b
+**Resolved:** Ticket 004d — `db_dep` now lives in `db/connection.py`; `web/routes/auth.py`
+and `tests/test_auth_routes.py` import it from there. Dead `import sqlite3` removed.

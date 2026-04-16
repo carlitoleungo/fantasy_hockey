@@ -76,7 +76,7 @@ cat .team/pm.md | claude
 ```
 
 Tell the PM your idea. It will ask clarifying questions, then produce ticket files
-in `tickets/` and update `backlog.md` for anything deferred.
+in `.team/tickets/` and update `docs/backlog.md` for anything deferred.
 
 **Example prompts:**
 > "I want to add a player comparison view — show two players side by side with their
@@ -119,7 +119,7 @@ cat .team/engineer.md | claude
 > "Implement ticket 001. Read `tickets/001-[name].md` and `ARCHITECTURE.md` first.
 >  Do not start writing code until you've read both."
 
-The Engineer produces a handoff note (`tickets/[NUMBER]-done.md`) when finished.
+The Engineer produces a handoff note (`.team/tickets/[NUMBER]-done.md`) when finished.
 
 ---
 
@@ -130,8 +130,8 @@ cat .team/test-engineer.md | claude
 ```
 
 **Prompt after Test Engineer loads:**
-> "QA ticket 001. Read the ticket at `tickets/001-[name].md` and the engineer's
->  handoff at `tickets/001-done.md`. Write your own test plan first, then run tests,
+> "QA ticket 001. Read the ticket at `.team/tickets/001-[name].md` and the engineer's
+>  handoff at `.team/tickets/001-done.md`. Write your own test plan first, then run tests,
 >  then verify manually in the browser."
 
 **The Test Engineer will:**
@@ -153,7 +153,7 @@ cat .team/reviewer.md | claude
 
 **Prompt after Reviewer loads:**
 > "Review the changes for ticket 001. Read the ticket, the QA report at
->  `tickets/001-qa.md`, and the changed files."
+>  `.team/tickets/001-qa.md`, and the changed files."
 
 The Reviewer will specifically check for:
 - Framework imports (`streamlit`, `fastapi`, etc.) in `data/` or `analysis/`
@@ -224,6 +224,9 @@ cat .team/pm.md | claude
   test-engineer.md    # Test Engineer persona
   reviewer.md         # Code Reviewer persona
   WORKFLOW.md         # This file
+  tickets/            # Ticket specs + done/qa/review artefacts (all flat, no subdirectory)
+docs/
   backlog.md          # Deferred features (PM maintains this)
-  tickets/            # One file per ticket + done/qa/review files
+  improvements.md     # Code quality nits on existing code (Reviewer maintains this)
+  ARCHITECTURE.md     # Stack decisions and directory structure (Tech Lead maintains this)
 ```

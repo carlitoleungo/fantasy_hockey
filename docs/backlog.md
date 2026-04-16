@@ -96,46 +96,6 @@ hypothetical roster change.
 
 ---
 
-## Post-login landing page + league selector
-
-**Original request:** Identified as a gap after scoped tickets 001–005.
-**What was included:** Nothing — no ticket written yet.
-**What was deferred:** After a successful OAuth callback the app redirects to `/`. That route doesn't exist yet. Users need a page where they can see their leagues and select one before any data page is useful.
-**Context for later:** The Streamlit prototype handles this in `app.py` using `get_user_hockey_leagues()` from `data/leagues.py` and stores the result in `st.session_state`. The FastAPI equivalent is a `GET /` route that calls `data.leagues.get_user_hockey_leagues()` with the session's `requests.Session`, renders a league-picker template, and stores the selected `league_key` in the session row (add a `league_key TEXT` column to `user_sessions`). This is a prerequisite for every data page — nothing useful renders without a selected league.
-**Estimated complexity:** Medium (route + template + session schema update)
-
----
-
-## Logout route
-
-**Original request:** Identified as a gap after scoped tickets 001–005. Specified in ARCHITECTURE.md session strategy but no ticket written.
-**What was included:** Nothing.
-**What was deferred:** `GET /auth/logout` — deletes the `user_sessions` row, clears the `session_id` cookie, redirects to `/`.
-**Context for later:** ARCHITECTURE.md specifies: "Logout: DELETE row from `user_sessions`, clear cookie, redirect to `/`." One route handler, no data layer involvement. Straightforward but must exist before go-live — without it users have no way to disconnect their Yahoo account.
-**Estimated complexity:** Small
-
----
-
-## Error handling strategy
-
-**Original request:** Identified as a gap after scoped tickets 001–005. Not currently designed anywhere.
-**What was included:** Nothing.
-**What was deferred:** A consistent approach to what users see when things go wrong: Yahoo API failures, invalid/expired cache, `requests.HTTPError` from token exchange, missing league data.
-**Context for later:** The Streamlit prototype showed errors inline with `st.error()`. The FastAPI app needs: (1) a FastAPI exception handler registered in `web/main.py` for `requests.HTTPError` and a custom `YahooAPIError`; (2) a `500.html` / `error.html` Jinja2 template; (3) a decision on whether Yahoo API failures should show a user-facing message ("Yahoo is unavailable, try again") or just log and redirect. This should be designed before any data pages are built — retrofitting consistent error handling across four routes is harder than building it in upfront.
-**Estimated complexity:** Medium (design decision + exception handler + error template)
-
----
-
-## `CACHE_DIR` env var wiring
-
-**Original request:** Identified as a gap after scoped tickets 001–005.
-**What was included:** ARCHITECTURE.md specifies `CACHE_DIR` as env-overridable, pointing to `/data/cache/` on Fly.io.
-**What was deferred:** Actually wiring it. `data/cache.py` currently hardcodes `CACHE_DIR = ".cache"`. The constant needs to read from `os.environ.get("CACHE_DIR", ".cache")` so the Fly.io volume path works without modifying `cache.py`'s logic.
-**Context for later:** One-line change in `data/cache.py` line 24. Must be done before deployment — without it the cache writes to the container's ephemeral filesystem and is lost on every restart.
-**Estimated complexity:** Small
-
----
-
 ## Streamlit Community Cloud decommissioning
 
 **Original request:** Identified as a go-live step after scoped tickets 001–005.
