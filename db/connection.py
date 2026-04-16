@@ -9,8 +9,18 @@ from __future__ import annotations
 
 import os
 import sqlite3
+from typing import Generator
 
 _DEFAULT_DB_PATH = "/data/app.db"
+
+
+def db_dep() -> Generator:
+    """FastAPI dependency: open a DB connection and close it after the response."""
+    conn = get_db()
+    try:
+        yield conn
+    finally:
+        conn.close()
 
 
 def get_db(path: str | None = None) -> sqlite3.Connection:

@@ -15,8 +15,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
+from db.connection import db_dep
 from web.main import app
-from web.routes.auth import _db_dep
 
 
 # ---------------------------------------------------------------------------
@@ -54,7 +54,7 @@ def db_and_client():
     def override_db():
         yield conn
 
-    app.dependency_overrides[_db_dep] = override_db
+    app.dependency_overrides[db_dep] = override_db
     client = TestClient(app, follow_redirects=False)
     yield conn, client
     app.dependency_overrides.clear()

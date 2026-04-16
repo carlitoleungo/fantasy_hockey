@@ -22,7 +22,7 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 
 from auth.oauth import exchange_code, get_auth_url
-from db.connection import get_db
+from db.connection import db_dep
 
 router = APIRouter()
 
@@ -30,18 +30,8 @@ _NONCE_TTL_SECONDS = 300
 _SESSION_COOKIE_MAX_AGE = 2592000  # 30 days
 
 
-def _db_dep():
-    """FastAPI dependency: open a DB connection and close it after the response."""
-    import sqlite3
-    conn = get_db()
-    try:
-        yield conn
-    finally:
-        conn.close()
-
-
 @router.get("/auth/login")
-def login(db=Depends(_db_dep)):
+def login(db=Depends(db_dep)):
     url, state = get_auth_url()
     db.execute(
         "INSERT INTO oauth_states (state, expires_at) VALUES (?, ?)",
@@ -52,7 +42,7 @@ def login(db=Depends(_db_dep)):
 
 
 @router.get("/auth/callback")
-def callback(request: Request, db=Depends(_db_dep)):
+def callback(request: Request, db=Depends(db_dep)):
     code = request.query_params.get("code")
     state = request.query_params.get("state")
 
