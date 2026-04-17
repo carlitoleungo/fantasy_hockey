@@ -38,6 +38,14 @@
 
 ---
 
+### Scope `client` fixture in `test_error_handling.py` to module level
+
+**Source:** Code review 009
+**File:** `tests/test_error_handling.py` line 8
+**Detail:** The `client` fixture is function-scoped (default), so the two test routes (`/test/http-error`, `/test/unhandled`) are registered on the production `app` object once per test — 7 times total. FastAPI silently accumulates duplicate route entries. Add `scope="module"` to the fixture decorator so routes are registered once per test session.
+
+---
+
 ## Closed
 
 <!-- Move resolved items here with a brief resolution note -->
