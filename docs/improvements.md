@@ -14,14 +14,6 @@
 
 ---
 
-### Tie `test_is_valid_returns_false_within_buffer` to `TOKEN_EXPIRY_BUFFER_SECONDS` constant
-
-**Source:** Code review 002
-**File:** `tests/test_oauth_helpers.py`
-**Detail:** The test uses a hardcoded offset of `time.time() + 30` to land inside the 60-second buffer window. Using `time.time() + TOKEN_EXPIRY_BUFFER_SECONDS - 1` instead would tie the test to the actual constant, so it stays correct if the buffer value ever changes.
-
----
-
 ### Move `_is_rate_stat` import to module level in `tests/test_projection.py`
 
 **Source:** Code review 002
@@ -55,3 +47,8 @@
 **Source:** Code review 004b
 **Resolved:** Ticket 004d — `db_dep` now lives in `db/connection.py`; `web/routes/auth.py`
 and `tests/test_auth_routes.py` import it from there. Dead `import sqlite3` removed.
+
+### Tie `test_is_valid_returns_false_within_buffer` to `TOKEN_EXPIRY_BUFFER_SECONDS` constant
+
+**Source:** Code review 002
+**Resolved:** Ticket 010 — confirmed the test already used `TOKEN_EXPIRY_BUFFER_SECONDS - 1`; the improvement had already been applied. No code change needed.

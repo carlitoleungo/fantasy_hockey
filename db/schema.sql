@@ -8,5 +8,6 @@ CREATE TABLE IF NOT EXISTS user_sessions (
     access_token TEXT,
     refresh_token TEXT,
     expires_at REAL,
-    created_at REAL
+    created_at REAL,
+    league_key TEXT
 );

@@ -6,7 +6,7 @@ import time
 
 import pytest
 
-from auth.oauth import TOKEN_EXPIRY_BUFFER_SECONDS, _is_valid, _stamp_expiry
+from auth.oauth import TOKEN_EXPIRY_BUFFER_SECONDS, _is_valid, _stamp_expiry, make_session
 
 
 # ---------------------------------------------------------------------------
@@ -48,3 +48,12 @@ def test_is_valid_returns_true_when_ample_time_remains():
     # 3600 seconds from now is well outside the buffer
     tokens = {"expires_at": time.time() + 3600}
     assert _is_valid(tokens) is True
+
+
+# ---------------------------------------------------------------------------
+# make_session
+# ---------------------------------------------------------------------------
+
+def test_make_session_sets_authorization_header():
+    session = make_session("test_token")
+    assert session.headers["Authorization"] == "Bearer test_token"

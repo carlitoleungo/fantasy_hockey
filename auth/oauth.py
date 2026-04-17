@@ -48,6 +48,13 @@ def get_auth_url() -> tuple[str, str]:
     return f"{YAHOO_AUTH_URL}?{params}", state
 
 
+def make_session(access_token: str) -> requests.Session:
+    """Return a requests.Session pre-configured with the Yahoo OAuth Bearer token."""
+    session = requests.Session()
+    session.headers.update({"Authorization": f"Bearer {access_token}"})
+    return session
+
+
 def exchange_code(code: str) -> dict:
     """
     Exchange an authorization code (from Yahoo's redirect callback) for tokens.
