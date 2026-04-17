@@ -9,6 +9,7 @@ If more test files are added later, consider moving the monkeypatch fixture
 to a conftest.py so it can be shared.
 """
 
+import importlib
 import json
 from datetime import datetime, timedelta, timezone
 
@@ -252,3 +253,22 @@ def test_different_data_types_are_isolated():
     players = cache.read(LEAGUE_KEY, "players")
     assert "team_name" in matchups.columns
     assert "player_name" in players.columns
+
+
+# ---------------------------------------------------------------------------
+# CACHE_DIR env var
+# ---------------------------------------------------------------------------
+
+def test_cache_dir_env_var_overrides_default(tmp_path, monkeypatch):
+    """CACHE_DIR env var is picked up at module load time."""
+    custom_dir = str(tmp_path / "custom_cache")
+    monkeypatch.setenv("CACHE_DIR", custom_dir)
+    importlib.reload(cache)
+    try:
+        assert cache.CACHE_DIR == custom_dir
+        cache.write(LEAGUE_KEY, "matchups", matchups_df())
+        expected = (tmp_path / "custom_cache" / LEAGUE_KEY / "matchups.parquet")
+        assert expected.exists()
+    finally:
+        monkeypatch.delenv("CACHE_DIR", raising=False)
+        importlib.reload(cache)
