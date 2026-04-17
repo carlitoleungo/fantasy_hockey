@@ -41,3 +41,11 @@ this route users have no way to disconnect their Yahoo account — it is a go-li
   (no 404 or 500).
 - Verify the `Set-Cookie` response header is present and sets `max_age=0` (or equivalent
   expiry) so the browser removes the cookie.
+
+---
+
+## Tech Lead Review
+
+**Complexity: S** — implemented and done. `web/routes/auth.py` has the handler; `tests/test_auth_routes.py` has Tests 5 and 6. No further action needed.
+
+**Risks / notes:** None. One minor future cleanup: the per-request `cookies=` pattern in the TestClient produces a Starlette deprecation warning; harmless now, fix when touching the test file next.

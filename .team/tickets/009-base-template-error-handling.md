@@ -66,3 +66,17 @@ shell (TailwindCSS CDN, HTMX CDN, Alpine.js CDN, named blocks), creates a minima
   "Yahoo API request failed".
 - Inspect `base.html` and confirm all three CDN tags are present (Tailwind, HTMX, Alpine).
 - Confirm `web/templates.py` exports `templates` and that importing it does not cause errors.
+
+---
+
+## Tech Lead Review
+
+**Complexity: M** — four files (two HTML templates, `web/templates.py`, `web/main.py` exception handlers). Each piece is small but requires getting the Jinja2 instance wiring right so downstream routes don't hit circular imports.
+
+**Hidden dependency:** `web/main.py` currently does not import `requests`. The `@app.exception_handler(requests.HTTPError)` handler requires adding that import. Straightforward, just easy to miss.
+
+**Risk — exception handler for HTTP 500:** FastAPI's `exception_handler(500)` receives `Exception` not `HTTPException`, and may not fire for all unhandled exceptions depending on FastAPI version. Engineer should verify the handler actually intercepts a bare `raise Exception(...)` in a test route, not just assume it works.
+
+**Circular import concern:** The ticket correctly flags this — `Jinja2Templates` must live in `web/templates.py`, not `web/main.py`, because routes will import it. This is the right call; no change needed.
+
+**This ticket is a hard prerequisite for 011.** No HTML can render until `base.html` exists and `templates` is wired up.

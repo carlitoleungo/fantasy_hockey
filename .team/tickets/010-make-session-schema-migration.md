@@ -56,3 +56,15 @@ session state in FastAPI).
   pragma_table_info('user_sessions')` — confirm `league_key` appears in the column list.
 - Verify the migration is idempotent: running it twice (column already exists) must not
   raise an unhandled exception.
+
+---
+
+## Tech Lead Review
+
+**Complexity: S** — `make_session` is 4 lines; schema change is 1 line in `db/schema.sql` plus a guarded `ALTER TABLE` at startup. Two very small independent changes bundled sensibly.
+
+**Hidden risk — lifespan vs on_event:** The ticket mentions either `lifespan` context manager or `@app.on_event("startup")`. The latter is deprecated in newer FastAPI versions. Prefer `lifespan`. If the engineer uses `on_event`, flag it for a quick follow-up swap.
+
+**require_user gap:** `web/middleware/session.py`'s `require_user` SELECT query does not include `league_key` in its column list. Ticket 011 reads `league_key` with a separate DB query in the route handler — that's fine and avoids changing the middleware. No action needed, just confirming the design is intentional.
+
+**This is a hard prerequisite for 011** (both `make_session` and the `league_key` column).

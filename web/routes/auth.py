@@ -18,7 +18,7 @@ import secrets
 import time
 
 import requests
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Cookie, Depends, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 
 from auth.oauth import exchange_code, get_auth_url
@@ -88,4 +88,16 @@ def callback(request: Request, db=Depends(db_dep)):
         max_age=_SESSION_COOKIE_MAX_AGE,
         secure=secure,
     )
+    return response
+
+
+@router.get("/auth/logout")
+def logout(db=Depends(db_dep), session_id: str | None = Cookie(default=None)):
+    if session_id is not None:
+        db.execute("DELETE FROM user_sessions WHERE session_id = ?", (session_id,))
+        db.commit()
+
+    secure = os.environ.get("HTTPS_ONLY") == "true"
+    response = RedirectResponse("/auth/login", status_code=302)
+    response.delete_cookie("session_id", secure=secure)
     return response

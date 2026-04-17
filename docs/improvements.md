@@ -30,6 +30,14 @@
 
 ---
 
+### Tighten row-count assertion in `test_logout_unknown_session_id_redirects`
+
+**Source:** Code review 007
+**File:** `tests/test_auth_routes.py`
+**Detail:** Test 7 asserts `len(rows) == 0` against the full `user_sessions` table after calling logout with an unknown session ID. The assertion is trivially true — no row was inserted before the call. The test's real intent (no error on unknown ID) is already covered by the status code and location checks. Either remove the row-count assertion or insert a dummy row first so the assertion has something to prove.
+
+---
+
 ## Closed
 
 <!-- Move resolved items here with a brief resolution note -->

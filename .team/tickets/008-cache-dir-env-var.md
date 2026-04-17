@@ -37,3 +37,13 @@ full re-fetches from the Yahoo API.
 - Verify the new env-var test passes.
 - Manually confirm: `CACHE_DIR=/tmp/test_cache python -c "import data.cache; print(data.cache.CACHE_DIR)"`
   prints `/tmp/test_cache`.
+
+---
+
+## Tech Lead Review
+
+**Complexity: S** — one-line change to `data/cache.py` line 24, one new test using `monkeypatch.setenv` + `importlib.reload`. `os` is not yet imported in `cache.py`; the engineer must add it.
+
+**Hidden dependency:** None functionally, but this is a **deployment blocker** — without it the parquet cache evaporates on every Fly.io container restart. Should be done before any end-to-end deploy testing.
+
+**Risk:** The `importlib.reload` test pattern is slightly fragile (module-level state). The ticket's note covers it adequately — engineer must reload after the test too so other tests aren't contaminated.

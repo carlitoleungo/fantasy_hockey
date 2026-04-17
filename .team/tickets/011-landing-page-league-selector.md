@@ -76,3 +76,17 @@ subsequent data page — nothing useful renders without a selected league.
   the rendered HTML after a `POST /leagues/select`.
 - Edge case: user has zero NHL leagues — confirm the empty-state message renders without
   a 500.
+
+---
+
+## Tech Lead Review
+
+**Complexity: M** — new route file, new template, two new DB queries, registration in `main.py`. Each piece is small but they must all connect correctly on first integration.
+
+**Hidden dependency:** `data/leagues.py`'s `get_user_hockey_leagues` is confirmed to exist (line 65). It accepts a `requests.Session` — which is exactly what `make_session` returns. The call chain is sound.
+
+**Risk — season filtering logic:** The ticket references `app.py lines 198–205` for the current-season filter. That file is the old Streamlit entry point. The engineer must read those lines before implementing — do not guess. The pattern is: collect all leagues, take `max(lg["season"])`, keep only leagues matching that season.
+
+**Risk — `POST /leagues/select` trusts posted `league_key` without validation.** This is intentional per the ticket (data pages fail gracefully via the error handler). Acceptable for now; add server-side validation if/when the user list grows.
+
+**Minor:** The route handler's separate `SELECT league_key FROM user_sessions` query is a second round-trip to the DB on every `GET /`. At this scale it's fine; worth noting if it becomes a pattern elsewhere.

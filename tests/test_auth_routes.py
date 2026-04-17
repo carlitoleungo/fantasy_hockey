@@ -159,3 +159,74 @@ def test_callback_nonce_one_time_use(db_and_client):
         second = client.get(f"/auth/callback?code=CODE&state={state}")
     assert second.status_code == 400
     assert mock_exchange.call_count == 0
+
+
+# ---------------------------------------------------------------------------
+# Test 5 — /auth/logout with a valid session_id deletes the row and redirects
+# ---------------------------------------------------------------------------
+
+def test_logout_valid_session_deletes_row_and_redirects(db_and_client):
+    conn, client = db_and_client
+
+    session_id = "test-session-abc"
+    conn.execute(
+        "INSERT INTO user_sessions (session_id, access_token, refresh_token, expires_at, created_at)"
+        " VALUES (?, ?, ?, ?, ?)",
+        (session_id, "acc", "ref", time.time() + 3600, time.time()),
+    )
+    conn.commit()
+
+    response = client.get("/auth/logout", cookies={"session_id": session_id})
+
+    assert response.status_code == 302
+    assert response.headers["location"] == "/auth/login"
+
+    rows = conn.execute("SELECT * FROM user_sessions WHERE session_id = ?", (session_id,)).fetchall()
+    assert len(rows) == 0
+
+    set_cookie = response.headers.get("set-cookie", "")
+    assert "session_id" in set_cookie
+    assert "max-age=0" in set_cookie.lower()
+
+
+# ---------------------------------------------------------------------------
+# Test 6 — /auth/logout with no cookie still returns 302 (idempotent)
+# ---------------------------------------------------------------------------
+
+def test_logout_no_cookie_redirects(db_and_client):
+    _, client = db_and_client
+
+    response = client.get("/auth/logout")
+
+    assert response.status_code == 302
+    assert response.headers["location"] == "/auth/login"
+
+
+# ---------------------------------------------------------------------------
+# Test 7 — /auth/logout with unknown session_id still returns 302 (AC2: unknown)
+# ---------------------------------------------------------------------------
+
+def test_logout_unknown_session_id_redirects(db_and_client):
+    conn, client = db_and_client
+
+    response = client.get("/auth/logout", cookies={"session_id": "nonexistent-id"})
+
+    assert response.status_code == 302
+    assert response.headers["location"] == "/auth/login"
+
+    rows = conn.execute("SELECT * FROM user_sessions").fetchall()
+    assert len(rows) == 0
+
+
+# ---------------------------------------------------------------------------
+# Test 8 — /auth/logout always clears cookie even when no cookie was sent (AC3)
+# ---------------------------------------------------------------------------
+
+def test_logout_no_cookie_still_clears_set_cookie_header(db_and_client):
+    _, client = db_and_client
+
+    response = client.get("/auth/logout")
+
+    set_cookie = response.headers.get("set-cookie", "")
+    assert "session_id" in set_cookie
+    assert "max-age=0" in set_cookie.lower()
