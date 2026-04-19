@@ -16,3 +16,7 @@ node_modules
 .streamlit/script_token.json
 package-lock.json
 package.json
+app.db
+app.db-wal
+app.db-shm
+.env

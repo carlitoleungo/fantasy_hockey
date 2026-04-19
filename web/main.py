@@ -2,13 +2,17 @@ import sqlite3
 from contextlib import asynccontextmanager
 
 import requests
+from dotenv import load_dotenv
+
+load_dotenv()
 from fastapi import FastAPI, Request
 from fastapi.responses import RedirectResponse
 
-from db.connection import get_db
+from db.connection import get_db, init_db
 from web.middleware.session import RequiresLogin
 from web.routes.auth import router as auth_router
 from web.routes.health import router as health_router
+from web.routes.home import router as home_router
 from web.templates import templates
 
 
@@ -16,10 +20,12 @@ from web.templates import templates
 async def lifespan(app: FastAPI):
     conn = get_db()
     try:
-        conn.execute("ALTER TABLE user_sessions ADD COLUMN league_key TEXT")
-        conn.commit()
-    except sqlite3.OperationalError:
-        pass  # column already exists
+        init_db(conn)
+        try:
+            conn.execute("ALTER TABLE user_sessions ADD COLUMN league_key TEXT")
+            conn.commit()
+        except sqlite3.OperationalError:
+            pass  # column already exists
     finally:
         conn.close()
     yield
@@ -55,3 +61,4 @@ def internal_error_handler(request: Request, exc: Exception):
 
 app.include_router(health_router)
 app.include_router(auth_router)
+app.include_router(home_router)

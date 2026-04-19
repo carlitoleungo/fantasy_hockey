@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Your Leagues{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto mt-12 px-4">
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-bold text-gray-800">Your Leagues</h1>
+    <a href="/auth/logout" class="text-sm text-gray-500 hover:text-gray-700">Logout</a>
+  </div>
+
+  {% if leagues %}
+    <ul class="space-y-3">
+      {% for league in leagues %}
+        <li class="flex items-center justify-between border rounded-lg px-4 py-3
+          {% if league.league_key == selected_key %}bg-blue-50 border-blue-300{% else %}bg-white border-gray-200{% endif %}">
+          <span class="text-gray-800">
+            {{ league.season }} &mdash; {{ league.league_name }}
+            {% if league.league_key == selected_key %}
+              <span class="ml-2 text-blue-600 font-medium">&#10003; Selected</span>
+            {% endif %}
+          </span>
+          <form method="post" action="/leagues/select">
+            <input type="hidden" name="league_key" value="{{ league.league_key }}">
+            <button type="submit"
+              class="text-sm px-3 py-1 rounded
+              {% if league.league_key == selected_key %}bg-blue-600 text-white{% else %}bg-gray-100 text-gray-700 hover:bg-gray-200{% endif %}">
+              Select
+            </button>
+          </form>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="text-gray-600">No active NHL leagues found for your account.</p>
+  {% endif %}
+</div>
+{% endblock %}

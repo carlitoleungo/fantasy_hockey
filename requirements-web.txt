@@ -3,3 +3,5 @@ uvicorn[standard]
 jinja2
 itsdangerous
 python-multipart
+xmltodict
+python-dotenv

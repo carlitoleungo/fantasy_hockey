@@ -38,6 +38,14 @@
 
 ---
 
+### Stale comment and dead stub in `tests/test_home_routes.py`
+
+**Source:** Code review 011
+**File:** `tests/test_home_routes.py` lines 8–10 and 28–29
+**Detail:** The module docstring says `xmltodict` is "not in requirements-web.txt" — that was true before the QA fix but is now incorrect. The `if "xmltodict" not in sys.modules: sys.modules["xmltodict"] = MagicMock()` guard below it is now dead code in normal installs (xmltodict is present). Remove the stale comment and the defensive stub.
+
+---
+
 ## Closed
 
 <!-- Move resolved items here with a brief resolution note -->

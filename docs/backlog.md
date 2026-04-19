@@ -106,4 +106,14 @@ hypothetical roster change.
 
 ---
 
+## Logout
+
+**Original request:** Logout button/link doesn't work yet.
+**What was included:** Nothing — auth routes cover login and callback only.
+**What was deferred:** Logout route and UI trigger.
+**Context for later:** The session cookie is named `session_id`. Logout needs to: (1) delete the row from `user_sessions` in the DB, (2) clear the `session_id` cookie, (3) redirect to `/`. The cookie deletion pattern already exists in `web/routes/auth.py` around line 100 — a logout handler should follow the same `secure` flag logic. The logout trigger in the UI is likely a link or button on the home page template.
+**Estimated complexity:** Small
+
+---
+
 [PM populates this file as features are scoped down during active development]
