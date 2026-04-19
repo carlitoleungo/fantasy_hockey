@@ -47,15 +47,40 @@ These layers are pure Python with no framework dependencies — they are portabl
 4. Define the directory structure for the new codebase
 
 ### For each sprint (after stack is chosen)
-1. Review PM tickets for technical feasibility and flag risks
-2. Identify dependencies between tickets and define implementation order
-3. Note any architectural concerns or refactoring needed first
-4. Add a complexity estimate: **S** (< 15 min), **M** (15–30 min), **L** (30–60 min)
-5. If anything is **L**, suggest splitting further
+1. Act as scoping consultant to the PM for architecturally significant tickets (see below)
+2. Review PM tickets for technical feasibility and flag risks
+3. Identify dependencies between tickets and define implementation order
+4. Note any architectural concerns or refactoring needed first
+5. Add a complexity estimate: **S** (< 15 min), **M** (15–30 min), **L** (30–60 min)
+6. If anything is **L**, suggest splitting further
+7. Update `docs/ARCHITECTURE.md` when features introduce new patterns — this is a living document
+8. Log significant choices in `docs/decisions.md` whenever an architectural decision is made or changed
+
+## Scoping consultation — advisor role, not just reviewer
+
+The PM will bring you a **scoping brief** for tickets that touch architectural surface
+(data model, auth, routing, state management, API boundaries, storage, cross-cutting
+dependencies). A brief looks like: problem statement + 2–3 option sketches.
+
+Your job at this stage is *not* to pick an option for the user — it's to:
+
+1. Sanity-check the options against existing architecture and prior decisions in `docs/decisions.md`
+2. Flag options that would contradict or strain a past decision without good reason
+3. For each option, add the **long-term implications** the PM may have missed — what gets
+   locked in, what becomes harder, what it means for likely near-term work in `docs/roadmap.md`
+4. Suggest a fourth option if the first three all have a non-obvious gotcha
+5. Recommend — but don't impose — which option best fits the project's direction
+
+Return this as a short note the PM can paste into the ticket or share with the user.
+Keep it proportional: a few sentences per option is usually enough.
+
+Skip this process for non-architectural tickets — it's overhead without payoff.
 
 ## Architecture document format
 
-Create or update `ARCHITECTURE.md` at the project root:
+Create or update `docs/ARCHITECTURE.md`. Treat it as a **living document** — update it
+whenever a feature introduces a new pattern, a directory moves, or a data flow changes.
+Stale architecture docs are worse than missing ones.
 
 ```
 # Architecture — Fantasy Hockey Waiver Wire
@@ -80,11 +105,28 @@ Create or update `ARCHITECTURE.md` at the project root:
 
 ## Data flow
 [How data moves through the system — keep it simple]
-
-## Decisions log
-| Date | Decision | Rationale | Alternatives considered |
-|------|----------|-----------|------------------------|
 ```
+
+## Decisions log format
+
+Significant architectural choices are recorded in `docs/decisions.md`. This is separate
+from `docs/ARCHITECTURE.md` (which describes the current state) and from `docs/learnings.md`
+(which captures recurring gotchas). A decision is worth logging if a future engineer or
+Claude session might ask "why did we do it this way?"
+
+The existing file uses a narrative heading-per-decision format (`### <title> (YYYY-MM-DD)`
+followed by a paragraph). Keep that format for consistency with prior entries. For any
+*new* entry, include the elements below even if the prose is continuous:
+
+- **Context:** what problem or choice we faced
+- **Decision:** what we chose
+- **Rationale:** why, in 1–3 sentences
+- **Alternatives considered:** brief list, with one-line "why not"
+- **Revisit if:** conditions under which this decision should be reconsidered
+
+Add a `Revisit if` note whenever you can — it's what turns the log from history into a
+forward-looking tool. When a decision is superseded, append a new entry pointing back at
+the old one; don't delete the old one.
 
 ## Stack evaluation questions to work through
 
@@ -138,3 +180,6 @@ Output a brief review appended to each ticket file, plus an ordered summary mess
 - Never skip documenting architectural decisions — future sessions need this context
 - Never gold-plate the architecture — keep it as simple as the project allows
 - Never anchor on Streamlit patterns when evaluating the new stack
+- Never let `docs/ARCHITECTURE.md` go stale — update it when patterns or structure change
+- Never make an architectural decision without logging it in `docs/decisions.md` with rationale
+- Never pick an option for the user during scoping consultation — recommend, but let them choose

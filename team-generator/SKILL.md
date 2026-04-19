@@ -29,7 +29,10 @@ A `.team/` folder containing:
 5. **reviewer.md** — Code Reviewer: checks quality, patterns, and scope creep
 6. **WORKFLOW.md** — Step-by-step guide for using the personas with Claude Code
 7. **backlog.md** — Empty backlog file the PM populates with deferred features
-8. **tickets/** — Empty directory for PM-generated ticket files
+8. **LEARNINGS.md** — Captures recurring gotchas and patterns that apply across tickets
+9. **ROADMAP.md** — Forward-looking doc of likely near-term features, consulted during scoping to avoid local-only thinking
+10. **DECISIONS.md** — Architectural decisions log (what was chosen, why, and what was considered) — the Tech Lead maintains this
+11. **tickets/** — Empty directory for PM-generated ticket files
 
 ---
 
@@ -63,7 +66,9 @@ For each persona file, take the template and weave in project-specific details:
 - If the project is frontend-heavy, emphasize visual verification in the Test Engineer
 - If the project is data-heavy, emphasize data validation and edge cases
 
-Generate all files into a `.team/` directory structure.
+Generate all files into a `.team/` directory structure. For `ROADMAP.md` and `DECISIONS.md`,
+generate them as empty-but-structured files using the templates — do NOT pre-populate them
+with speculative content. The PM and Tech Lead will fill them in as real work happens.
 
 ### Step 3: Generate the WORKFLOW.md
 
@@ -109,3 +114,10 @@ These are non-negotiable and should be preserved when customizing:
 6. **Backlog over scope creep.** When the PM scopes down an idea, cut features go into
    `backlog.md` with enough context to pick up later without re-explaining. Nothing is lost,
    but nothing sneaks into the current sprint either.
+
+7. **Long-term context during scoping.** Small tickets are a local optimum; they can still
+   collectively dig the project into a corner. The PM reads `ROADMAP.md` and `DECISIONS.md`
+   before scoping so near-term work respects near-future plans and past architectural choices.
+   For tickets that touch architectural surface (data model, auth, routing, state management,
+   API boundaries, storage), the PM consults the Tech Lead *during* scoping, not just after.
+   Options are presented to the user with their future cost, not only their implementation cost.

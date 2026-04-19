@@ -90,6 +90,29 @@ same ticket. If your idea requires both, expect two tickets — data first, UI s
 
 ---
 
+## Phase 1b: Scoping consultation (Tech Lead) — optional, for architectural work
+
+If the PM flags a ticket as architecturally significant (touches data model, auth, routing,
+state management, API boundaries, storage, or cross-cutting dependencies in `data/`/`analysis/`),
+it will produce a short scoping brief with 2–3 option sketches before finalizing the ticket.
+Run those options past the Tech Lead:
+
+```bash
+cat .team/tech-lead.md | claude
+```
+
+**Prompt after Tech Lead loads:**
+> "The PM is scoping a ticket and flagged it as architectural. Here's the brief: [paste brief].
+>  Sanity-check against `docs/decisions.md` and `docs/roadmap.md`, and add long-term implications
+>  to each option."
+
+Take the Tech Lead's notes back to the PM to finalize the ticket. The Tech Lead should log
+any significant decision that falls out of this in `docs/decisions.md`.
+
+Skip this phase for non-architectural tickets (UI tweaks, isolated bug fixes, copy changes).
+
+---
+
 ## Phase 2: Plan (Tech Lead)
 
 After the PM creates tickets, have the Tech Lead review them for feasibility and ordering.
@@ -198,14 +221,26 @@ cat .team/pm.md | claude
 6. **Start fresh sessions.** Don't reuse a long Engineer session for a second ticket.
    Fresh context = better results and fewer "while I'm here" scope creeps.
 
+7. **Loop in the Tech Lead early for architectural tickets.** The scoping consultation
+   (Phase 1b) is cheap compared to undoing a structural choice later. Skip it for UI tweaks
+   and isolated bug fixes — use it when data model, auth, routing, or state management moves.
+
+8. **Keep `docs/roadmap.md` and `docs/decisions.md` current.** They're the project's long-term
+   memory. The PM consults them every scoping pass; the Tech Lead updates `docs/decisions.md`
+   when choices are made.
+
+9. **Scope bugs one at a time by default.** If several bugs surface at once, ask the PM to
+   triage first — the root cause of one often dissolves the others.
+
 ---
 
 ## Quick reference
 
 | Phase | Persona | Input | Output |
 |-------|---------|-------|--------|
-| Stack selection | Tech Lead | Current codebase | `ARCHITECTURE.md` |
-| Define | PM | Your idea | Ticket files + `backlog.md` updates |
+| Stack selection | Tech Lead | Current codebase | `docs/ARCHITECTURE.md` |
+| Define | PM | Your idea + `docs/roadmap.md` + `docs/decisions.md` | Ticket files + `docs/backlog.md` / `docs/roadmap.md` updates |
+| Scoping consult (optional) | Tech Lead | PM's scoping brief | Option notes + `docs/decisions.md` entry if applicable |
 | Plan | Tech Lead | Tickets | Ordered backlog + complexity estimates |
 | Build | Engineer | One ticket | Code + `tickets/[N]-done.md` |
 | Test | Test Engineer | Ticket + handoff | `tickets/[N]-qa.md` |
@@ -226,7 +261,11 @@ cat .team/pm.md | claude
   WORKFLOW.md         # This file
   tickets/            # Ticket specs + done/qa/review artefacts (all flat, no subdirectory)
 docs/
+  ARCHITECTURE.md     # Stack decisions and directory structure (Tech Lead maintains this)
+  decisions.md        # Architectural decisions log, newest at top (Tech Lead maintains this)
+  roadmap.md          # Likely near-term work — pressure-test tool for scoping (PM maintains this)
+  learnings.md        # Recurring gotchas that apply across tickets (Test Engineer / team add entries)
   backlog.md          # Deferred features (PM maintains this)
   improvements.md     # Code quality nits on existing code (Reviewer maintains this)
-  ARCHITECTURE.md     # Stack decisions and directory structure (Tech Lead maintains this)
+  bugs.md             # Known bugs
 ```

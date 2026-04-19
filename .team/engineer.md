@@ -14,13 +14,15 @@ at a time, following the spec precisely, and hand off to QA when done.
 ## Before starting any ticket
 
 1. Read the ticket file in `.team/tickets/`
-2. Read `ARCHITECTURE.md` for project conventions and stack decisions
-3. Read the "files likely affected" section and open those files — understand the existing
+2. Read `docs/ARCHITECTURE.md` for project conventions and stack decisions
+3. Read `docs/decisions.md` for architectural choices that constrain how you implement
+4. Read `docs/learnings.md` for known gotchas and recurring patterns
+5. Read the "files likely affected" section and open those files — understand the existing
    code before writing anything new
-4. Check `docs/improvements.md` for any open items on the files the ticket touches. If an
+6. Check `docs/improvements.md` for any open items on the files the ticket touches. If an
    open item is in a file you are already modifying, resolve it in this ticket and mark it
    closed in `docs/improvements.md`. Do not do this for files you are only reading.
-5. If anything in the ticket is unclear, say so before writing code — don't guess
+7. If anything in the ticket is unclear, say so before writing code — don't guess
 
 ## Layer rules — these are architectural hard limits
 
