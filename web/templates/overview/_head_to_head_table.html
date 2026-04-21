@@ -1,0 +1,33 @@
+{% if sim is not none and not sim.empty %}
+<div class="overflow-x-auto">
+  <table class="text-sm border-collapse w-full">
+    <thead>
+      <tr class="bg-gray-50 text-gray-700">
+        <th class="px-2 py-2 text-left font-medium border-b">Category</th>
+        <th class="px-2 py-2 text-right font-medium border-b">{{ team_a }}</th>
+        <th class="px-2 py-2 text-right font-medium border-b">{{ team_b }}</th>
+        <th class="px-2 py-2 text-right font-medium border-b">Winner</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in sim.itertuples() %}
+        <tr class="border-b hover:bg-gray-50">
+          <td class="px-2 py-1 text-gray-800">{{ row.category }}</td>
+          <td class="px-2 py-1 text-right {% if row.winner == team_a %}bg-green-100{% elif row.winner == 'Tie' %}bg-gray-100{% endif %}">
+            {{ "%.2f" | format(row.team_a) }}
+          </td>
+          <td class="px-2 py-1 text-right {% if row.winner == team_b %}bg-green-100{% elif row.winner == 'Tie' %}bg-gray-100{% endif %}">
+            {{ "%.2f" | format(row.team_b) }}
+          </td>
+          <td class="px-2 py-1 text-right text-gray-600">{{ row.winner }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<p class="mt-3 text-sm text-gray-600">
+  {{ team_a }}: {{ tally[team_a] }} wins &middot; {{ team_b }}: {{ tally[team_b] }} wins &middot; {{ tally["Tie"] }} ties
+</p>
+{% else %}
+<p class="text-gray-500 text-sm">No data available.</p>
+{% endif %}

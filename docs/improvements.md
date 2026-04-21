@@ -62,12 +62,6 @@
 
 ---
 
-### `stat_columns(df)` called twice in `overview()`
-
-**Source:** Code review 015
-**File:** `web/routes/overview.py` lines 66 and 75
-**Detail:** `stat_columns(df)` is called twice on the same unmodified DataFrame — once as an argument to `_compute_cell_ranks` and once to populate `stat_cols` in the template context. Extract to a local variable before the `_compute_cell_ranks` call (`cols = stat_columns(df)`) and reuse it both places.
-
 ---
 
 ### Tighten TC9 assertion to isolate league name to the header element
@@ -81,6 +75,12 @@
 ## Closed
 
 <!-- Move resolved items here with a brief resolution note -->
+
+### `stat_columns(df)` called twice in `overview()`
+
+**Source:** Code review 015
+**Resolved:** Ticket 016 — extracted to local variable `cols` in both `overview()` and `overview_table()`.
+
 
 ### Move `_db_dep` to `db/connection.py` and clean up dead import
 
