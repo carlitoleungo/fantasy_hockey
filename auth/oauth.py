@@ -25,6 +25,11 @@ import requests
 YAHOO_AUTH_URL = "https://api.login.yahoo.com/oauth2/request_auth"
 YAHOO_TOKEN_URL = "https://api.login.yahoo.com/oauth2/get_token"
 TOKEN_EXPIRY_BUFFER_SECONDS = 60   # refresh this many seconds before actual expiry
+_NONCE_TTL_SECONDS = 300
+
+# In-memory state nonce store for Streamlit's single-process OAuth flow.
+# FastAPI stores nonces in the DB instead; this dict is ignored there.
+_pending_states: dict[str, float] = {}  # state -> expires_at
 
 
 # ---------------------------------------------------------------------------
@@ -35,8 +40,9 @@ def get_auth_url() -> tuple[str, str]:
     """
     Return a (url, state) tuple for starting the Yahoo OAuth flow.
 
-    The caller is responsible for persisting the state nonce (e.g. inserting it
-    into the oauth_states DB table) so it can be validated on callback.
+    Also stores the state nonce in _pending_states so validate_and_consume_state
+    can verify it on callback (used by the Streamlit app). FastAPI callers should
+    additionally persist the nonce to the oauth_states DB table.
     """
     state = secrets.token_urlsafe(32)
     params = urllib.parse.urlencode({
@@ -45,7 +51,68 @@ def get_auth_url() -> tuple[str, str]:
         "response_type": "code",
         "state": state,
     })
+    _pending_states[state] = time.time() + _NONCE_TTL_SECONDS
     return f"{YAHOO_AUTH_URL}?{params}", state
+
+
+def validate_and_consume_state(state: str) -> bool:
+    """
+    Validate and consume a state nonce from _pending_states (one-time use).
+    Returns True if valid, False if missing or expired.
+    """
+    now = time.time()
+    # Evict expired entries
+    expired = [s for s, exp in list(_pending_states.items()) if exp < now]
+    for s in expired:
+        _pending_states.pop(s, None)
+
+    if state in _pending_states:
+        del _pending_states[state]
+        return True
+    return False
+
+
+def try_restore_session() -> None:
+    """
+    Attempt to restore a valid session into st.session_state["tokens"].
+
+    For the Streamlit app, tokens only live in session_state (no persistent
+    storage). This is a no-op if tokens are already present or absent — the
+    caller should check session_state["tokens"] after calling this.
+    """
+    import streamlit as st  # lazy import; not available in the FastAPI process
+    tokens = st.session_state.get("tokens")
+    if tokens is None:
+        return
+    if not _is_valid(tokens):
+        refreshed = _try_refresh(tokens)
+        if refreshed is not None:
+            st.session_state["tokens"] = refreshed
+        else:
+            st.session_state.pop("tokens", None)
+
+
+def get_session() -> requests.Session | None:
+    """
+    Return an authenticated requests.Session using tokens from st.session_state,
+    refreshing if needed. Returns None if there are no valid tokens.
+    """
+    import streamlit as st  # lazy import
+    tokens = st.session_state.get("tokens")
+    if tokens is None:
+        return None
+    if not _is_valid(tokens):
+        tokens = _try_refresh(tokens)
+        if tokens is None:
+            return None
+        st.session_state["tokens"] = tokens
+    return make_session(tokens["access_token"])
+
+
+def clear_session() -> None:
+    """Remove tokens from st.session_state, effectively logging the user out."""
+    import streamlit as st  # lazy import
+    st.session_state.pop("tokens", None)
 
 
 def make_session(access_token: str) -> requests.Session:

@@ -98,7 +98,7 @@ if "tokens" not in st.session_state and not st.session_state.get("demo_mode"):
         """, unsafe_allow_html=True)
 
         try:
-            auth_url = get_auth_url()
+            auth_url, _ = get_auth_url()
             has_creds = True
         except KeyError:
             auth_url = "#"
