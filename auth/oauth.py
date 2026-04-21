@@ -145,15 +145,24 @@ def exchange_code(code: str) -> dict:
 # ---------------------------------------------------------------------------
 
 def _client_id() -> str:
-    return os.environ["YAHOO_CLIENT_ID"]
+    if "YAHOO_CLIENT_ID" in os.environ:
+        return os.environ["YAHOO_CLIENT_ID"]
+    import streamlit as st
+    return st.secrets["yahoo"]["client_id"]
 
 
 def _client_secret() -> str:
-    return os.environ["YAHOO_CLIENT_SECRET"]
+    if "YAHOO_CLIENT_SECRET" in os.environ:
+        return os.environ["YAHOO_CLIENT_SECRET"]
+    import streamlit as st
+    return st.secrets["yahoo"]["client_secret"]
 
 
 def _redirect_uri() -> str:
-    return os.environ["YAHOO_REDIRECT_URI"]
+    if "YAHOO_REDIRECT_URI" in os.environ:
+        return os.environ["YAHOO_REDIRECT_URI"]
+    import streamlit as st
+    return st.secrets["yahoo"]["redirect_uri"]
 
 
 def _stamp_expiry(tokens: dict) -> dict:
