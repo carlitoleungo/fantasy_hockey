@@ -1,33 +1,18 @@
 """
-Tests for GET / and POST /leagues/select (ticket 011).
+Tests for GET / and POST /leagues/select (tickets 011, 014).
 
 Uses an in-memory SQLite DB injected via dependency override on db_dep.
 get_user_hockey_leagues and make_session are mocked so no live Yahoo API
 calls are made.
-
-Note: data.client imports xmltodict which is not in requirements-web.txt.
-We stub the module before importing web.main so the test suite can run
-in the FastAPI-only environment.
 """
 
 from __future__ import annotations
 
 import sqlite3
-import sys
 import time
 from unittest.mock import MagicMock, patch
 
 import pytest
-
-# ---------------------------------------------------------------------------
-# Stub missing data-layer deps so web.main can be imported in the
-# FastAPI-only test environment (xmltodict is in requirements.txt but not
-# requirements-web.txt). This must happen before web.main is imported.
-# ---------------------------------------------------------------------------
-
-if "xmltodict" not in sys.modules:
-    sys.modules["xmltodict"] = MagicMock()
-
 
 from fastapi.testclient import TestClient  # noqa: E402
 
@@ -233,3 +218,73 @@ def test_home_yahoo_api_error_returns_502(ctx):
         response = client.get("/", cookies={"session_id": "sid-test"})
 
     assert response.status_code == 502
+
+
+# ---------------------------------------------------------------------------
+# TC8 — GET / renders nav header with app-name anchor and logout link (014)
+# ---------------------------------------------------------------------------
+
+def test_home_renders_nav_header(ctx):
+    conn, client = ctx
+    _insert_session(conn, league_key="419.l.11111")
+
+    with (
+        patch("web.routes.home.make_session", return_value=MagicMock()),
+        patch(
+            "web.routes.home.get_user_hockey_leagues",
+            return_value=[LEAGUE_2025_A, LEAGUE_2025_B],
+        ),
+    ):
+        response = client.get("/", cookies={"session_id": "sid-test"})
+
+    assert response.status_code == 200
+    body = response.text
+    assert 'href="/"' in body
+    assert "Fantasy Hockey" in body
+    assert '<a href="/auth/logout"' in body
+
+
+# ---------------------------------------------------------------------------
+# TC9 — GET / with selected league renders league name in header (014)
+# ---------------------------------------------------------------------------
+
+def test_home_header_shows_selected_league_name(ctx):
+    conn, client = ctx
+    _insert_session(conn, league_key="419.l.11111")
+
+    with (
+        patch("web.routes.home.make_session", return_value=MagicMock()),
+        patch(
+            "web.routes.home.get_user_hockey_leagues",
+            return_value=[LEAGUE_2025_A, LEAGUE_2025_B],
+        ),
+    ):
+        response = client.get("/", cookies={"session_id": "sid-test"})
+
+    assert response.status_code == 200
+    assert "Alpha League" in response.text
+
+
+# ---------------------------------------------------------------------------
+# TC10 — GET / with no selected league renders header without league label (014)
+# ---------------------------------------------------------------------------
+
+def test_home_header_no_league_label_when_unselected(ctx):
+    conn, client = ctx
+    _insert_session(conn)  # no league_key
+
+    with (
+        patch("web.routes.home.make_session", return_value=MagicMock()),
+        patch(
+            "web.routes.home.get_user_hockey_leagues",
+            return_value=[LEAGUE_2025_A, LEAGUE_2025_B],
+        ),
+    ):
+        response = client.get("/", cookies={"session_id": "sid-test"})
+
+    assert response.status_code == 200
+    body = response.text
+    assert 'href="/"' in body
+    assert "Fantasy Hockey" in body
+    # No separator character should appear in the header when no league is selected
+    assert "&middot;" not in body

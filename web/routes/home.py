@@ -30,12 +30,18 @@ def home(
         (current_user.session_id,),
     ).fetchone()
 
+    selected_league_name = next(
+        (lg["league_name"] for lg in leagues if lg["league_key"] == row["league_key"]),
+        None,
+    ) if row and row["league_key"] else None
+
     return templates.TemplateResponse(
         request,
         "home.html",
         {
             "leagues": leagues,
             "selected_key": row["league_key"] if row else None,
+            "selected_league_name": selected_league_name,
         },
     )
 

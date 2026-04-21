@@ -38,11 +38,11 @@
 
 ---
 
-### Stale comment and dead stub in `tests/test_home_routes.py`
+### Tighten TC9 assertion to isolate league name to the header element
 
-**Source:** Code review 011
-**File:** `tests/test_home_routes.py` lines 8–10 and 28–29
-**Detail:** The module docstring says `xmltodict` is "not in requirements-web.txt" — that was true before the QA fix but is now incorrect. The `if "xmltodict" not in sys.modules: sys.modules["xmltodict"] = MagicMock()` guard below it is now dead code in normal installs (xmltodict is present). Remove the stale comment and the defensive stub.
+**Source:** Code review 014
+**File:** `tests/test_home_routes.py` line 265
+**Detail:** `test_home_header_shows_selected_league_name` asserts `"Alpha League" in response.text`, but "Alpha League" also appears in the league list body for the same fixture. The assertion would pass even if `selected_league_name` were missing from the context. Extract the `<header>...</header>` substring from the response body and assert the league name is present within that substring.
 
 ---
 
@@ -60,3 +60,8 @@ and `tests/test_auth_routes.py` import it from there. Dead `import sqlite3` remo
 
 **Source:** Code review 002
 **Resolved:** Ticket 010 — confirmed the test already used `TOKEN_EXPIRY_BUFFER_SECONDS - 1`; the improvement had already been applied. No code change needed.
+
+### Stale comment and dead stub in `tests/test_home_routes.py`
+
+**Source:** Code review 011
+**Resolved:** Ticket 014 — removed stale module docstring referencing xmltodict, removed `if "xmltodict" not in sys.modules` guard, removed unused `sys` import.

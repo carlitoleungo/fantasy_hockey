@@ -10,6 +10,16 @@
   {% block head %}{% endblock %}
 </head>
 <body>
+  <header class="border-b px-4 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-2">
+      <a href="/" class="font-semibold text-gray-800 hover:text-gray-600">Fantasy Hockey</a>
+      {% if selected_league_name %}
+        <span class="text-gray-400">&middot;</span>
+        <span class="text-gray-500 text-sm">{{ selected_league_name }}</span>
+      {% endif %}
+    </div>
+    <a href="/auth/logout" class="text-sm text-gray-500 hover:text-gray-700">Logout</a>
+  </header>
   {% block content %}{% endblock %}
 </body>
 </html>
