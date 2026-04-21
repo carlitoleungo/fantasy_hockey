@@ -5,3 +5,4 @@ itsdangerous
 python-multipart
 xmltodict
 python-dotenv
+pandas

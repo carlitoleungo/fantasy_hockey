@@ -1,0 +1,30 @@
+{% if ranked is not none and not ranked.empty %}
+<div class="overflow-x-auto">
+  <table class="text-sm border-collapse w-full">
+    <thead>
+      <tr class="bg-gray-50 text-gray-700">
+        <th class="px-2 py-2 text-left font-medium border-b">Team</th>
+        {% for col in stat_cols %}
+          <th class="px-2 py-2 text-right font-medium border-b">{{ col }}</th>
+        {% endfor %}
+        <th class="px-2 py-2 text-right font-medium border-b">Avg Rank</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for idx, row in ranked.iterrows() %}
+        <tr class="border-b hover:bg-gray-50">
+          <td class="px-2 py-1 text-gray-800">{{ row["team_name"] }}</td>
+          {% for col in stat_cols %}
+            <td class="px-2 py-1 text-right {{ cell_ranks[col][idx] | rank_color(team_count) }}">
+              {{ row[col] }}
+            </td>
+          {% endfor %}
+          <td class="px-2 py-1 text-right text-gray-600">{{ "%.2f"|format(row["avg_rank"]) }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<p class="text-gray-500 text-sm">No data for this week.</p>
+{% endif %}

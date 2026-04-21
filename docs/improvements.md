@@ -6,6 +6,30 @@
 
 ## Open
 
+### Logout provides no confirmation and re-auth is invisible
+
+**Source:** QA 015 manual verification
+**File:** `web/routes/auth.py` (logout handler), `web/templates/base.html`
+**Detail:** Two related UX gaps surfaced when navigating via the new Overview nav link: (1) After logout the user lands on `/` with no league selected, which looks identical to the home screen for a freshly logged-in user — there is no "you have been logged out" message. (2) The session DB record is deleted on logout but the session cookie remains in the browser. Clicking "Overview" after logout triggers a full silent Yahoo OAuth re-authentication round-trip (Overview → /auth/login → Yahoo → /auth/callback → /) that looks to the user like "nothing happened". Fix options: clear the cookie on logout in addition to deleting the DB row; show a flash/banner on the post-logout redirect; or add a dedicated `/logged-out` landing page.
+
+---
+
+### Leaderboard: all-zero rows when a week has no player activity
+
+**Source:** QA 015 manual verification
+**File:** `web/routes/overview.py`, `data/matchups.py`
+**Detail:** The leaderboard defaults to the latest available week. During the championship period (or any week where most players haven't played yet), the API returns `'-'` for unplayed stats, which `data/matchups` coerces to `0`. The table renders correctly but shows all zeros, giving no useful ranking signal. Consider detecting an all-zero week and either defaulting to the most recent week with non-zero data, showing a "data not yet available" notice inline, or excluding the current in-progress week from the default selection (consistent with the `exclude_weeks` parameter already present on `avg_ranks()`).
+
+---
+
+### Leaderboard: tied "worst" cells may not get bg-red-100
+
+**Source:** Ticket 015 engineer note
+**File:** `web/templates/overview/_table.html`, `web/routes/overview.py`
+**Detail:** `_compute_cell_ranks` uses `method='min'` for ties. When two teams are tied for second-worst in an N-team league, both receive rank N-1 and no team receives rank N, so neither cell is colored `bg-red-100`. Acceptable for v1. Fix: use `method='max'` for the worst-rank check, or compute a separate "is_worst" flag that detects the actual minimum value per column.
+
+---
+
 ### Remove unused `date` import in `tests/test_matchups.py`
 
 **Source:** Code review 002
@@ -35,6 +59,14 @@
 **Source:** Code review 009
 **File:** `tests/test_error_handling.py` line 8
 **Detail:** The `client` fixture is function-scoped (default), so the two test routes (`/test/http-error`, `/test/unhandled`) are registered on the production `app` object once per test — 7 times total. FastAPI silently accumulates duplicate route entries. Add `scope="module"` to the fixture decorator so routes are registered once per test session.
+
+---
+
+### `stat_columns(df)` called twice in `overview()`
+
+**Source:** Code review 015
+**File:** `web/routes/overview.py` lines 66 and 75
+**Detail:** `stat_columns(df)` is called twice on the same unmodified DataFrame — once as an argument to `_compute_cell_ranks` and once to populate `stat_cols` in the template context. Extract to a local variable before the `_compute_cell_ranks` call (`cols = stat_columns(df)`) and reuse it both places.
 
 ---
 
