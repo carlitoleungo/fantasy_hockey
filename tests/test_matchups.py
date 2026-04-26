@@ -125,26 +125,33 @@ def test_fetches_only_missing_weeks_when_cache_partial(monkeypatch):
     assert sorted(result["week"].unique()) == [1, 2, 3, 4]
 
 
-def test_does_not_call_api_when_cache_is_current(monkeypatch):
-    # Cache already has the current week. Simulate the cache having been written
-    # yesterday so the stale-today re-fetch of prev_week doesn't trigger.
+def test_current_week_always_refetched_even_when_cached(monkeypatch):
+    # Cache already has the current week (potentially with all-zero stats from an
+    # early-in-week fetch). The current week must always be re-fetched so that
+    # stats update as games are played during the week.
     seed = pd.DataFrame([
-        {"team_key": "nhl.l.99999.t.1", "team_name": "Team Alpha", "week": 5, "Goals": 10.0},
-        {"team_key": "nhl.l.99999.t.2", "team_name": "Team Beta",  "week": 5, "Goals": 8.0},
+        {"team_key": "nhl.l.99999.t.1", "team_name": "Team Alpha", "week": 5, "Goals": 0.0},
+        {"team_key": "nhl.l.99999.t.2", "team_name": "Team Beta",  "week": 5, "Goals": 0.0},
     ])
     cache.write(LEAGUE_KEY, "matchups", seed)
     yesterday = datetime.now(timezone.utc) - timedelta(days=1)
     monkeypatch.setattr(cache, "last_updated", lambda league, dtype: yesterday)
 
-    stats_called = []
+    fetched_weeks = []
+
+    def tracking_stats(session, league_key, week, stat_categories):
+        fetched_weeks.append(week)
+        return fake_all_teams_week_stats(session, league_key, week, stat_categories)
+
     monkeypatch.setattr(client, "get_league_settings", lambda s, k: make_settings(current_week=5))
     monkeypatch.setattr(client, "get_stat_categories", lambda s, k: STAT_CATEGORIES)
-    monkeypatch.setattr(client, "get_all_teams_week_stats", lambda *a, **kw: stats_called.append(1))
+    monkeypatch.setattr(client, "get_all_teams_week_stats", tracking_stats)
 
     result = matchups.get_matchups(None, LEAGUE_KEY)
 
-    assert stats_called == []            # no API calls
-    assert len(result) == 2              # returned from cache as-is
+    assert 5 in fetched_weeks            # current week always re-fetched
+    # fresh data replaces zeroes via drop_duplicates(keep="last")
+    assert result[result["week"] == 5]["Goals"].iloc[0] == 10.0
 
 
 # ---------------------------------------------------------------------------

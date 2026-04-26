@@ -30,12 +30,6 @@
 
 ---
 
-### Remove unused `date` import in `tests/test_matchups.py`
-
-**Source:** Code review 002
-**File:** `tests/test_matchups.py` line 11
-**Detail:** `date` was added to the `from datetime import ...` line during ticket 002, but neither of the two new re-fetch tests uses it. The tests use `datetime.now(timezone.utc)` instead of the `date.today()` pattern originally suggested in the ticket spec. Dead import — remove `date` from the import line.
-
 ---
 
 ### Move `_is_rate_stat` import to module level in `tests/test_projection.py`
@@ -75,6 +69,11 @@
 ## Closed
 
 <!-- Move resolved items here with a brief resolution note -->
+
+### Remove unused `date` import in `tests/test_matchups.py`
+
+**Source:** Code review 002
+**Resolved:** Bug fix week23-all-zeroes — confirmed `date` was already absent from the import line when this ticket was worked; improvement was already applied.
 
 ### `stat_columns(df)` called twice in `overview()`
 

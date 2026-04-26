@@ -13,12 +13,8 @@ returns every team's stats in one request — 1 API call per week instead of
 N_teams per week.
 
 On first run with an empty cache this fetches all weeks from start_week to
-current_week. On subsequent runs it only fetches weeks that aren't cached yet.
-
-The current week's stats are fetched once when that week first becomes the
-current week. They won't be refreshed until the next week starts (which
-advances current_week). This is acceptable for a daily-use tool; if fresher
-intra-week data is needed later, add a force_refresh flag.
+current_week. On subsequent runs it fetches only missing weeks plus always
+re-fetches current_week, because intra-week stats update as games are played.
 """
 
 from __future__ import annotations
@@ -44,6 +40,10 @@ def get_matchups(session, league_key: str) -> pd.DataFrame | None:
     last_week = _last_cached_week(league_key)
     fetch_from = start_week if last_week is None else last_week + 1
     weeks_to_fetch = list(range(fetch_from, current_week + 1))
+
+    # Always re-fetch the current week — stats update as games are played.
+    if current_week >= start_week and current_week not in weeks_to_fetch:
+        weeks_to_fetch.append(current_week)
 
     # Re-fetch the most recently completed week if the cache was last written
     # today — stats from that week may have updated since the earlier fetch.
