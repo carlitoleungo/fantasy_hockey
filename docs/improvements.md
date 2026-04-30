@@ -66,6 +66,14 @@
 
 ---
 
+### TC4 (`test_demo_waiver_shell_returns_200`) only asserts form action — misses stat chips
+
+**Source:** Code review 018
+**File:** `tests/test_waiver_routes.py` TC4 (~line 158)
+**Detail:** TC4 checks status 200 and that `/demo/api/waiver/players` appears in the response body. It does not verify position radio inputs or stat checkbox values. The original bug (metadata columns as stat chips) was caught by manual QA, not by this test. Extend TC4 to assert all 6 position values and the expected stat names from the fixture DataFrame — matching the pattern TC1 already uses for `GET /waiver`.
+
+---
+
 ## Closed
 
 <!-- Move resolved items here with a brief resolution note -->
