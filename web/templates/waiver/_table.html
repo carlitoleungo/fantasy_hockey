@@ -1,0 +1,178 @@
+{% if rows is none or stats | length == 0 %}
+<p class="text-sm text-gray-500 text-center my-6">
+  Select one or more stat categories above to rank available players.
+</p>
+{% elif rows.empty %}
+<p class="text-sm text-gray-500 text-center my-6">
+  No players found for the selected position and categories.
+</p>
+{% else %}
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,700;1,400;1,700&family=Manrope:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap');
+* { box-sizing: border-box; }
+.ww-card {
+    background: #1c1c1a;
+    border-radius: 12px;
+    border-left: 4px solid #266b5c;
+    overflow: hidden;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+}
+.ww-table-wrap { overflow-x: auto; }
+.ww-table {
+    width: auto;
+    border-collapse: collapse;
+}
+@media (min-width: 768px) {
+    .ww-table { width: 100%; }
+}
+.ww-table thead tr {
+    background-color: rgba(53,53,50,0.3);
+    border-bottom: 1px solid rgba(63,73,69,0.2);
+}
+.ww-table th {
+    padding: 14px 12px;
+    font-family: 'Manrope', sans-serif;
+    font-size: 0.5625rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-weight: 700;
+    white-space: nowrap;
+    color: #90d4c1;
+}
+.ww-table tbody tr {
+    border-bottom: 1px solid rgba(63,73,69,0.08);
+    transition: background-color 0.12s;
+}
+.ww-table tbody tr:hover { background-color: rgba(32,32,30,0.6); }
+.ww-table td {
+    padding: 14px 12px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.75rem;
+    color: #e5e2de;
+    white-space: nowrap;
+}
+.fh-player-name {
+    font-family: 'Newsreader', serif;
+    font-size: 0.9375rem;
+    font-weight: 700;
+    color: #e5e2de;
+    margin: 0;
+}
+.fh-player-meta {
+    font-family: 'Manrope', sans-serif;
+    font-size: 0.5625rem;
+    color: #90d4c1;
+    margin: 2px 0 0 0;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+}
+.fh-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-family: 'Manrope', sans-serif;
+    font-size: 0.5625rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+}
+.ww-footer {
+    padding: 12px 16px;
+    background-color: rgba(53,53,50,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-family: 'Manrope', sans-serif;
+    font-size: 0.5625rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: #89938f;
+    font-weight: 700;
+}
+.ww-table th:first-child,
+.ww-table td:first-child {
+    position: sticky;
+    left: 0;
+    background-color: #1c1c1a;
+    z-index: 2;
+}
+</style>
+
+<div class="ww-card mt-4">
+  <div class="ww-table-wrap">
+    <table class="ww-table">
+      <thead>
+        <tr>
+          <th style="text-align:left;">Player</th>
+          {% for stat in stats %}
+            <th style="text-align:right;">{{ stat }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for _, row in rows.iterrows() %}
+          {% set status_raw = row.get("status", "") %}
+          {% if status_raw == "DTD" %}
+            {% set badge_style = "background-color:rgba(155,72,37,0.3);color:#ffb599;" %}
+            {% set badge_label = "DTD" %}
+          {% elif status_raw == "IR" %}
+            {% set badge_style = "background-color:rgba(147,0,10,0.3);color:#ffb4ab;" %}
+            {% set badge_label = "IR" %}
+          {% elif status_raw == "O" %}
+            {% set badge_style = "background-color:rgba(147,0,10,0.3);color:#ffb4ab;" %}
+            {% set badge_label = "OUT" %}
+          {% else %}
+            {% set badge_style = "background-color:rgba(53,53,50,1);color:#89938f;" %}
+            {% set badge_label = "HEALTHY" %}
+          {% endif %}
+          <tr>
+            <td>
+              <p class="fh-player-name">{{ row.get("player_name", "") }}</p>
+              <p class="fh-player-meta">
+                {{ row.get("team_abbr", "") }} · {{ row.get("display_position", "") }}
+                <span class="fh-badge" style="{{ badge_style }}">{{ badge_label }}</span>
+              </p>
+            </td>
+            {% for stat in stats %}
+              {% set v = row.get(stat) %}
+              {% if v is not none and v == v %}
+                {# v == v is False for NaN #}
+                {% if is_rate_stat(stat) %}
+                  <td style="text-align:right;">{{ "%.2f"|format(v) }}</td>
+                {% else %}
+                  <td style="text-align:right;">{{ "%.0f"|format(v) }}</td>
+                {% endif %}
+              {% else %}
+                <td style="text-align:right;">—</td>
+              {% endif %}
+            {% endfor %}
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="ww-footer">
+    <span>{{ total_rows }} players · season stats</span>
+    <span style="display:flex;gap:8px;align-items:center;">
+      <button
+        {% if current_page == 0 %}disabled{% endif %}
+        hx-post="{{ form_action }}"
+        hx-target="#waiver-table-container"
+        hx-include="#waiver-filters"
+        hx-vals='{"page": {{ current_page - 1 }}}'
+        style="cursor:pointer;{% if current_page == 0 %}opacity:0.4;cursor:default;{% endif %}">
+        ← Prev
+      </button>
+      <span>Page {{ current_page + 1 }} of {{ total_pages }}</span>
+      <button
+        {% if current_page >= total_pages - 1 %}disabled{% endif %}
+        hx-post="{{ form_action }}"
+        hx-target="#waiver-table-container"
+        hx-include="#waiver-filters"
+        hx-vals='{"page": {{ current_page + 1 }}}'
+        style="cursor:pointer;{% if current_page >= total_pages - 1 %}opacity:0.4;cursor:default;{% endif %}">
+        Next →
+      </button>
+    </span>
+  </div>
+</div>
+{% endif %}

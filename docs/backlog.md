@@ -116,4 +116,32 @@ hypothetical roster change.
 
 ---
 
+## Waiver Wire: Multi-position filtering — HIGH PRIORITY
+
+**Original request:** Allow selecting multiple positions simultaneously on the waiver wire
+page (e.g. C + LW to find dual-eligible forwards).
+**What was included:** Single-select radio buttons (All / C / LW / RW / D / G) — one
+position at a time only.
+**What was deferred:** Multi-select position filtering.
+**Context for later:** Two surfaces need to change:
+1. `web/templates/waiver/index.html` — convert position pill `<input type="radio">` to
+   `<input type="checkbox" name="positions">` (keep "All" as a special case that clears
+   the others). The form already uses `hx-trigger="change"` so HTMX re-POST fires
+   automatically.
+2. `analysis/waiver_ranking.py` — `filter_by_position(df, position)` takes a single
+   string. Update signature to accept a list (or comma-separated string) and filter
+   using `display_position` contains-any logic. Note: `display_position` is composite
+   (`"C,LW"`) — split on comma when matching.
+3. `web/routes/waiver.py` — update the `position` form field to accept `list[str]`
+   (FastAPI: `positions: list[str] = Form([])`); update the cache key and `api_position`
+   mapping accordingly. Per-position caching will need a decision on how to key multi-select
+   combinations (union of individual position caches vs. a new combined key).
+**Why deferred:** The waiver wire tickets (018, 019a, 019b) used the Streamlit prototype's
+single-select design. Multi-select is core UX — managers routinely look for C/LW or
+LW/RW eligible players.
+**Estimated complexity:** Medium (template + analysis + route changes; cache key strategy
+needs a short Tech Lead or PM decision)
+
+---
+
 [PM populates this file as features are scoped down during active development]
