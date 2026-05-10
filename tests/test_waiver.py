@@ -1,5 +1,5 @@
 """
-Tests for POST /api/waiver/players and POST /demo/api/waiver/players (ticket 019a).
+Tests for POST /api/waiver/players and POST /demo/api/waiver/players (019a + 019b).
 
 Covers:
 - _merge_pool unit test
@@ -8,6 +8,11 @@ Covers:
 - unauthenticated POST → 401 (RequiresLogin → 302)
 - demo POST returns table, no cache writes, no Yahoo calls
 - pagination: page=0 ≤25 rows; page=1 next slice; page=99 on 30-row set clamped
+- period="Last 30 days": games_played column, footer text, games-remaining column
+- period="Last 30 days" fallback when lm_pool is empty
+- period="Last 30 days" fallback when get_matchups returns None
+- period="Last 30 days" fallback when get_current_matchup raises
+- demo mode Last 30 days: no cache writes, no Yahoo calls
 """
 
 from __future__ import annotations
@@ -397,3 +402,241 @@ def test_demo_waiver_post_no_cache_writes(ctx):
 
     assert response.status_code == 200
     mock_write.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# Helpers for 019b tests
+# ---------------------------------------------------------------------------
+
+def _make_lastmonth_pool(n: int = 5) -> pd.DataFrame:
+    """Minimal lastmonth pool DataFrame — player_key matches _make_season_pool."""
+    rows = []
+    for i in range(n):
+        rows.append({
+            "player_key": f"nhl.p.{i}",
+            "team_abbr": "TOR",
+            "games_played": 10 + i,
+            "Goals": float(n - i),
+            "Assists": float(i),
+        })
+    return pd.DataFrame(rows)
+
+
+def _make_matchups_df() -> pd.DataFrame:
+    return pd.DataFrame([{"week": 14, "team": "t.1", "Goals": 5.0}])
+
+
+def _make_matchup_dict() -> dict:
+    return {
+        "week_start": "2026-03-23",
+        "week_end": "2026-03-29",
+        "matchups": [],
+    }
+
+
+# ---------------------------------------------------------------------------
+# TC10 — POST with period="Last 30 days": games_played column, footer text
+# ---------------------------------------------------------------------------
+
+def test_waiver_post_lastmonth_returns_gp_column_and_footer(ctx):
+    conn, client = ctx
+    _insert_session(conn)
+
+    season_pool = _make_season_pool(5)
+    lm_pool = _make_lastmonth_pool(5)
+
+    with (
+        patch("web.routes.waiver.make_session", return_value=MagicMock()),
+        patch("web.routes.waiver._get_league_key", return_value="419.l.11111"),
+        patch("web.routes.waiver.get_stat_categories", return_value=_make_stat_categories()),
+        patch("web.routes.waiver.cache.is_player_pool_stale", return_value=True),
+        patch("web.routes.waiver.fetch_season_pool", return_value=season_pool),
+        patch("web.routes.waiver.cache.write_player_pool"),
+        patch("web.routes.waiver.cache.is_lastmonth_stale", return_value=True),
+        patch("web.routes.waiver.fetch_lastmonth_batch", return_value=lm_pool),
+        patch("web.routes.waiver.cache.upsert_lastmonth_cache"),
+        patch("web.routes.waiver.get_matchups", return_value=_make_matchups_df()),
+        patch("web.routes.waiver.get_current_matchup", return_value=_make_matchup_dict()),
+        patch("web.routes.waiver.get_remaining_games", return_value={"TOR": 3}),
+    ):
+        response = client.post(
+            "/api/waiver/players",
+            data={"stats": ["Goals"], "position": "All", "period": "Last 30 days", "page": "0"},
+            cookies={"session_id": "sid-test"},
+        )
+
+    assert response.status_code == 200
+    body = response.text
+    assert "<table" in body
+    assert "last 30 days stats" in body
+    # GP column header present
+    assert ">GP<" in body
+
+
+# ---------------------------------------------------------------------------
+# TC11 — period="Season" unchanged: no GP column, footer reads "season stats"
+# ---------------------------------------------------------------------------
+
+def test_waiver_post_season_footer_unchanged(ctx):
+    conn, client = ctx
+    _insert_session(conn)
+
+    pool_df = _make_season_pool(5)
+
+    with (
+        patch("web.routes.waiver.make_session", return_value=MagicMock()),
+        patch("web.routes.waiver._get_league_key", return_value="419.l.11111"),
+        patch("web.routes.waiver.get_stat_categories", return_value=_make_stat_categories()),
+        patch("web.routes.waiver.cache.is_player_pool_stale", return_value=True),
+        patch("web.routes.waiver.fetch_season_pool", return_value=pool_df),
+        patch("web.routes.waiver.cache.write_player_pool"),
+    ):
+        response = client.post(
+            "/api/waiver/players",
+            data={"stats": ["Goals"], "position": "All", "period": "Season", "page": "0"},
+            cookies={"session_id": "sid-test"},
+        )
+
+    assert response.status_code == 200
+    body = response.text
+    assert "season stats" in body
+    assert "last 30 days stats" not in body
+    assert ">GP<" not in body
+    assert ">GR<" not in body
+
+
+# ---------------------------------------------------------------------------
+# TC12 — demo POST with period="Last 30 days": no Yahoo calls, no cache writes
+# ---------------------------------------------------------------------------
+
+def test_demo_waiver_post_lastmonth_no_yahoo_no_cache(ctx):
+    _, client = ctx
+
+    season_pool = _make_season_pool(5)
+    lm_pool = _make_lastmonth_pool(5)
+
+    with (
+        patch("data.demo.load_season_pool", return_value=season_pool),
+        patch("data.demo.load_lastmonth_pool", return_value=lm_pool),
+        patch("data.demo.get_games_remaining", return_value={"TOR": 3}),
+        patch("web.routes.waiver.cache.upsert_lastmonth_cache") as mock_upsert,
+        patch("web.routes.waiver.fetch_lastmonth_batch") as mock_fetch,
+        patch("web.routes.waiver.get_current_matchup") as mock_matchup,
+    ):
+        response = client.post(
+            "/demo/api/waiver/players",
+            data={"stats": ["Goals"], "position": "All", "period": "Last 30 days", "page": "0"},
+        )
+
+    assert response.status_code == 200
+    assert "<table" in response.text
+    assert "last 30 days stats" in response.text
+    mock_upsert.assert_not_called()
+    mock_fetch.assert_not_called()
+    mock_matchup.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# TC13 — get_matchups returns None → games_remaining == 0, no 500
+# ---------------------------------------------------------------------------
+
+def test_waiver_post_lastmonth_matchups_none_no_500(ctx):
+    conn, client = ctx
+    _insert_session(conn)
+
+    season_pool = _make_season_pool(5)
+    lm_pool = _make_lastmonth_pool(5)
+
+    with (
+        patch("web.routes.waiver.make_session", return_value=MagicMock()),
+        patch("web.routes.waiver._get_league_key", return_value="419.l.11111"),
+        patch("web.routes.waiver.get_stat_categories", return_value=_make_stat_categories()),
+        patch("web.routes.waiver.cache.is_player_pool_stale", return_value=True),
+        patch("web.routes.waiver.fetch_season_pool", return_value=season_pool),
+        patch("web.routes.waiver.cache.write_player_pool"),
+        patch("web.routes.waiver.cache.is_lastmonth_stale", return_value=True),
+        patch("web.routes.waiver.fetch_lastmonth_batch", return_value=lm_pool),
+        patch("web.routes.waiver.cache.upsert_lastmonth_cache"),
+        patch("web.routes.waiver.get_matchups", return_value=None),
+    ):
+        response = client.post(
+            "/api/waiver/players",
+            data={"stats": ["Goals"], "position": "All", "period": "Last 30 days", "page": "0"},
+            cookies={"session_id": "sid-test"},
+        )
+
+    assert response.status_code == 200
+    assert "<table" in response.text
+    # No games_remaining column added; template renders — for missing values
+    assert "last 30 days stats" in response.text
+
+
+# ---------------------------------------------------------------------------
+# TC14 — get_current_matchup raises → games_remaining fallback, no 500
+# ---------------------------------------------------------------------------
+
+def test_waiver_post_lastmonth_matchup_raises_no_500(ctx):
+    conn, client = ctx
+    _insert_session(conn)
+
+    season_pool = _make_season_pool(5)
+    lm_pool = _make_lastmonth_pool(5)
+
+    with (
+        patch("web.routes.waiver.make_session", return_value=MagicMock()),
+        patch("web.routes.waiver._get_league_key", return_value="419.l.11111"),
+        patch("web.routes.waiver.get_stat_categories", return_value=_make_stat_categories()),
+        patch("web.routes.waiver.cache.is_player_pool_stale", return_value=True),
+        patch("web.routes.waiver.fetch_season_pool", return_value=season_pool),
+        patch("web.routes.waiver.cache.write_player_pool"),
+        patch("web.routes.waiver.cache.is_lastmonth_stale", return_value=True),
+        patch("web.routes.waiver.fetch_lastmonth_batch", return_value=lm_pool),
+        patch("web.routes.waiver.cache.upsert_lastmonth_cache"),
+        patch("web.routes.waiver.get_matchups", return_value=_make_matchups_df()),
+        patch("web.routes.waiver.get_current_matchup", side_effect=ValueError("API error")),
+    ):
+        response = client.post(
+            "/api/waiver/players",
+            data={"stats": ["Goals"], "position": "All", "period": "Last 30 days", "page": "0"},
+            cookies={"session_id": "sid-test"},
+        )
+
+    assert response.status_code == 200
+    assert "<table" in response.text
+    assert "last 30 days stats" in response.text
+
+
+# ---------------------------------------------------------------------------
+# TC15 — lm_pool empty after cache + fetch → fallback to season stats, no 500
+# ---------------------------------------------------------------------------
+
+def test_waiver_post_lastmonth_empty_lm_pool_falls_back_to_season(ctx):
+    conn, client = ctx
+    _insert_session(conn)
+
+    season_pool = _make_season_pool(5)
+
+    with (
+        patch("web.routes.waiver.make_session", return_value=MagicMock()),
+        patch("web.routes.waiver._get_league_key", return_value="419.l.11111"),
+        patch("web.routes.waiver.get_stat_categories", return_value=_make_stat_categories()),
+        patch("web.routes.waiver.cache.is_player_pool_stale", return_value=True),
+        patch("web.routes.waiver.fetch_season_pool", return_value=season_pool),
+        patch("web.routes.waiver.cache.write_player_pool"),
+        patch("web.routes.waiver.cache.is_lastmonth_stale", return_value=True),
+        patch("web.routes.waiver.fetch_lastmonth_batch", return_value=pd.DataFrame()),
+        patch("web.routes.waiver.get_matchups", return_value=_make_matchups_df()),
+        patch("web.routes.waiver.get_current_matchup", return_value=_make_matchup_dict()),
+        patch("web.routes.waiver.get_remaining_games", return_value={"TOR": 2}),
+    ):
+        response = client.post(
+            "/api/waiver/players",
+            data={"stats": ["Goals"], "position": "All", "period": "Last 30 days", "page": "0"},
+            cookies={"session_id": "sid-test"},
+        )
+
+    assert response.status_code == 200
+    body = response.text
+    assert "<table" in body
+    # Fell back to season stats — season player names are present
+    assert "Player 0" in body

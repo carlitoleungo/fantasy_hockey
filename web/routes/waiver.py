@@ -1,3 +1,5 @@
+from datetime import date
+
 import pandas as pd
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import RedirectResponse
@@ -10,7 +12,9 @@ from data import cache
 from data.client import get_stat_categories
 from data.leagues import get_user_hockey_leagues
 from data.matchups import get_matchups
-from data.players import fetch_season_pool
+from data.players import fetch_lastmonth_batch, fetch_season_pool
+from data.schedule import get_remaining_games
+from data.scoreboard import get_current_matchup
 from db.connection import db_dep
 from web.middleware.session import CurrentUser, require_user
 from web.routes.overview import _get_league_key
@@ -148,6 +152,7 @@ def _waiver_post_impl(
             {
                 "rows": None,
                 "stats": [],
+                "period": period,
                 "total_rows": 0,
                 "total_pages": 1,
                 "current_page": 0,
@@ -158,7 +163,6 @@ def _waiver_post_impl(
     if demo:
         from data import demo as demo_module
         season_pool = demo_module.load_season_pool()
-        cats = demo_module.get_stat_categories()
     else:
         cats = get_stat_categories(session, league_key)
         name_to_id = {c["stat_name"]: c["stat_id"] for c in cats if c["is_enabled"]}
@@ -182,7 +186,64 @@ def _waiver_post_impl(
                 cache.write_player_pool(league_key, position, stat, fetched)
             season_pool = _merge_pool(season_pool, fetched)
 
-    filtered_df = filter_by_position(season_pool, position)
+    # ---------------------------------------------------------------------------
+    # Last 30 days branch
+    # ---------------------------------------------------------------------------
+    games_remaining_map: dict = {}
+
+    if period == "Last 30 days":
+        if demo:
+            from data import demo as demo_module
+            lm_pool = demo_module.load_lastmonth_pool()
+            games_remaining_map = demo_module.get_games_remaining()
+        else:
+            pool_keys = set(season_pool["player_key"]) if not season_pool.empty else set()
+
+            # Read from cache if fresh; otherwise start with empty
+            lm_pool = pd.DataFrame()
+            if not cache.is_lastmonth_stale(league_key):
+                cached_lm = cache.read_lastmonth_cache(league_key)
+                if cached_lm is not None and not cached_lm.empty:
+                    lm_pool = cached_lm[cached_lm["player_key"].isin(pool_keys)].copy()
+
+            # Fetch stats for any keys missing from the cache
+            cached_keys = set(lm_pool["player_key"]) if not lm_pool.empty else set()
+            missing_keys = pool_keys - cached_keys
+            if missing_keys:
+                new_lm = fetch_lastmonth_batch(session, list(missing_keys), id_to_name)
+                if not new_lm.empty:
+                    cache.upsert_lastmonth_cache(league_key, new_lm)
+                    lm_pool = _merge_pool(lm_pool, new_lm)
+
+        if lm_pool.empty:
+            # Fallback: use season stats
+            base_df = season_pool
+        else:
+            if not demo:
+                meta_cols = ["player_key", "player_name", "team_abbr", "display_position", "status"]
+                season_meta = season_pool[[c for c in meta_cols if c in season_pool.columns]]
+                base_df = season_meta.merge(lm_pool, on="player_key", how="inner")
+            else:
+                base_df = lm_pool
+
+        if not demo:
+            # Games remaining — fetch from scoreboard; fall back to empty map on any error
+            try:
+                matchups_df = get_matchups(session, league_key)
+                if matchups_df is not None and not matchups_df.empty:
+                    current_week = int(matchups_df["week"].max())
+                    matchup = get_current_matchup(session, league_key, current_week)
+                    from_date = date.fromisoformat(matchup["week_start"])
+                    to_date = date.fromisoformat(matchup["week_end"])
+                    team_abbrs = base_df["team_abbr"].unique().tolist() if not base_df.empty else []
+                    if team_abbrs:
+                        games_remaining_map = get_remaining_games(team_abbrs, from_date, to_date)
+            except Exception:
+                games_remaining_map = {}
+    else:
+        base_df = season_pool
+
+    filtered_df = filter_by_position(base_df, position)
 
     # Guard rank_players against missing columns
     safe_cats = [s for s in stats if s in filtered_df.columns]
@@ -192,6 +253,11 @@ def _waiver_post_impl(
         ranked_df = filtered_df.copy()
         if "composite_rank" not in ranked_df.columns:
             ranked_df["composite_rank"] = None
+
+    if period == "Last 30 days" and games_remaining_map and "team_abbr" in ranked_df.columns:
+        ranked_df["games_remaining"] = ranked_df["team_abbr"].map(
+            lambda a: games_remaining_map.get(a, 0)
+        )
 
     total_rows = len(ranked_df)
     total_pages = max(1, (total_rows + PAGE_SIZE - 1) // PAGE_SIZE)
@@ -207,6 +273,7 @@ def _waiver_post_impl(
         {
             "rows": page_df,
             "stats": safe_cats,
+            "period": period,
             "total_rows": total_rows,
             "total_pages": total_pages,
             "current_page": page,

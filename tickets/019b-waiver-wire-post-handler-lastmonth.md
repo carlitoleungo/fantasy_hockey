@@ -1,7 +1,7 @@
 # 019b — Waiver Wire: Last-30 branching and games remaining
 
 ## Status
-blocked
+done
 
 ## Type
 feature
@@ -39,6 +39,12 @@ falls back to season stats.
 - Any changes to `data/`, `analysis/`, or `auth/` layers.
 
 ## Notes for the Engineer
+
+**Decision references (`docs/decisions.md` 2026-04-19):**
+- HTMX fragment pattern: `_table.html` is the fragment swapped into the shell's
+  `#waiver-table-container`; route shape follows the shell + fragment split convention.
+- League context: `league_key` resolved from session row via `require_user`; routes
+  stay bare (`/api/waiver/players`, not `/leagues/{key}/api/waiver/players`).
 
 **Remove the Last 30 days disable from 019a.** 019a adds a `disabled` attribute or
 tooltip to the radio. Remove it here so the radio is fully interactive.

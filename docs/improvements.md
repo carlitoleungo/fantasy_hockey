@@ -6,14 +6,6 @@
 
 ## Open
 
-### Dead `cats` variable in demo branch of `_waiver_post_impl`
-
-**Source:** Code review 019a
-**File:** `web/routes/waiver.py` line 161
-**Detail:** `cats = demo_module.get_stat_categories()` is assigned in the `demo=True` branch but never used — `name_to_id` and `id_to_name` are only built in the `else` branch, and the demo path skips the per-stat loop entirely. The call is harmless (ticket spec prescribed fetching it) but the assignment is dead code. Remove the line when `waiver.py` is next touched.
-
----
-
 ### Logout provides no confirmation and re-auth is invisible
 
 **Source:** QA 015 manual verification
@@ -82,9 +74,23 @@
 
 ---
 
+### TC10 missing `>GR<` assertion for games-remaining column
+
+**Source:** Code review 019b
+**File:** `tests/test_waiver.py` — `test_waiver_post_lastmonth_returns_gp_column_and_footer`
+**Detail:** TC10 asserts `>GP<` is present in the response body but does not assert `>GR<`. AC1 for ticket 019b requires both the GP and GR column headers to appear when `period="Last 30 days"`. QA manually confirmed `>GR<` renders correctly, but the test gap means a regression that removes the GR header would not be caught by the automated suite. Add `assert ">GR<" in body` to TC10.
+
+---
+
 ## Closed
 
 <!-- Move resolved items here with a brief resolution note -->
+
+### Dead `cats` variable in demo branch of `_waiver_post_impl`
+
+**Source:** Code review 019a
+**File:** `web/routes/waiver.py`
+**Resolved:** Ticket 019b — removed dead `cats = demo_module.get_stat_categories()` call from the `demo=True` branch of `_waiver_post_impl`.
 
 ### Remove unused `date` import in `tests/test_matchups.py`
 

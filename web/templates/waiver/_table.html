@@ -103,6 +103,10 @@
       <thead>
         <tr>
           <th style="text-align:left;">Player</th>
+          {% if period == "Last 30 days" %}
+            <th style="text-align:right;">GP</th>
+            <th style="text-align:right;">GR</th>
+          {% endif %}
           {% for stat in stats %}
             <th style="text-align:right;">{{ stat }}</th>
           {% endfor %}
@@ -132,6 +136,20 @@
                 <span class="fh-badge" style="{{ badge_style }}">{{ badge_label }}</span>
               </p>
             </td>
+            {% if period == "Last 30 days" %}
+              {% set gp = row.get("games_played") %}
+              {% if gp is not none and gp == gp %}
+                <td style="text-align:right;">{{ gp | int }}</td>
+              {% else %}
+                <td style="text-align:right;">—</td>
+              {% endif %}
+              {% set gr = row.get("games_remaining") %}
+              {% if gr is not none and gr == gr %}
+                <td style="text-align:right;">{{ gr | int }}</td>
+              {% else %}
+                <td style="text-align:right;">—</td>
+              {% endif %}
+            {% endif %}
             {% for stat in stats %}
               {% set v = row.get(stat) %}
               {% if v is not none and v == v %}
@@ -151,7 +169,11 @@
     </table>
   </div>
   <div class="ww-footer">
-    <span>{{ total_rows }} players · season stats</span>
+    {% if period == "Last 30 days" %}
+      <span>{{ total_rows }} players · last 30 days stats</span>
+    {% else %}
+      <span>{{ total_rows }} players · season stats</span>
+    {% endif %}
     <span style="display:flex;gap:8px;align-items:center;">
       <button
         {% if current_page == 0 %}disabled{% endif %}
