@@ -6,4 +6,5 @@ python-multipart
 xmltodict
 python-dotenv
 pandas
+pyarrow
 requests

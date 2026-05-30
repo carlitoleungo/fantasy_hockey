@@ -46,26 +46,6 @@ hypothetical roster change.
 
 ---
 
-## Migration: League overview page
-
-**Original request:** Rebuild the Streamlit league overview page (`pages/01_league_overview.py`) in the new framework.
-**What was included:** Nothing yet — the data and analysis layers it depends on (`data/matchups.py`, `analysis/team_scores.py`, `analysis/matchup_sim.py`) are preserved and need no changes.
-**What was deferred:** The UI implementation.
-**Context for later:** The page renders two views: (1) a weekly leaderboard table with all teams' stats for a selected week, color-coded by best/worst; (2) a head-to-head comparison between two selected teams showing category-by-category winners. The current implementation uses custom HTML/CSS tables embedded in `st.html()`. The new UI can use a component library or plain HTML — the data shapes from `analysis/team_scores.weekly_scores_ranked()` and `analysis/matchup_sim.simulate()` are stable.
-**Estimated complexity:** Medium (UI ticket only, data layer is ready)
-
----
-
-## Migration: Waiver wire page
-
-**Original request:** Rebuild the Streamlit waiver wire page (`pages/03_waiver_wire.py`) in the new framework.
-**What was included:** Nothing yet.
-**What was deferred:** The UI implementation.
-**Context for later:** The page has position filter buttons (All/C/LW/RW/D/G), stat category toggles (multi-select chips), a ranking period radio (Season / Last 30 days), and a paginated table (25 rows/page). Lazy-loading is critical — player pools are fetched per (position, stat) pair only when that combination is selected. The current implementation stores fetched pools in session state keyed by `ww_fetched_sorts`. The new implementation needs an equivalent client-side or server-side lazy-fetch pattern. Data comes from `data/players.py` and is ranked by `analysis/waiver_ranking.py`.
-**Estimated complexity:** Large (lazy-loading complexity; consider splitting into data-API ticket + UI ticket)
-
----
-
 ## Migration: Week projection page
 
 **Original request:** Rebuild the Streamlit week projection page (`pages/04_week_projection.py`) in the new framework.
@@ -73,16 +53,6 @@ hypothetical roster change.
 **What was deferred:** The UI implementation (and completion of the underlying data/analysis layer — see "Week Projection Page" entry above).
 **Context for later:** This page depends on live scoreboard data (one API call per page load), team rosters (fetched per team pair selection), last-30-day player stats, and remaining schedule. It is the most data-intensive page. Tackle after the simpler pages are ported.
 **Estimated complexity:** Large
-
----
-
-## Migration: Demo mode port
-
-**Original request:** Preserve the demo mode (full app experience with static data, no Yahoo account) in the new framework.
-**What was included:** Nothing yet. Demo data files in `demo/data/` are preserved and need no changes.
-**What was deferred:** The demo mode routing and data loading in the new framework.
-**Context for later:** Demo mode currently bypasses OAuth entirely and loads from `data/demo.py` instead of the live API. The new implementation needs: (1) a public `/demo` route that doesn't require a session, (2) a demo-mode flag in the request context, (3) conditional data loading in route handlers (call `data.demo.*` instead of `data.client.*` when in demo mode). The demo data loaders (`get_matchups`, `get_stat_categories`, `get_player_pools`, etc.) are already in `data/demo.py`.
-**Estimated complexity:** Medium
 
 ---
 
@@ -102,16 +72,6 @@ hypothetical roster change.
 **What was included:** Nothing.
 **What was deferred:** The final cutover: stop the SC deployment, update or redirect any existing links, confirm the new Fly.io app is the canonical URL.
 **Context for later:** SC watches the `main` branch. The simplest decommission is disconnecting the app in the SC dashboard. If there are external links to the SC URL, a redirect (either in `fly.toml` or via DNS) is worth setting up. This is the last step — do it only after the new app is live and validated.
-**Estimated complexity:** Small
-
----
-
-## Logout
-
-**Original request:** Logout button/link doesn't work yet.
-**What was included:** Nothing — auth routes cover login and callback only.
-**What was deferred:** Logout route and UI trigger.
-**Context for later:** The session cookie is named `session_id`. Logout needs to: (1) delete the row from `user_sessions` in the DB, (2) clear the `session_id` cookie, (3) redirect to `/`. The cookie deletion pattern already exists in `web/routes/auth.py` around line 100 — a logout handler should follow the same `secure` flag logic. The logout trigger in the UI is likely a link or button on the home page template.
 **Estimated complexity:** Small
 
 ---
@@ -141,6 +101,26 @@ single-select design. Multi-select is core UX — managers routinely look for C/
 LW/RW eligible players.
 **Estimated complexity:** Medium (template + analysis + route changes; cache key strategy
 needs a short Tech Lead or PM decision)
+
+---
+
+## Migration: Login page
+
+**Original request:** Rebuild the login/landing experience in the new framework.
+**What was included:** `/auth/login` redirects immediately to Yahoo OAuth — there is no dedicated login page, just a nav link that kicks off the OAuth flow.
+**What was deferred:** A proper login landing page (e.g. a page at `/login` or `/` for unauthenticated users that explains the app, offers a "Sign in with Yahoo" button, and links to the demo mode).
+**Context for later:** The current entry point is `GET /auth/login` in `web/routes/auth.py` which immediately generates an OAuth URL and redirects. The home route (`/`) serves the league-picker to authenticated users; unauthenticated visits fall through to the login redirect. A dedicated login page would intercept unauthenticated `/` visits and render a landing screen before the OAuth round-trip begins. This is also the natural place to surface the demo mode entry point prominently.
+**Estimated complexity:** Small (UI ticket; no new data layer work)
+
+---
+
+## UX cleanup and design application
+
+**Original request:** General UX polish pass; details TBD, but must include applying existing designs to the built pages.
+**What was included:** Nothing — all pages to date used functional but unstyled or minimally styled markup.
+**What was deferred:** The full polish pass.
+**Context for later:** Scope is intentionally open — owner to specify designs and priority pages when this is picked up. At minimum: apply existing design assets/mockups to the Overview (leaderboard, head-to-head) and Waiver Wire pages. Likely also covers nav improvements, mobile responsiveness, and any interaction-level refinements (loading states, empty states, error states). Recommend scoping one page at a time when this is activated rather than one large ticket across all pages.
+**Estimated complexity:** Medium–Large (depends on scope of designs; split into per-page tickets when activated)
 
 ---
 

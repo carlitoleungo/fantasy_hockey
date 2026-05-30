@@ -6,6 +6,23 @@
 
 ## Open
 
+### Stale Streamlit fallback in `auth/oauth.py` credential helpers
+
+**Source:** Audit 001 (surfaced during credential rotation)
+**File:** `auth/oauth.py` lines 151, 158, and the `_redirect_uri` equivalent
+**Detail:** `_client_id()`, `_client_secret()`, and `_redirect_uri()` check the env var first, then fall back to `st.secrets["yahoo"][...]`. The Streamlit fallback is dead code — the app runs on FastAPI and `streamlit` is not in `requirements-web.txt`. If the env var is missing, the fallback silently attempts to `import streamlit` and fails at runtime with a confusing `ModuleNotFoundError` rather than a clear "YAHOO_CLIENT_ID not set" error. Remove the `st.secrets` fallback and replace with `raise RuntimeError("YAHOO_CLIENT_ID environment variable not set")` so misconfigured environments fail fast with a useful message.
+
+---
+
+
+### Demo mode not reachable for `/overview` and `/overview/head-to-head`
+
+**Source:** Audit 001
+**File:** `web/routes/overview.py`, `web/templates/overview/`
+**Detail:** Tickets 015 and 016 introduced no new `data/` functions, so no `data/demo.py` counterpart was required by the architecture rules. However, neither ticket wired a `/demo/overview` or `/demo/overview/head-to-head` route, leaving unauthenticated visitors unable to explore the leaderboard or head-to-head pages in demo mode. The waiver wire pages (018/019a/019b) do have demo counterparts. Add demo routes to `web/routes/overview.py` that serve the pre-snapshotted matchups DataFrame from `data.demo.get_matchups()` — the data function already exists and is used by the waiver demo path.
+
+---
+
 ### Logout provides no confirmation and re-auth is invisible
 
 **Source:** QA 015 manual verification
