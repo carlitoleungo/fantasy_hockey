@@ -1,7 +1,7 @@
 # 022 — Logout: confirmation banner and correct redirect
 
 ## Status
-ready
+done
 
 ## Type
 bug
@@ -9,6 +9,7 @@ bug
 ## Touches
 - web/routes/auth.py
 - web/templates/home.html
+- tests/test_auth_routes.py
 
 ## Why
 Clicking "Logout" in the nav currently redirects the browser to `/auth/login`, which immediately starts a Yahoo OAuth round-trip. From the user's perspective, logging out looks identical to clicking "Overview" — the Yahoo consent screen appears with no indication that logout occurred. There is also no post-logout confirmation: after the OAuth round-trip completes the user lands on `/` looking at their league list, unable to tell whether they were just logged out and back in, or whether anything happened at all. This is confusing enough that users may click Logout repeatedly, generating multiple OAuth round-trips.

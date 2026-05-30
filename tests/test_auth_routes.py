@@ -179,7 +179,7 @@ def test_logout_valid_session_deletes_row_and_redirects(db_and_client):
     response = client.get("/auth/logout", cookies={"session_id": session_id})
 
     assert response.status_code == 302
-    assert response.headers["location"] == "/auth/login"
+    assert response.headers["location"] == "/?logged_out=1"
 
     rows = conn.execute("SELECT * FROM user_sessions WHERE session_id = ?", (session_id,)).fetchall()
     assert len(rows) == 0
@@ -199,7 +199,7 @@ def test_logout_no_cookie_redirects(db_and_client):
     response = client.get("/auth/logout")
 
     assert response.status_code == 302
-    assert response.headers["location"] == "/auth/login"
+    assert response.headers["location"] == "/?logged_out=1"
 
 
 # ---------------------------------------------------------------------------
@@ -212,7 +212,7 @@ def test_logout_unknown_session_id_redirects(db_and_client):
     response = client.get("/auth/logout", cookies={"session_id": "nonexistent-id"})
 
     assert response.status_code == 302
-    assert response.headers["location"] == "/auth/login"
+    assert response.headers["location"] == "/?logged_out=1"
 
     rows = conn.execute("SELECT * FROM user_sessions").fetchall()
     assert len(rows) == 0

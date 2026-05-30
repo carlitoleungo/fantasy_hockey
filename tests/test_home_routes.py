@@ -177,14 +177,15 @@ def test_select_league_updates_db_and_redirects(ctx):
 
 
 # ---------------------------------------------------------------------------
-# TC5 — GET / with no cookie: 302 to /auth/login
+# TC5 — GET / with no cookie: 200 with login CTA (not a redirect) (023)
 # ---------------------------------------------------------------------------
 
-def test_home_no_cookie_redirects_to_login(ctx):
+def test_home_no_cookie_returns_login_cta(ctx):
     _, client = ctx
     response = client.get("/")
-    assert response.status_code == 302
-    assert response.headers["location"] == "/auth/login"
+    assert response.status_code == 200
+    assert 'href="/auth/login"' in response.text
+    assert "Log in with Yahoo" in response.text
 
 
 # ---------------------------------------------------------------------------
@@ -262,7 +263,13 @@ def test_home_header_shows_selected_league_name(ctx):
         response = client.get("/", cookies={"session_id": "sid-test"})
 
     assert response.status_code == 200
-    assert "Alpha League" in response.text
+    body = response.text
+    # Isolate the header element so we confirm the league name appears there,
+    # not merely somewhere in the page body.
+    header_start = body.index("<header")
+    header_end = body.index("</header>") + len("</header>")
+    header_html = body[header_start:header_end]
+    assert "Alpha League" in header_html
 
 
 # ---------------------------------------------------------------------------
@@ -288,3 +295,113 @@ def test_home_header_no_league_label_when_unselected(ctx):
     assert "Fantasy Hockey" in body
     # No separator character should appear in the header when no league is selected
     assert "&middot;" not in body
+
+
+# ---------------------------------------------------------------------------
+# TC11 — GET /?logged_out=1: banner "You have been logged out." is visible (022)
+# ---------------------------------------------------------------------------
+
+def test_home_shows_logged_out_banner_when_param_present(ctx):
+    conn, client = ctx
+    _insert_session(conn)
+
+    with (
+        patch("web.routes.home.make_session", return_value=MagicMock()),
+        patch("web.routes.home.get_user_hockey_leagues", return_value=[LEAGUE_2025_A]),
+    ):
+        response = client.get("/?logged_out=1", cookies={"session_id": "sid-test"})
+
+    assert response.status_code == 200
+    assert "You have been logged out." in response.text
+
+
+# ---------------------------------------------------------------------------
+# TC12 — GET /: banner is absent when query param is not present (022)
+# ---------------------------------------------------------------------------
+
+def test_home_no_banner_without_logged_out_param(ctx):
+    conn, client = ctx
+    _insert_session(conn)
+
+    with (
+        patch("web.routes.home.make_session", return_value=MagicMock()),
+        patch("web.routes.home.get_user_hockey_leagues", return_value=[LEAGUE_2025_A]),
+    ):
+        response = client.get("/", cookies={"session_id": "sid-test"})
+
+    assert response.status_code == 200
+    assert "You have been logged out." not in response.text
+
+
+# ---------------------------------------------------------------------------
+# TC13 — GET /?logged_out=0: banner is absent for any value other than "1" (022)
+# ---------------------------------------------------------------------------
+
+def test_home_no_banner_when_logged_out_param_is_not_one(ctx):
+    conn, client = ctx
+    _insert_session(conn)
+
+    with (
+        patch("web.routes.home.make_session", return_value=MagicMock()),
+        patch("web.routes.home.get_user_hockey_leagues", return_value=[LEAGUE_2025_A]),
+    ):
+        response = client.get("/?logged_out=0", cookies={"session_id": "sid-test"})
+
+    assert response.status_code == 200
+    assert "You have been logged out." not in response.text
+
+
+# ---------------------------------------------------------------------------
+# TC14 — GET / unauthenticated: 200 with login CTA, no league list (023)
+# ---------------------------------------------------------------------------
+
+def test_home_unauthenticated_shows_login_cta(ctx):
+    _, client = ctx
+    response = client.get("/")
+    assert response.status_code == 200
+    body = response.text
+    assert 'href="/auth/login"' in body
+    assert "Log in with Yahoo" in body
+    # The authenticated heading must not appear in the page body
+    assert "Fantasy Hockey Waiver Wire" in body
+    assert "<h1" in body and "Your Leagues" not in body.split("</head>", 1)[1]
+
+
+# ---------------------------------------------------------------------------
+# TC15 — GET /?logged_out=1 unauthenticated: 200 with banner + login CTA (023)
+# ---------------------------------------------------------------------------
+
+def test_home_unauthenticated_with_logged_out_param_shows_banner(ctx):
+    _, client = ctx
+    response = client.get("/?logged_out=1")
+    assert response.status_code == 200
+    body = response.text
+    assert "You have been logged out." in body
+    assert 'href="/auth/login"' in body
+    assert "Log in with Yahoo" in body
+
+
+# ---------------------------------------------------------------------------
+# TC16 — GET / authenticated: league list renders, no login CTA shown (023)
+# ---------------------------------------------------------------------------
+
+def test_home_authenticated_shows_league_list_not_cta(ctx):
+    conn, client = ctx
+    _insert_session(conn, league_key="419.l.11111")
+
+    with (
+        patch("web.routes.home.make_session", return_value=MagicMock()),
+        patch(
+            "web.routes.home.get_user_hockey_leagues",
+            return_value=[LEAGUE_2025_A, LEAGUE_2025_B],
+        ),
+    ):
+        response = client.get("/", cookies={"session_id": "sid-test"})
+
+    assert response.status_code == 200
+    body = response.text
+    assert "Your Leagues" in body
+    assert "Alpha League" in body
+    assert "Beta League" in body
+    # Login CTA must not appear when the user is authenticated
+    assert "Log in with Yahoo" not in body

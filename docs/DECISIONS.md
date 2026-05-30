@@ -6,6 +6,42 @@ Historical implementation decisions. Read this file when you need context on *wh
 
 ---
 
+### Auth: optional_user dependency for semi-public routes (2026-05-30)
+
+**Question / context:** `GET /` needs to serve unauthenticated visitors (login CTA,
+logged-out banner) without redirecting to Yahoo OAuth. The existing binary model —
+`Depends(require_user)` for protected routes, no session dependency for fully public
+routes — does not cover routes that behave differently based on whether a session exists.
+
+**Options considered:**
+- **A (catch RequiresLogin in the route handler):** Keep `require_user` unchanged; handle
+  the exception inside `home.py`. Not possible — FastAPI executes dependencies before the
+  handler runs, so `RequiresLogin` is caught by the global handler in `main.py` first.
+- **B (public route with manual session lookup):** Make `GET /` a fully public route and
+  re-implement session lookup and token refresh inline. Duplicates security-critical logic;
+  any future change to `require_user` must also be applied to the inline copy.
+- **C (optional_user dependency, chosen):** Add `optional_user` to
+  `web/middleware/session.py` alongside `require_user`. Identical DB lookup and token
+  refresh path; on any failure condition returns `None` instead of raising `RequiresLogin`.
+  The route handler branches on `current_user is None`.
+
+**Decision:** Option C — `optional_user` in `web/middleware/session.py` as the canonical
+dependency for routes that serve both authenticated and unauthenticated users.
+
+**Why:** Option A is mechanically impossible with FastAPI's dependency injection model.
+Option B duplicates security-critical logic that must stay in sync with `require_user`.
+Option C is a minimal, additive change that reuses the full session validation path
+(including token refresh and stale-row cleanup) and is easy to audit. Co-locating
+`optional_user` with `require_user` in the same module keeps all session concerns together
+and makes the naming intent clear.
+
+**Revisit if:** A second semi-public route is needed with meaningfully different behaviour
+(e.g. a full public landing page with personalised content when logged in); confirm at that
+point whether `optional_user` is still the right fit or whether a more granular approach
+(e.g. a `soft_user` dependency that also injects league context) is warranted.
+
+---
+
 ### Web routes: demo route pairing policy (2026-05-30)
 
 **Question / context:** The architecture rules require a `data/demo.py` counterpart for every new `data/` function, but no equivalent rule existed for web routes. Tickets 015 and 016 shipped `/overview` and `/overview/head-to-head` with no `/demo/...` counterparts and no follow-up tickets; tickets 018/019a/019b built demo routes inline. Audit 001 flagged the inconsistency.

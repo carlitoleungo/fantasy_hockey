@@ -98,6 +98,6 @@ def logout(db=Depends(db_dep), session_id: str | None = Cookie(default=None)):
         db.commit()
 
     secure = os.environ.get("HTTPS_ONLY") == "true"
-    response = RedirectResponse("/auth/login", status_code=302)
+    response = RedirectResponse("/?logged_out=1", status_code=302)
     response.delete_cookie("session_id", secure=secure)
     return response

@@ -6,6 +6,14 @@
 
 ## Open
 
+### Simplify redundant assertion in TC14 of `test_home_routes.py`
+
+**Source:** Code review 023
+**File:** `tests/test_home_routes.py` line 367
+**Detail:** `test_home_unauthenticated_shows_login_cta` (TC14) contains `assert "<h1" in body and "Your Leagues" not in body.split("</head>", 1)[1]`. The `"<h1" in body` guard is always true (the unauthenticated `home.html` branch contains an `<h1>`), so it adds no signal. The `body.split("</head>", 1)[1]` idiom is unusual and harder to read than a plain `not in body`. Simplify to `assert "Your Leagues" not in body` — the adjacent `assert "Fantasy Hockey Waiver Wire" in body` already confirms the correct heading is present.
+
+---
+
 ### Stale Streamlit fallback in `auth/oauth.py` credential helpers
 
 **Source:** Audit 001 (surfaced during credential rotation)
@@ -22,12 +30,6 @@
 **Detail:** Tickets 015 and 016 introduced no new `data/` functions, so no `data/demo.py` counterpart was required by the architecture rules. However, neither ticket wired a `/demo/overview` or `/demo/overview/head-to-head` route, leaving unauthenticated visitors unable to explore the leaderboard or head-to-head pages in demo mode. The waiver wire pages (018/019a/019b) do have demo counterparts. Add demo routes to `web/routes/overview.py` that serve the pre-snapshotted matchups DataFrame from `data.demo.get_matchups()` — the data function already exists and is used by the waiver demo path.
 
 ---
-
-### Logout provides no confirmation and re-auth is invisible
-
-**Source:** QA 015 manual verification
-**File:** `web/routes/auth.py` (logout handler), `web/templates/base.html`
-**Detail:** Two related UX gaps surfaced when navigating via the new Overview nav link: (1) After logout the user lands on `/` with no league selected, which looks identical to the home screen for a freshly logged-in user — there is no "you have been logged out" message. (2) The session DB record is deleted on logout but the session cookie remains in the browser. Clicking "Overview" after logout triggers a full silent Yahoo OAuth re-authentication round-trip (Overview → /auth/login → Yahoo → /auth/callback → /) that looks to the user like "nothing happened". Fix options: clear the cookie on logout in addition to deleting the DB row; show a flash/banner on the post-logout redirect; or add a dedicated `/logged-out` landing page.
 
 ---
 
@@ -75,12 +77,6 @@
 
 ---
 
-### Tighten TC9 assertion to isolate league name to the header element
-
-**Source:** Code review 014
-**File:** `tests/test_home_routes.py` line 265
-**Detail:** `test_home_header_shows_selected_league_name` asserts `"Alpha League" in response.text`, but "Alpha League" also appears in the league list body for the same fixture. The assertion would pass even if `selected_league_name` were missing from the context. Extract the `<header>...</header>` substring from the response body and assert the league name is present within that substring.
-
 ---
 
 ### TC4 (`test_demo_waiver_shell_returns_200`) only asserts form action — misses stat chips
@@ -102,6 +98,16 @@
 ## Closed
 
 <!-- Move resolved items here with a brief resolution note -->
+
+### Tighten TC9 assertion to isolate league name to the header element
+
+**Source:** Code review 014
+**Resolved:** Ticket 023 — `test_home_header_shows_selected_league_name` now extracts the `<header>…</header>` substring and asserts the league name is present within it.
+
+### Logout provides no confirmation and re-auth is invisible
+
+**Source:** QA 015 manual verification
+**Resolved:** Ticket 022 — `/auth/logout` now redirects to `/?logged_out=1` instead of `/auth/login`; cookie is deleted on logout; `home.html` shows a "You have been logged out." banner when `?logged_out=1` is present.
 
 ### Dead `cats` variable in demo branch of `_waiver_post_impl`
 

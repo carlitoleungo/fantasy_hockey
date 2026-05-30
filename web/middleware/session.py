@@ -97,3 +97,62 @@ def require_user(
         access_token=tokens["access_token"],
         expires_at=tokens["expires_at"],
     )
+
+
+def optional_user(
+    session_id: str | None = Cookie(default=None),
+    db=Depends(db_dep),
+) -> CurrentUser | None:
+    """
+    FastAPI dependency: like require_user but returns None instead of raising
+    RequiresLogin on any failure.  Use for routes that serve both authenticated
+    and unauthenticated visitors.
+    """
+    if not session_id:
+        return None
+
+    row = db.execute(
+        "SELECT session_id, access_token, refresh_token, expires_at"
+        " FROM user_sessions WHERE session_id = ?",
+        (session_id,),
+    ).fetchone()
+
+    if row is None:
+        return None
+
+    tokens: dict = {
+        "access_token": row["access_token"],
+        "refresh_token": row["refresh_token"],
+        "expires_at": row["expires_at"],
+    }
+
+    if not _is_valid(tokens):
+        try:
+            new_tokens = _try_refresh(tokens)
+        except requests.RequestException:
+            new_tokens = None
+
+        if new_tokens is None:
+            db.execute("DELETE FROM user_sessions WHERE session_id = ?", (session_id,))
+            db.commit()
+            return None
+
+        db.execute(
+            "UPDATE user_sessions"
+            " SET access_token = ?, refresh_token = ?, expires_at = ?"
+            " WHERE session_id = ?",
+            (
+                new_tokens["access_token"],
+                new_tokens.get("refresh_token", tokens["refresh_token"]),
+                new_tokens["expires_at"],
+                session_id,
+            ),
+        )
+        db.commit()
+        tokens = new_tokens
+
+    return CurrentUser(
+        session_id=session_id,
+        access_token=tokens["access_token"],
+        expires_at=tokens["expires_at"],
+    )

@@ -4,7 +4,7 @@ from fastapi.responses import RedirectResponse
 from auth.oauth import make_session
 from data.leagues import get_user_hockey_leagues
 from db.connection import db_dep
-from web.middleware.session import CurrentUser, require_user
+from web.middleware.session import CurrentUser, optional_user, require_user
 from web.templates import templates
 
 router = APIRouter()
@@ -13,9 +13,16 @@ router = APIRouter()
 @router.get("/")
 def home(
     request: Request,
-    current_user: CurrentUser = Depends(require_user),
+    current_user: CurrentUser | None = Depends(optional_user),
     db=Depends(db_dep),
 ):
+    if current_user is None:
+        return templates.TemplateResponse(
+            request,
+            "home.html",
+            {"leagues": None},
+        )
+
     session = make_session(current_user.access_token)
     all_leagues = get_user_hockey_leagues(session)
 
