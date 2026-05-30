@@ -97,6 +97,8 @@ pip install -r requirements-web.txt
 uvicorn web.main:app --reload
 ```
 
+See `RUNNING.md` for full first-time setup and subsequent-run instructions (venv, ngrok, Yahoo OAuth).
+
 ## Development Workflow
 - Make changes directly in the main working directory (`/Users/carlin/dev/fantasy_hockey`). **Do not use git worktrees** unless explicitly asked.
 
