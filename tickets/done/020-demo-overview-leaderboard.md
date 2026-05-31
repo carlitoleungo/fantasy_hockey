@@ -1,7 +1,7 @@
 # 020 — Demo mode: /overview leaderboard
 
 ## Status
-ready
+done
 
 ## Type
 feature
@@ -9,6 +9,7 @@ feature
 ## Touches
 - web/routes/overview.py
 - web/templates/overview/index.html (read-only — no change expected, but verify)
+- web/main.py
 
 ## Why
 Unauthenticated visitors in demo mode can explore the waiver wire but cannot see the league leaderboard. `/overview` requires a live session and redirects unauthenticated users to login. The project's stated goal is "a demo mode lets unauthenticated users explore a pre-snapshotted dataset" — that goal is unmet for the Overview section. Adding `/demo/overview` closes the most visible gap: the leaderboard is the first page a visitor would want to see after the home screen.

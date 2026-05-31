@@ -6,6 +6,30 @@
 
 ## Open
 
+### Add demo mode entry point on home page
+
+**Source:** Owner note post-020
+**File:** `web/templates/home.html`, `web/routes/home.py` (or wherever the home route lives)
+**Detail:** Unauthenticated visitors have no visible way to reach demo mode — `/demo/overview` and `/demo/waiver` exist but are not linked from the home page. Add a "Try the demo" button or link on the home page (logged-out view) so visitors can explore the app without signing in. The home route already distinguishes authenticated vs. unauthenticated state (via `optional_user`), so the demo CTA only needs to appear in the unauthenticated branch.
+
+---
+
+### No automated tests for `/demo/overview` and `/demo/overview/table` routes
+
+**Source:** Code review 020
+**File:** `tests/test_overview_routes.py` (or a new `tests/test_demo_overview_routes.py`)
+**Detail:** The demo overview routes have no automated test coverage. QA and the Engineer both noted this gap. The waiver demo routes have `test_demo_waiver_shell_returns_200` as a parallel in `test_waiver_routes.py`. Add at minimum: `test_demo_overview_shell_returns_200` (GET /demo/overview → 200, no auth cookie required), `test_demo_overview_table_returns_fragment` (GET /demo/overview/table?week=N → 200, response begins with `<div`, no `<html>` tag), and `test_demo_overview_no_auth_required` (no session cookie → still 200, not 302). These match the coverage pattern already established for the waiver demo routes.
+
+---
+
+### "Compare two teams" link hard-codes `/overview/head-to-head` in shared template
+
+**Source:** Code review 020
+**File:** `web/templates/overview/index.html` line 11
+**Detail:** The "Compare two teams →" anchor points to `/overview/head-to-head` unconditionally. When the template is rendered in the demo context (`/demo/overview`), that link sends the unauthenticated visitor to the authenticated route, which redirects to login. The fix is to pass a `head_to_head_url` context variable (analogous to `table_url`) from both the authenticated and demo shells, defaulting to `/overview/head-to-head` and `/demo/overview/head-to-head` respectively, and update the template to use `{{ head_to_head_url }}`. This should land in ticket 021 (demo `/overview/head-to-head`) when that route exists, or sooner if the broken link is considered user-facing.
+
+---
+
 ### Simplify redundant assertion in TC14 of `test_home_routes.py`
 
 **Source:** Code review 023
@@ -22,14 +46,6 @@
 
 ---
 
-
-### Demo mode not reachable for `/overview` and `/overview/head-to-head`
-
-**Source:** Audit 001
-**File:** `web/routes/overview.py`, `web/templates/overview/`
-**Detail:** Tickets 015 and 016 introduced no new `data/` functions, so no `data/demo.py` counterpart was required by the architecture rules. However, neither ticket wired a `/demo/overview` or `/demo/overview/head-to-head` route, leaving unauthenticated visitors unable to explore the leaderboard or head-to-head pages in demo mode. The waiver wire pages (018/019a/019b) do have demo counterparts. Add demo routes to `web/routes/overview.py` that serve the pre-snapshotted matchups DataFrame from `data.demo.get_matchups()` — the data function already exists and is used by the waiver demo path.
-
----
 
 ---
 
@@ -98,6 +114,12 @@
 ## Closed
 
 <!-- Move resolved items here with a brief resolution note -->
+
+### Demo mode not reachable for `/overview` and `/overview/head-to-head`
+
+**Source:** Audit 001
+**File:** `web/routes/overview.py`, `web/templates/overview/`
+**Resolved (partial):** Ticket 020 — `/demo/overview` and `/demo/overview/table` routes added to `web/routes/overview.py`; `overview/index.html` updated to use `{{ table_url }}` context variable so both authenticated and demo shells point at the correct fragment endpoint. The `/demo/overview/head-to-head` gap remains open and is tracked in ticket 021.
 
 ### Tighten TC9 assertion to isolate league name to the header element
 

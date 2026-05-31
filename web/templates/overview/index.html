@@ -15,7 +15,7 @@
       <label for="week-select" class="text-sm text-gray-600 font-medium">Week:</label>
       <select id="week-select"
         class="border border-gray-300 rounded px-2 py-1 text-sm"
-        hx-get="/overview/table"
+        hx-get="{{ table_url }}"
         hx-target="#leaderboard-table"
         hx-trigger="change"
         name="week">

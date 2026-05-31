@@ -12,6 +12,7 @@ from web.middleware.session import CurrentUser, require_user
 from web.templates import templates
 
 router = APIRouter()
+public_router = APIRouter()
 
 
 def _get_league_key(db, session_id: str) -> str | None:
@@ -58,6 +59,7 @@ def overview(
                 "ranked": None,
                 "stat_cols": [],
                 "selected_league_name": selected_league_name,
+                "table_url": "/overview/table",
             },
         )
 
@@ -77,6 +79,7 @@ def overview(
             "stat_cols": cols,
             "team_count": len(ranked),
             "selected_league_name": selected_league_name,
+            "table_url": "/overview/table",
         },
     )
 
@@ -212,5 +215,76 @@ def head_to_head_table(
             "tally": tally_result,
             "team_a": team_a,
             "team_b": team_b,
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
+# Demo routes (no auth required)
+# ---------------------------------------------------------------------------
+
+@public_router.get("/demo/overview")
+def demo_overview(request: Request):
+    from data import demo as demo_module
+
+    df = demo_module.get_matchups()
+    if df is None or df.empty:
+        return templates.TemplateResponse(
+            request,
+            "overview/index.html",
+            {
+                "weeks": [],
+                "selected_week": None,
+                "ranked": None,
+                "stat_cols": [],
+                "selected_league_name": "Demo League",
+                "table_url": "/demo/overview/table",
+            },
+        )
+
+    weeks = sorted(df["week"].unique().tolist())
+    selected_week = weeks[-1]
+    ranked = weekly_scores_ranked(df, selected_week)
+    cols = stat_columns(df)
+    cell_ranks = _compute_cell_ranks(ranked, cols)
+    return templates.TemplateResponse(
+        request,
+        "overview/index.html",
+        {
+            "weeks": weeks,
+            "selected_week": selected_week,
+            "ranked": ranked,
+            "cell_ranks": cell_ranks,
+            "stat_cols": cols,
+            "team_count": len(ranked),
+            "selected_league_name": "Demo League",
+            "table_url": "/demo/overview/table",
+        },
+    )
+
+
+@public_router.get("/demo/overview/table")
+def demo_overview_table(week: int, request: Request):
+    from data import demo as demo_module
+
+    df = demo_module.get_matchups()
+    if df is None or df.empty:
+        return templates.TemplateResponse(
+            request,
+            "overview/_table.html",
+            {"ranked": None, "cell_ranks": None, "stat_cols": [], "team_count": 0},
+        )
+
+    ranked = weekly_scores_ranked(df, week)
+    cols = stat_columns(df)
+    cell_ranks = _compute_cell_ranks(ranked, cols)
+    return templates.TemplateResponse(
+        request,
+        "overview/_table.html",
+        {
+            "ranked": ranked,
+            "cell_ranks": cell_ranks,
+            "stat_cols": cols,
+            "team_count": len(ranked),
         },
     )
