@@ -1,7 +1,7 @@
 # 024 — Audit checkpoint: tickets 020, bug-week23, 021, 022, 023
 
 ## Status
-ready
+done
 
 ## Type
 audit

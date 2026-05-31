@@ -6,6 +6,22 @@
 
 ## Open
 
+### Nav header shows auth links to unauthenticated visitors
+
+**Source:** Audit 024 (noted in ticket 023 done note)
+**File:** `web/templates/base.html` line 22–24
+**Detail:** `base.html` renders "Overview", "Waiver", and "Logout" in the nav unconditionally. After ticket 023 landed optional auth on `GET /`, unauthenticated visitors on the home page see a "Log in with Yahoo" CTA in the content area but also see three nav links that all route to auth-gated pages or a no-op logout. Fix: pass an `is_authenticated` boolean (or equivalent) from each route context so the base template can render "Login" instead of "Overview / Waiver / Logout" for unauthenticated visitors. The home route already has `current_user is None` to derive this from.
+
+---
+
+### Update docs/bugs.md parquet-bloat entry to include current_week
+
+**Source:** Audit 024
+**File:** `docs/bugs.md`, `data/matchups.py`
+**Detail:** The open `docs/bugs.md` entry "matchups.py re-fetch loop causes parquet bloat and unnecessary API calls" was written when only `prev_week` participated in the bloat. After bug-week23-all-zeroes, `current_week` is also appended on every `get_matchups()` call (always, not just once per day). The parquet now grows by two rows-per-team per session instead of one. `drop_duplicates(keep="last")` keeps correctness intact. Update the `bugs.md` entry to note `current_week` as a second participant when the entry is next touched.
+
+---
+
 ### Add demo mode entry point on home page
 
 **Source:** Owner note post-020

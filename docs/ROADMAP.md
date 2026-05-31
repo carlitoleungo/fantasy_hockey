@@ -11,11 +11,10 @@ and become a wishlist — prune.
 
 ## Next up
 
-1. **024 — Audit checkpoint** — Reviewer reads tickets 020, bug-week23, 021, 022, 023 end-to-end. Mandatory before 025/026.
-2. **025 — Fix "Back to Leaderboard" link** — pass `overview_url` from both `head_to_head` and `demo_head_to_head` handlers; use `{{ overview_url }}` in `head_to_head.html`. Blocked on 024.
-3. **026 — Fix "Compare two teams" link in demo leaderboard** — pass `head_to_head_url` from both `overview` and `demo_overview` handlers; use `{{ head_to_head_url }}` in `index.html`. Blocked on 024. Can run in parallel with 025.
-4. **Week projection migration** — most data-intensive page; tackle after demo coverage is
-   complete and the HTMX fragment pattern is fully validated across all existing pages.
+1. **025 — Fix "Back to Leaderboard" link** — pass `overview_url` from both `head_to_head` and `demo_head_to_head` handlers; use `{{ overview_url }}` in `head_to_head.html`.
+2. **026 — Fix "Compare two teams" link in demo leaderboard** — pass `head_to_head_url` from both `overview` and `demo_overview` handlers; use `{{ head_to_head_url }}` in `index.html`. Can run in parallel with 025.
+3. **027 — Test demo overview routes** — unit/integration tests covering demo overview and head-to-head routes.
+4. **Week projection migration** — most data-intensive page; tackle after 025–027 land. Expect 3–4 tickets (data layer, UI, demo parity).
 5. **Demo mode snapshot tooling** — `data/demo.py` snapshot generation script and fixture
    data refresh. The current demo dataset is static; this ticket produces tooling to regenerate
    it from a live season so the public demo URL serves current-looking numbers.
@@ -27,9 +26,6 @@ and become a wishlist — prune.
 - **Deployment configuration** — Dockerfile, fly.toml, secrets handling. Blocked on
   feature pages being migrated first.
 - **`matchups.py` re-fetch bug** — cosmetic parquet bloat; not urgent.
-- **DECISIONS.md housekeeping** — Tech Lead to ratify three implicit decisions from audit 001
-  (shared route helpers, per-stat cache loop, web-layer demo route pairing) and add `Revisit if`
-  clauses to existing entries. Prerequisite before the next architectural-surface ticket.
 
 ---
 

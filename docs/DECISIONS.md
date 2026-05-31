@@ -6,6 +6,40 @@ Historical implementation decisions. Read this file when you need context on *wh
 
 ---
 
+### matchups.py: current_week always re-fetched to reflect intra-week stats (2026-05-31)
+
+Supersedes the "matchups.py: current week is included in delta fetch; won't refresh mid-week (2026-03-03)" entry.
+
+**Question / context:** The `bug-week23-all-zeroes` fix discovered that once `current_week` was cached, subsequent same-session calls fetched nothing new — intra-week stat updates were invisible until the cache was manually cleared. The fix changed the delta-fetch guard to always include `current_week` in `weeks_to_fetch`, regardless of what is already cached.
+
+**Options considered:**
+- **A (cache once, manual clear):** Original behaviour. `current_week` is fetched on first call; subsequent calls skip it. Zero extra API calls after first. Requires manual cache clear to see intra-week updates — unacceptable for a daily-use tool where Yahoo updates scores as games are played.
+- **B (always re-fetch current_week, chosen):** Unconditionally append `current_week` to `weeks_to_fetch` on every call. Costs 1 extra Yahoo API call per session. Guarantees intra-week stats are always current.
+
+**Decision:** Option B — `current_week` is appended unconditionally on every `get_matchups()` call (see `data/matchups.py` lines 44–46). Introduced in the `bug-week23-all-zeroes` fix; correct ongoing behaviour.
+
+**Why:** The app is used to make same-day waiver decisions. Stats update as games are played throughout the week; a tool that shows stale intra-week numbers is unreliable for its core use case. One extra API call per session is an acceptable and negligible cost.
+
+**Revisit if:** Yahoo rate-limit warnings appear in practice; at that point, a time-based TTL on `current_week`'s cache entry (e.g. refresh at most once per hour) would reduce calls without fully reverting to cache-once behaviour.
+
+---
+
+### Team process: Engineer owns automated test coverage; QA does not fill gaps (2026-05-31)
+
+**Question / context:** Tickets 022 and 023 both shipped with missing automated test coverage for acceptance-criteria paths; the Test Engineer wrote the missing tests during the QA pass. This is a positive outcome for coverage but creates an incentive for Engineers to ship under-tested implementations. No policy existed for how to handle the gap.
+
+**Options considered:**
+- **A (QA fills gaps):** Codify the current pattern — if the Engineer omits tests, QA adds them. Maximum coverage; QA is never blocked. Risk: Engineers learn thin test coverage is acceptable and QA is the backstop.
+- **B (ticket returned for missing tests, chosen):** If automated acceptance-criteria coverage is absent, QA returns the ticket to the Engineer before proceeding. QA may add supplementary edge-case or regression tests on top of existing AC coverage, but is not responsible for writing the primary AC test suite.
+
+**Decision:** Option B — missing automated coverage for acceptance criteria is a return condition, not a QA responsibility. The Engineer must write tests for new code paths before QA begins.
+
+**Why:** Test coverage for implemented behaviour is the Engineer's responsibility. Allowing QA to fill the gap shifts accountability and encourages under-tested implementations. A single returned ticket is a cheaper correction than accruing a pattern of thin coverage. This keeps QA focused on independent verification, not co-implementation.
+
+**Revisit if:** The project moves to a model where test authorship is intentionally shared (e.g. pairing); or if ticket return overhead measurably slows delivery and an alternative quality gate is in place.
+
+---
+
 ### Auth: optional_user dependency for semi-public routes (2026-05-30)
 
 **Question / context:** `GET /` needs to serve unauthenticated visitors (login CTA,
@@ -109,6 +143,8 @@ Rather than scattering `if int(@count) == 1` checks (as the notebook did for tea
 **Revisit if:** The cache layer is extended to track which week numbers are present as explicit metadata (e.g. a `cached_weeks` column in `last_updated.json`), making a full parquet read unnecessary to determine the last cached week.
 
 ### matchups.py: current week is included in delta fetch; won't refresh mid-week (2026-03-03)
+*(Superseded 2026-05-31 — the `bug-week23-all-zeroes` fix changed this behaviour; `current_week` is now always re-fetched on every call. See the 2026-05-31 entry above.)*
+
 `get_matchups()` fetches up to and including `current_week`. Once that week is cached, the next call finds `last_cached_week == current_week` and fetches nothing new until Yahoo advances `current_week`. Intra-week stat updates are therefore not reflected until the cache is manually cleared. This is acceptable for a daily-use tool; a `force_refresh` flag can be added later if needed.
 
 **Revisit if:** Users report stale intra-week data as a real problem (e.g. mid-week trade or injury decisions), at which point a `force_refresh` query parameter or a time-based TTL on the current week's cache entry should be added.

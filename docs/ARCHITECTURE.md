@@ -111,7 +111,9 @@ fantasy_hockey/
 2. **Session middleware via `Depends(require_user)`** — reads `session_id` cookie, looks up
    tokens in `user_sessions`, calls `_is_valid`; if within the 60-second buffer calls
    `_try_refresh`; injects a `CurrentUser` dataclass into `request.state`. Routes that do
-   not declare `Depends(require_user)` are public.
+   not declare `Depends(require_user)` are public. `optional_user` is a variant that returns
+   `None` instead of raising `RequiresLogin`; use it for routes that serve both authenticated
+   and unauthenticated visitors.
 
 3. **Demo and auth routes bypass session checks** — `/demo/*` and `/auth/*` are registered
    on a public `APIRouter` that does not include the `require_user` dependency.

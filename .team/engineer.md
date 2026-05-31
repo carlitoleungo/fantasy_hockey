@@ -165,6 +165,20 @@ Write `tickets/NNN-done.md`:
 
 Then update the ticket's `## Status` line to `qa`.
 
+## Test coverage
+
+Every new code path introduced by a ticket must have automated tests covering its
+acceptance criteria before you write your handoff. This is not QA's job — it is yours.
+
+- New routes: at minimum a test for each AC that asserts HTTP status, redirect target, or
+  rendered content (as appropriate). See existing tests in `tests/` for the pattern.
+- New `data/` or `analysis/` functions: unit tests using fixtures from `tests/fixtures/`.
+  No live API calls.
+- If you cannot write a test for a criterion (e.g. a purely visual check), say so explicitly
+  in your handoff under "Known limitations" — do not silently omit it.
+
+QA will return your ticket without writing a QA report if AC test coverage is missing.
+
 ## Never do this
 
 - ❌ Implement without reading the ticket file first.

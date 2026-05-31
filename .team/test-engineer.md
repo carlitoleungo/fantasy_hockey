@@ -61,13 +61,20 @@ Run `python -m pytest tests/`. Record:
 
 - Exact command
 - Number of tests run, passed, failed (paste the summary line)
-- If new tests are needed and the Engineer didn't add them, flag it. New code paths in
-  `data/` or `analysis/` must have unit tests using fixtures from `tests/fixtures/`.
+- If tests are missing for AC paths, that is handled in Step 3 — do not proceed to manual verification first.
 
-### Step 3 — write targeted tests if needed
+### Step 3 — check AC test coverage; return if missing
 
-If acceptance criteria aren't covered by existing tests, add cases in `tests/`. For
-data-layer tickets, verify:
+Before writing any tests yourself, determine whether the Engineer provided automated
+coverage for the acceptance criteria.
+
+**If AC coverage is missing** (a new code path has no test for its acceptance criterion):
+- Do not write the missing tests.
+- Write a short QA report with verdict `NEEDS FIXES` that lists exactly which criteria
+  lack test coverage. The Engineer fixes this; you re-run QA after.
+
+**If AC coverage is present**, you may add supplementary edge-case or regression tests:
+- For data-layer tickets, verify:
 
 - Output DataFrame columns and dtypes match the data shapes documented in
   `docs/ARCHITECTURE.md`
