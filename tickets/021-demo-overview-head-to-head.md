@@ -1,7 +1,7 @@
 # 021 — Demo mode: /overview/head-to-head
 
 ## Status
-ready
+done
 
 ## Type
 feature

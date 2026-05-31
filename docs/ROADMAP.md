@@ -11,13 +11,12 @@ and become a wishlist — prune.
 
 ## Next up
 
-1. **020 — Demo mode: /overview leaderboard** — add `/demo/overview` and `/demo/overview/table`
-   backed by `data.demo.get_matchups()`. Closes the largest demo coverage gap. Ticket is `ready`.
-2. **021 — Demo mode: /overview/head-to-head** — add `/demo/overview/head-to-head` and its
-   fragment endpoint. Completes demo parity for the entire Overview section. Blocked on 020.
-3. **Week projection migration** — most data-intensive page; tackle after demo coverage is
+1. **024 — Audit checkpoint** — Reviewer reads tickets 020, bug-week23, 021, 022, 023 end-to-end. Mandatory before 025/026.
+2. **025 — Fix "Back to Leaderboard" link** — pass `overview_url` from both `head_to_head` and `demo_head_to_head` handlers; use `{{ overview_url }}` in `head_to_head.html`. Blocked on 024.
+3. **026 — Fix "Compare two teams" link in demo leaderboard** — pass `head_to_head_url` from both `overview` and `demo_overview` handlers; use `{{ head_to_head_url }}` in `index.html`. Blocked on 024. Can run in parallel with 025.
+4. **Week projection migration** — most data-intensive page; tackle after demo coverage is
    complete and the HTMX fragment pattern is fully validated across all existing pages.
-4. **Demo mode snapshot tooling** — `data/demo.py` snapshot generation script and fixture
+5. **Demo mode snapshot tooling** — `data/demo.py` snapshot generation script and fixture
    data refresh. The current demo dataset is static; this ticket produces tooling to regenerate
    it from a live season so the public demo URL serves current-looking numbers.
 
@@ -34,4 +33,4 @@ and become a wishlist — prune.
 
 ---
 
-_Last updated: 2026-05-30. The PM maintains this file during scoping and product reviews._
+_Last updated: 2026-05-31. The PM maintains this file during scoping and product reviews._

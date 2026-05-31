@@ -24,9 +24,9 @@
 
 ### "Compare two teams" link hard-codes `/overview/head-to-head` in shared template
 
-**Source:** Code review 020
+**Source:** Code review 020; updated code review 021
 **File:** `web/templates/overview/index.html` line 11
-**Detail:** The "Compare two teams →" anchor points to `/overview/head-to-head` unconditionally. When the template is rendered in the demo context (`/demo/overview`), that link sends the unauthenticated visitor to the authenticated route, which redirects to login. The fix is to pass a `head_to_head_url` context variable (analogous to `table_url`) from both the authenticated and demo shells, defaulting to `/overview/head-to-head` and `/demo/overview/head-to-head` respectively, and update the template to use `{{ head_to_head_url }}`. This should land in ticket 021 (demo `/overview/head-to-head`) when that route exists, or sooner if the broken link is considered user-facing.
+**Detail:** The "Compare two teams →" anchor points to `/overview/head-to-head` unconditionally. When the template is rendered in the demo context (`/demo/overview`), that link sends the unauthenticated visitor to the authenticated route, which redirects to login. The fix is to pass a `head_to_head_url` context variable (analogous to `table_url`) from both the authenticated and demo shells, defaulting to `/overview/head-to-head` and `/demo/overview/head-to-head` respectively, and update the template to use `{{ head_to_head_url }}`. Ticket 021 added the `/demo/overview/head-to-head` route (the prerequisite) but `index.html` was outside its `Touches` list. This fix is now unblocked — it should land in the next ticket that touches `web/templates/overview/index.html` or `web/routes/overview.py`.
 
 ---
 

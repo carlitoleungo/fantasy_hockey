@@ -13,7 +13,7 @@
     <p class="text-gray-600">Not enough team data yet. Check back once the season starts.</p>
   {% else %}
     <form
-      hx-get="/overview/head-to-head/table"
+      hx-get="{{ table_url }}"
       hx-target="#head-to-head-table"
       hx-trigger="change">
       <div class="mb-6 flex flex-wrap items-end gap-4">

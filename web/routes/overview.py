@@ -147,6 +147,7 @@ def head_to_head(
                 "weeks": [],
                 "not_enough_data": True,
                 "selected_league_name": selected_league_name,
+                "table_url": "/overview/head-to-head/table",
             },
         )
 
@@ -173,6 +174,7 @@ def head_to_head(
             "tally": tally_result,
             "not_enough_data": False,
             "selected_league_name": selected_league_name,
+            "table_url": "/overview/head-to-head/table",
         },
     )
 
@@ -286,5 +288,90 @@ def demo_overview_table(week: int, request: Request):
             "cell_ranks": cell_ranks,
             "stat_cols": cols,
             "team_count": len(ranked),
+        },
+    )
+
+
+@public_router.get("/demo/overview/head-to-head")
+def demo_head_to_head(request: Request):
+    from data import demo as demo_module
+
+    df = demo_module.get_matchups()
+    teams = sorted(df["team_name"].unique().tolist()) if df is not None and not df.empty else []
+
+    if len(teams) < 2:
+        return templates.TemplateResponse(
+            request,
+            "overview/head_to_head.html",
+            {
+                "teams": [],
+                "weeks": [],
+                "not_enough_data": True,
+                "selected_league_name": "Demo League",
+                "table_url": "/demo/overview/head-to-head/table",
+            },
+        )
+
+    weeks = sorted(df["week"].unique().tolist())
+    team_a = teams[0]
+    team_b = teams[1]
+    from_week = weeks[0]
+    to_week = weeks[-1]
+
+    sim = simulate(df, team_a, team_b, from_week, to_week)
+    tally_result = tally(sim, team_a, team_b)
+
+    return templates.TemplateResponse(
+        request,
+        "overview/head_to_head.html",
+        {
+            "teams": teams,
+            "weeks": weeks,
+            "team_a": team_a,
+            "team_b": team_b,
+            "from_week": from_week,
+            "to_week": to_week,
+            "sim": sim,
+            "tally": tally_result,
+            "not_enough_data": False,
+            "selected_league_name": "Demo League",
+            "table_url": "/demo/overview/head-to-head/table",
+        },
+    )
+
+
+@public_router.get("/demo/overview/head-to-head/table")
+def demo_head_to_head_table(
+    team_a: str,
+    team_b: str,
+    from_week: int,
+    to_week: int,
+    request: Request,
+):
+    from data import demo as demo_module
+
+    df = demo_module.get_matchups()
+
+    if df is None or df.empty:
+        return templates.TemplateResponse(
+            request,
+            "overview/_head_to_head_table.html",
+            {"sim": None, "tally": None, "team_a": team_a, "team_b": team_b},
+        )
+
+    if from_week > to_week:
+        from_week, to_week = to_week, from_week
+
+    sim = simulate(df, team_a, team_b, from_week, to_week)
+    tally_result = tally(sim, team_a, team_b)
+
+    return templates.TemplateResponse(
+        request,
+        "overview/_head_to_head_table.html",
+        {
+            "sim": sim,
+            "tally": tally_result,
+            "team_a": team_a,
+            "team_b": team_b,
         },
     )
