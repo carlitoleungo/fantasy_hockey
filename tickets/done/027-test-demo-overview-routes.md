@@ -1,7 +1,7 @@
 # 027 — Add tests for /demo/overview and /demo/overview/table routes
 
 ## Status
-ready
+done
 
 ## Type
 feature
