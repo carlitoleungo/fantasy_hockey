@@ -5,19 +5,16 @@ to pick up without re-explaining the original idea.
 
 ---
 
-## Week Projection Page
+## Week Projection Page — SCOPED 2026-07-02 → tickets 028–031
 
 **Original request:** Show projected stats for the current week based on games remaining
 and recent player performance.
-**What was included:** Scaffolded in `pages/04_week_projection.py`; demo data hooks exist
-in `data/demo.py` (`get_projection_context()`, `get_projection_pair_data()`).
-**What was deferred:** Full implementation — the data functions and UI are not yet built.
-**Context for later:** The demo stubs in `data/demo.py` define the expected return shapes.
-The data layer will need a new function to fetch remaining schedule data and compute
-projected stats from `players_lastmonth` rates × games remaining. The `get_remaining_games()`
-function in `data/schedule.py` (or equivalent) already fetches games-remaining-this-week
-for the waiver wire page — that logic can likely be extended for weekly projections.
-**Estimated complexity:** Large (separate data ticket + UI ticket minimum)
+**Resolution:** The data/analysis/demo layers turned out to be already built and
+framework-free (`analysis/projection.py`, `client.get_settings_and_categories` /
+`get_all_teams_week_stats`, `roster.get_team_roster`, `players.get_players_lastmonth_stats`,
+`schedule.get_remaining_games`, and the demo hooks below). No data-layer ticket was
+needed — the migration is route+template only, scoped as tickets 028 (common.py prereq),
+029 (shell), 030 (matchup fragment), 031 (demo parity). See `docs/ROADMAP.md`.
 
 ---
 
@@ -46,13 +43,10 @@ hypothetical roster change.
 
 ---
 
-## Migration: Week projection page
+## Migration: Week projection page — SCOPED 2026-07-02 → tickets 028–031
 
 **Original request:** Rebuild the Streamlit week projection page (`pages/04_week_projection.py`) in the new framework.
-**What was included:** Nothing yet.
-**What was deferred:** The UI implementation (and completion of the underlying data/analysis layer — see "Week Projection Page" entry above).
-**Context for later:** This page depends on live scoreboard data (one API call per page load), team rosters (fetched per team pair selection), last-30-day player stats, and remaining schedule. It is the most data-intensive page. Tackle after the simpler pages are ported.
-**Estimated complexity:** Large
+**Resolution:** Scoped into tickets 028–031 (see the "Week Projection Page" entry above and `docs/ROADMAP.md`). This was a duplicate of that entry; both are now resolved.
 
 ---
 

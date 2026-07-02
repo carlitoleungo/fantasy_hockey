@@ -11,15 +11,16 @@ and become a wishlist — prune.
 
 ## Next up
 
-1. **025 — Parameterize overview nav links** (`Process: light`) — pass
-   `head_to_head_url` and `overview_url` context variables from the four overview
-   handlers; templates use `{{ ... }}`. Merges former tickets 025 + 026 (same root
-   cause, same fix pattern).
-2. **027 — Test demo overview routes** — unit/integration tests covering demo overview
-   and head-to-head routes.
-3. **Week projection migration** — most data-intensive page; tackle after 025/027 land.
-   Expect 3–4 tickets (data layer, UI, demo parity).
-4. **Demo mode snapshot tooling** — `data/demo.py` snapshot generation script and fixture
+1. **Week projection migration** — scoped into tickets **028–031** (2026-07-02). The
+   data, analysis, and demo-data layers already exist and are framework-free, so this is
+   a route+template exercise, not a data-layer build:
+   - **028** — extract `_get_league_key` to `web/routes/common.py` (`Process: light`
+     prerequisite per DECISIONS 2026-05-30).
+   - **029** — `/projection` shell route, team selector, nav link.
+   - **030** — `/projection/matchup` fragment: rosters + schedule + last-30 + compute.
+   - **031** — `/demo/projection` parity (reuses existing `demo.get_projection_*`).
+   Sequential dependency chain 028 → 029 → 030 → 031.
+2. **Demo mode snapshot tooling** — `data/demo.py` snapshot generation script and fixture
    data refresh. The current demo dataset is static; this ticket produces tooling to regenerate
    it from a live season so the public demo URL serves current-looking numbers.
 
@@ -34,4 +35,5 @@ and become a wishlist — prune.
 
 ---
 
-_Last updated: 2026-07-02. The PM maintains this file during scoping and product reviews._
+_Last updated: 2026-07-02 (Week projection migration scoped into tickets 028–031;
+shipped 025/027 removed). The PM maintains this file during scoping and product reviews._
