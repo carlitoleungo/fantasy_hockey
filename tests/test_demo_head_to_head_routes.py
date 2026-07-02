@@ -258,3 +258,43 @@ def test_live_head_to_head_still_requires_auth(client):
     response = client.get("/overview/head-to-head")
     assert response.status_code == 302
     assert response.headers["location"] == "/auth/login"
+
+
+# ---------------------------------------------------------------------------
+# TC-D14 — Ticket 025: demo /overview "Compare two teams" link points at the
+#          demo head-to-head route, not the authenticated one
+# ---------------------------------------------------------------------------
+
+def test_demo_overview_compare_link_targets_demo_route(client):
+    df = _make_matchups_df()
+    with patch("data.demo.get_matchups", return_value=df):
+        response = client.get("/demo/overview")
+
+    body = response.text
+    assert 'href="/demo/overview/head-to-head"' in body
+    assert 'href="/overview/head-to-head"' not in body
+
+
+# ---------------------------------------------------------------------------
+# TC-D15 — Ticket 025: demo /demo/overview/head-to-head "Back to Leaderboard"
+#          link points at the demo overview route, not the authenticated one
+# ---------------------------------------------------------------------------
+
+def test_demo_head_to_head_back_link_targets_demo_route(client):
+    df = _make_matchups_df()
+    with patch("data.demo.get_matchups", return_value=df):
+        response = client.get("/demo/overview/head-to-head")
+
+    body = response.text
+    # Scope to the "Back to Leaderboard" anchor — base.html's nav also links
+    # to /overview, so a bare href="/overview" substring is ambiguous.
+    demo_back_link = (
+        'href="/demo/overview" class="text-sm text-gray-500 hover:text-gray-700">'
+        "&larr; Back to Leaderboard"
+    )
+    auth_back_link = (
+        'href="/overview" class="text-sm text-gray-500 hover:text-gray-700">'
+        "&larr; Back to Leaderboard"
+    )
+    assert demo_back_link in body
+    assert auth_back_link not in body

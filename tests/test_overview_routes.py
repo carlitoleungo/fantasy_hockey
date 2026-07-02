@@ -226,3 +226,59 @@ def test_overview_empty_matchups_renders_shell(ctx):
 
     assert response.status_code == 200
     assert "season starts" in response.text or "No matchup data" in response.text
+
+
+# ---------------------------------------------------------------------------
+# TC7 — Ticket 025: authenticated /overview "Compare two teams" link points at
+#       the authenticated head-to-head route, not the demo one
+# ---------------------------------------------------------------------------
+
+def test_overview_compare_link_targets_authenticated_route(ctx):
+    conn, client = ctx
+    _insert_session(conn, league_key="419.l.11111")
+    df = _make_matchups_df()
+
+    with (
+        patch("web.routes.overview.make_session", return_value=MagicMock()),
+        patch("web.routes.overview.get_user_hockey_leagues", return_value=[LEAGUE_A]),
+        patch("web.routes.overview.get_matchups", return_value=df),
+    ):
+        response = client.get("/overview", cookies={"session_id": "sid-test"})
+
+    body = response.text
+    assert 'href="/overview/head-to-head"' in body
+    assert 'href="/demo/overview/head-to-head"' not in body
+
+
+# ---------------------------------------------------------------------------
+# TC8 — Ticket 025: authenticated /overview/head-to-head "Back to Leaderboard"
+#       link points at the authenticated overview route, not the demo one
+# ---------------------------------------------------------------------------
+
+def test_head_to_head_back_link_targets_authenticated_route(ctx):
+    conn, client = ctx
+    _insert_session(conn, league_key="419.l.11111")
+    df = _make_matchups_df()
+
+    with (
+        patch("web.routes.overview.make_session", return_value=MagicMock()),
+        patch("web.routes.overview.get_user_hockey_leagues", return_value=[LEAGUE_A]),
+        patch("web.routes.overview.get_matchups", return_value=df),
+    ):
+        response = client.get(
+            "/overview/head-to-head", cookies={"session_id": "sid-test"}
+        )
+
+    body = response.text
+    # Scope to the "Back to Leaderboard" anchor — base.html's nav also links
+    # to /overview, so a bare href="/overview" substring is ambiguous.
+    back_link = (
+        'href="/overview" class="text-sm text-gray-500 hover:text-gray-700">'
+        "&larr; Back to Leaderboard"
+    )
+    demo_back_link = (
+        'href="/demo/overview" class="text-sm text-gray-500 hover:text-gray-700">'
+        "&larr; Back to Leaderboard"
+    )
+    assert back_link in body
+    assert demo_back_link not in body

@@ -60,6 +60,7 @@ def overview(
                 "stat_cols": [],
                 "selected_league_name": selected_league_name,
                 "table_url": "/overview/table",
+                "head_to_head_url": "/overview/head-to-head",
             },
         )
 
@@ -80,6 +81,7 @@ def overview(
             "team_count": len(ranked),
             "selected_league_name": selected_league_name,
             "table_url": "/overview/table",
+            "head_to_head_url": "/overview/head-to-head",
         },
     )
 
@@ -148,6 +150,7 @@ def head_to_head(
                 "not_enough_data": True,
                 "selected_league_name": selected_league_name,
                 "table_url": "/overview/head-to-head/table",
+                "overview_url": "/overview",
             },
         )
 
@@ -175,6 +178,7 @@ def head_to_head(
             "not_enough_data": False,
             "selected_league_name": selected_league_name,
             "table_url": "/overview/head-to-head/table",
+            "overview_url": "/overview",
         },
     )
 
@@ -241,6 +245,7 @@ def demo_overview(request: Request):
                 "stat_cols": [],
                 "selected_league_name": "Demo League",
                 "table_url": "/demo/overview/table",
+                "head_to_head_url": "/demo/overview/head-to-head",
             },
         )
 
@@ -261,6 +266,7 @@ def demo_overview(request: Request):
             "team_count": len(ranked),
             "selected_league_name": "Demo League",
             "table_url": "/demo/overview/table",
+            "head_to_head_url": "/demo/overview/head-to-head",
         },
     )
 
@@ -309,6 +315,7 @@ def demo_head_to_head(request: Request):
                 "not_enough_data": True,
                 "selected_league_name": "Demo League",
                 "table_url": "/demo/overview/head-to-head/table",
+                "overview_url": "/demo/overview",
             },
         )
 
@@ -336,6 +343,7 @@ def demo_head_to_head(request: Request):
             "not_enough_data": False,
             "selected_league_name": "Demo League",
             "table_url": "/demo/overview/head-to-head/table",
+            "overview_url": "/demo/overview",
         },
     )
 

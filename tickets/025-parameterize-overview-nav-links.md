@@ -1,7 +1,7 @@
 # 025 — Parameterize hardcoded navigation links in overview templates
 
 ## Status
-ready
+done
 
 ## Type
 bug

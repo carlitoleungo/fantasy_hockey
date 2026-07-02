@@ -84,15 +84,6 @@ The condition fires on **every** page load for the rest of the day, because each
 
 ---
 
-### "Compare two teams" link hard-codes `/overview/head-to-head` in shared template
-
-**Type:** quality
-**Source:** Code review 020; updated code review 021
-**File:** `web/templates/overview/index.html` line 11
-**Detail:** The "Compare two teams →" anchor points to `/overview/head-to-head` unconditionally. When the template is rendered in the demo context (`/demo/overview`), that link sends the unauthenticated visitor to the authenticated route, which redirects to login. The fix is to pass a `head_to_head_url` context variable (analogous to `table_url`) from both the authenticated and demo shells, defaulting to `/overview/head-to-head` and `/demo/overview/head-to-head` respectively, and update the template to use `{{ head_to_head_url }}`. Ticket 021 added the `/demo/overview/head-to-head` route (the prerequisite) but `index.html` was outside its `Touches` list. This fix is now unblocked — it should land in the next ticket that touches `web/templates/overview/index.html` or `web/routes/overview.py`. *(Scoped as ticket 025, which merges this with the "Back to Leaderboard" fix.)*
-
----
-
 ### Simplify redundant assertion in TC14 of `test_home_routes.py`
 
 **Type:** quality
@@ -181,6 +172,13 @@ The condition fires on **every** page load for the rest of the day, because each
 ## Closed
 
 <!-- Move resolved items here with a brief resolution note -->
+
+### "Compare two teams" link hard-codes `/overview/head-to-head` in shared template
+
+**Type:** quality
+**Source:** Code review 020; updated code review 021
+**File:** `web/templates/overview/index.html` line 11
+**Resolved:** Ticket 025 — `head_to_head_url` (in `index.html`) and `overview_url` (in `head_to_head.html`) are now passed from both the authenticated and demo shell handlers (both empty-state and normal branches), so the shared templates render the correct route per context. Fixed the sibling "← Back to Leaderboard" hardcoded `/overview` link in the same ticket.
 
 ### Update docs/bugs.md parquet-bloat entry to include current_week
 
