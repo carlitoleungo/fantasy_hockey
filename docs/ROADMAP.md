@@ -11,22 +11,27 @@ and become a wishlist — prune.
 
 ## Next up
 
-1. **025 — Fix "Back to Leaderboard" link** — pass `overview_url` from both `head_to_head` and `demo_head_to_head` handlers; use `{{ overview_url }}` in `head_to_head.html`.
-2. **026 — Fix "Compare two teams" link in demo leaderboard** — pass `head_to_head_url` from both `overview` and `demo_overview` handlers; use `{{ head_to_head_url }}` in `index.html`. Can run in parallel with 025.
-3. **027 — Test demo overview routes** — unit/integration tests covering demo overview and head-to-head routes.
-4. **Week projection migration** — most data-intensive page; tackle after 025–027 land. Expect 3–4 tickets (data layer, UI, demo parity).
-5. **Demo mode snapshot tooling** — `data/demo.py` snapshot generation script and fixture
+1. **025 — Parameterize overview nav links** (`Process: light`) — pass
+   `head_to_head_url` and `overview_url` context variables from the four overview
+   handlers; templates use `{{ ... }}`. Merges former tickets 025 + 026 (same root
+   cause, same fix pattern).
+2. **027 — Test demo overview routes** — unit/integration tests covering demo overview
+   and head-to-head routes.
+3. **Week projection migration** — most data-intensive page; tackle after 025/027 land.
+   Expect 3–4 tickets (data layer, UI, demo parity).
+4. **Demo mode snapshot tooling** — `data/demo.py` snapshot generation script and fixture
    data refresh. The current demo dataset is static; this ticket produces tooling to regenerate
    it from a live season so the public demo URL serves current-looking numbers.
 
 ## Watching (maybe, not soon)
 
-- **Per-user cache storage migration** — current `/data/cache/{league_key}/` is keyed by
-  league, not user. Required before any shared deployment; not urgent for local use.
-- **Deployment configuration** — Dockerfile, fly.toml, secrets handling. Blocked on
-  feature pages being migrated first.
-- **`matchups.py` re-fetch bug** — cosmetic parquet bloat; not urgent.
+- **Per-user cache storage migration** — required before any shared deployment; see the
+  `docs/backlog.md` entry for full context.
+- **Deployment configuration** — blocked on feature pages being migrated first; see the
+  `docs/backlog.md` entry for full context.
+- **`matchups.py` parquet bloat** — tracked as a `Type: bug` entry in
+  `docs/improvements.md`; cosmetic, not urgent.
 
 ---
 
-_Last updated: 2026-05-31. The PM maintains this file during scoping and product reviews._
+_Last updated: 2026-07-02. The PM maintains this file during scoping and product reviews._

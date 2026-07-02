@@ -1,7 +1,12 @@
 # 026 — Fix hardcoded "Compare two teams" link in demo leaderboard
 
+> **Archived 2026-07-02 — merged into ticket 025**
+> (`tickets/025-parameterize-overview-nav-links.md`). Same root cause and fix pattern
+> as the "Back to Leaderboard" fix; the two were combined into one `Process: light`
+> ticket. Nothing below was implemented under this ticket number.
+
 ## Status
-ready
+archived (merged into 025)
 
 ## Type
 bug

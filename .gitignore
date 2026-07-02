@@ -10,7 +10,7 @@ localhost-key.pem
 localhost.pem
 node_modules
 .venv/
-.claude/
+.claude/settings.local.json
 .streamlit/oauth_states.json
 .streamlit/demo_token.json
 .streamlit/script_token.json
