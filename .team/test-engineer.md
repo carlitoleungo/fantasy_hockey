@@ -6,28 +6,22 @@ yourself, in the running app, and write a QA report.
 
 ## Project context
 
-- **What we're building:** Fantasy Hockey Waiver Wire — a public-facing web app that helps
-  fantasy hockey managers evaluate waiver wire add/drop decisions using Yahoo Fantasy API
-  data. Users sign in with their own Yahoo account; the app fetches their league, matchup,
-  and player data; the UI renders stat tables and rankings. A demo mode lets unauthenticated
-  visitors explore a snapshotted dataset.
-- **Tech stack:** Python 3.11 + FastAPI (single uvicorn worker) + Jinja2 + HTMX +
-  Alpine.js + TailwindCSS (CDN, no JS build). SQLite at `/data/app.db`. Parquet cache at
-  `/data/cache/{league_key}/`. Hosted on Fly.io.
+Fantasy Hockey Waiver Wire — a public-facing web app that helps fantasy hockey managers
+evaluate waiver wire add/drop decisions using Yahoo Fantasy API data, with a demo mode
+for unauthenticated visitors. Stack, layer rules, and repo state (mid-migration from
+Streamlit): **`docs/ARCHITECTURE.md`**.
+
 - **Run command:** `uvicorn web.main:app --reload` (FastAPI app). The legacy Streamlit
   prototype `streamlit run app.py` still exists but is being torn down view-by-view.
 - **Test command:** `python -m pytest tests/`
-- **Repo state:** Mid-migration. Most acceptance criteria touch the new FastAPI/HTMX
-  surface; some still touch the preserved pure-Python `data/`, `analysis/`, `auth/`
-  layers.
 
 ## Layout (concrete paths)
 
 - Ticket you QA: `tickets/NNN-slug.md`
 - Engineer's handoff: `tickets/NNN-done.md`
 - Your QA report: `tickets/NNN-qa.md`
-- `docs/ARCHITECTURE.md`, `docs/DECISIONS.md`, `docs/LEARNINGS.md`, `docs/bugs.md` for
-  context
+- `docs/ARCHITECTURE.md`, `docs/DECISIONS.md`, `docs/LEARNINGS.md` for context
+- `docs/improvements.md` — Type-tagged quality items + bugs (see "Out-of-scope defects")
 - Test fixtures: `tests/fixtures/` — never make live API calls in tests
 
 ## Inputs you read before starting QA
@@ -164,6 +158,28 @@ If `NEEDS FIXES`, the Engineer reads your report, makes the fix, and writes
 `tickets/NNN-fix.md`. You re-run from Step 1 (skipping the test-plan-writing step
 unless new criteria were introduced).
 
+## Light tickets — combined QA + review
+
+When the ticket has `Process: light`, there is no separate Reviewer session; you cover
+both roles in one pass:
+
+1. Run the normal QA workflow (Steps 1–6) unchanged.
+2. Then check the Reviewer's always-blockers against the actual diff:
+   - framework import in `data/`, `analysis/`, or `auth/`
+   - raw `stat['value']` without `_coerce()`; Yahoo collection indexed without `_as_list()`
+   - per-entity Yahoo API loop where a bulk endpoint exists
+   - new live data function with no demo counterpart (and no backlog ticket)
+   - contradiction of an active `docs/DECISIONS.md` entry
+   - diff escapes the ticket's `Touches` list
+3. Write **`tickets/NNN-qa-review.md`** instead of `NNN-qa.md`: the normal QA report
+   plus a `### Review checks` section listing each blocker check as pass/fail. Log any
+   out-of-scope quality nits to `docs/improvements.md` as `Type: quality` entries.
+4. Verdict `APPROVED` requires QA pass **and** zero blockers. Any blocker → verdict
+   `NEEDS FIXES`, back to the Engineer, regardless of QA results.
+5. If anything smells architectural, stop — a light ticket shouldn't touch those
+   surfaces; tell the owner the ticket was mis-classified rather than reviewing it.
+6. On `APPROVED`, update the ticket `## Status` directly to `done`.
+
 ## Push back on vague criteria
 
 If an acceptance criterion is unobservable ("works smoothly", "code is clean",
@@ -181,6 +197,13 @@ follow-up questions:
 - For visual issues: a clear written description of what's wrong (the DOM looks like X,
   the expected was Y)
 - Network responses for HTMX fragment swaps that misbehave
+
+## Out-of-scope defects
+
+If you discover a pre-existing bug unrelated to the ticket during verification, do not
+fail the ticket for it. File it as a `Type: bug` entry in `docs/improvements.md` (use
+the bug template at the top of that file) and mention it under a "Notes" line in your
+QA report.
 
 ## Adding to LEARNINGS
 

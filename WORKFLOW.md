@@ -1,9 +1,27 @@
 # Team Workflow — Fantasy Hockey Waiver Wire
 
-This is the operating manual for the team-of-personas workflow. Read it after
-`START_HERE.md`. Each persona runs in its own Claude Code session — handoffs flow
-through files, not conversation. That's the central principle. Do not paste the output
-of one session into another; the next session reads the file the previous one wrote.
+This is the operating manual for the team-of-personas workflow. Each persona runs in
+its own Claude Code session — handoffs flow through files, not conversation. That's the
+central principle. Do not paste the output of one session into another; the next
+session reads the file the previous one wrote.
+
+---
+
+## Quick start
+
+You're developing **Fantasy Hockey Waiver Wire** — a public-facing FastAPI/HTMX app,
+mid-migration from a Streamlit prototype — with a team of six personas in `.team/`
+(PM, Tech Lead, Engineer, Test Engineer, Reviewer, Orchestrator).
+
+- **Current state lives in `tickets/` and `docs/ROADMAP.md`**, not in this file — check
+  those to see what's active and what's next.
+- **To start new work**, run a PM session and tell it what you want: `/pm <request>`
+  in Claude Code (or `cat .team/pm.md | claude`).
+- **To push an existing `Status: ready` ticket forward**, run an Engineer session
+  (`/engineer <ticket>`) — or the Orchestrator (`/orchestrate <ticket>`), if the
+  ticket qualifies (see "The Orchestrator" below).
+- The stack is already chosen — don't run a day-zero Tech Lead session (see "Day-zero
+  sequence" below).
 
 ---
 
@@ -26,26 +44,40 @@ fresh Engineer session.
 | Product Manager | `.team/pm.md` | Idea, `docs/ROADMAP.md`, `docs/DECISIONS.md`, `docs/LEARNINGS.md`, `docs/backlog.md` | `tickets/NNN-slug.md`, `docs/backlog.md`, `docs/ROADMAP.md` | Define / scope / sign-off |
 | Tech Lead | `.team/tech-lead.md` | Scoping brief, `docs/ARCHITECTURE.md`, `docs/DECISIONS.md` | `docs/DECISIONS.md`, `docs/ARCHITECTURE.md`, scoping notes | PM scoping consultation on architectural surfaces; mid-build architectural questions; periodic ARCHITECTURE.md refresh |
 | Engineer | `.team/engineer.md` | One ticket, `docs/ARCHITECTURE.md`, `docs/DECISIONS.md`, `docs/LEARNINGS.md` | Code, `tickets/NNN-done.md`, optional `docs/LEARNINGS.md` append, `docs/improvements.md` close-outs for items in modified files | Build phase, one ticket per session |
-| Test Engineer | `.team/test-engineer.md` | Ticket, `tickets/NNN-done.md`, `docs/LEARNINGS.md` | `tickets/NNN-qa.md`, possibly new tests in `tests/` | After Engineer hands off |
-| Reviewer | `.team/reviewer.md` | Ticket, done note, QA report, diff | `tickets/NNN-review.md`, `docs/improvements.md`, `.team/audits/NNN-audit.md` | After QA approves, plus every 5 tickets for an audit |
+| Test Engineer | `.team/test-engineer.md` | Ticket, `tickets/NNN-done.md`, `docs/LEARNINGS.md` | `tickets/NNN-qa.md` (or `NNN-qa-review.md` for light tickets), possibly new tests in `tests/` | After Engineer hands off |
+| Reviewer | `.team/reviewer.md` | Ticket, done note, QA report, diff | `tickets/NNN-review.md`, `docs/improvements.md`, `.team/audits/NNN-audit.md` | After QA approves (full-process tickets only), plus audits per `scripts/audit_due.py` |
 | Orchestrator | `.team/orchestrator.md` | One ticket | Spawned subagents for each role; `.team/orchestration-logs/NNN-slug.md` | Optional: runs the per-ticket loop autonomously |
 
 ---
 
 ## How to invoke a persona
 
-**Recommended (interactive):**
+**In Claude Code (recommended)** — project slash commands wrap each persona:
+
+| Command | Persona |
+|---|---|
+| `/pm <request>` | Product Manager |
+| `/tech-lead <question or brief path>` | Tech Lead |
+| `/engineer <ticket>` | Engineer |
+| `/qa <ticket>` | Test Engineer (combined QA+review for light tickets) |
+| `/reviewer <ticket \| audit>` | Reviewer |
+| `/orchestrate <ticket>` | Orchestrator |
+
+The commands live in `.claude/commands/`; the Orchestrator spawns its subagents via
+the matching agent definitions in `.claude/agents/` (`fh-engineer`,
+`fh-test-engineer`, `fh-reviewer`). All of them load the persona files from `.team/`
+at run time — **the persona files remain the single source of truth**; the command and
+agent files are thin shims, so persona edits never need to be made twice.
+
+**Plain CLI equivalent** (still works):
 ```bash
 cat .team/pm.md | claude
-```
-
-**Reference in prompt:**
-```bash
+# or
 claude "Read .team/pm.md and follow those instructions. Here's what I need: [your request]"
 ```
 
-The persona files are paste-and-go: they contain the project context inline so the
-session needs no prior reading.
+Either way, start each persona in a fresh session; the personas read the project docs
+they need from disk.
 
 ---
 
@@ -88,17 +120,51 @@ session needs no prior reading.
    → if APPROVED: updates ticket Status to done
 ```
 
+### Light process — for trivial tickets
+
+The PM may mark a ticket `Process: light` (an optional `## Process` section in the
+ticket file) when **all three** hold:
+
+- ≤ ~20 lines of change expected
+- it follows an existing pattern verbatim (a same-shape route, template variable, or
+  test already exists to copy)
+- it touches no architectural surface
+
+Light loop: Engineer session → **one combined QA-and-review session**. The Test
+Engineer runs their normal verification plus the Reviewer's always-blocker checklist
+(layer purity, `_coerce`/`_as_list`, bulk endpoints, demo parity, DECISIONS conflicts,
+`Touches` adherence) and writes a single `tickets/NNN-qa-review.md`. No separate
+Reviewer session; one fix round allowed as usual. Light tickets count ½ toward the
+audit cadence and are still covered by audits.
+
+When in doubt, use the full process — light is an optimisation, not the default.
+
 ---
 
 ## Audit cadence — non-negotiable
 
-Every **5 completed non-audit tickets**, the next ticket is an `audit` ticket.
-Additionally, before any architectural-surface ticket, if no audit has run in the last
-5, schedule the audit first. The PM is the enforcer; the Reviewer runs the audit and
-writes `.team/audits/NNN-audit.md`.
+Every **5 weighted completed non-audit tickets**, the next ticket is an `audit`
+ticket. Full-process tickets count 1; `Process: light` tickets count ½ (less risk, but
+the audit still covers them). Don't count by memory — run:
 
-When the audit verdict is `NEEDS ATTENTION`, the PM should not scope further
-architectural tickets until the action items are resolved.
+```bash
+python scripts/audit_due.py
+```
+
+The PM runs it at the start of every scoping session and before finalising any
+architectural-surface ticket; the Orchestrator runs it in pre-flight. The Reviewer runs
+the audit and writes `.team/audits/NNN-audit.md` (NNN = the audit ticket's number).
+
+**What an overdue audit blocks — and what it doesn't.** An overdue audit, or a
+`NEEDS ATTENTION` verdict with unresolved action items, blocks scoping
+**architectural-surface tickets only**. Non-architectural bug fixes and light tickets
+may proceed while the audit is scheduled and run — do not sequence unrelated small
+fixes behind an audit.
+
+**Revisit the interval.** The 5-ticket cadence is calibrated for the migration period,
+where most tickets establish new conventions. When the Streamlit teardown completes and
+the pattern set stabilises, revisit the threshold (8–10 is reasonable for a stable
+codebase) — change `AUDIT_THRESHOLD` in `scripts/audit_due.py` and this section together.
 
 ---
 
@@ -135,17 +201,15 @@ Lead supersedes the prior decision with a new dated entry — never edit in plac
 
 ```
 fantasy_hockey/
-├── START_HERE.md                # one-screen onboarding
-├── WORKFLOW.md                  # this file
-├── CLAUDE.md                    # project instructions (pre-existing, hands off)
+├── WORKFLOW.md                  # this file (includes quick start)
+├── CLAUDE.md                    # project instructions, loaded into every session (owner maintains; personas hands off)
 ├── docs/
 │   ├── ARCHITECTURE.md          # current state of the world (Tech Lead owns)
 │   ├── DECISIONS.md             # newest-first decisions log (Tech Lead owns)
 │   ├── ROADMAP.md               # near-term work, editable (PM owns)
-│   ├── LEARNINGS.md             # recurring gotchas (team adds)
+│   ├── LEARNINGS.md             # recurring gotchas incl. Yahoo API (team adds)
 │   ├── backlog.md               # deferred features (PM owns)
-│   ├── improvements.md          # code-quality nits (Reviewer owns)
-│   ├── bugs.md                  # known bugs in current stack
+│   ├── improvements.md          # quality nits + bugs, Type-tagged (Reviewer curates)
 │   └── archive/                 # Streamlit-era material; reference only
 ├── tickets/                     # active tickets at this level
 │   ├── NNN-slug.md              # ticket spec (PM writes)
@@ -221,7 +285,8 @@ or halted.
 | Architectural consult | Tech Lead | PM flagged a surface |
 | Build | Engineer | Ticket Status is `ready` |
 | QA | Test Engineer | Ticket Status is `qa` |
-| Review | Reviewer | QA verdict APPROVED |
-| Audit | Reviewer | Every 5 tickets, or before an arch-surface ticket |
+| QA + review combined | Test Engineer | Ticket Status is `qa` and `Process: light` |
+| Review | Reviewer | QA verdict APPROVED (full-process tickets) |
+| Audit | Reviewer | `scripts/audit_due.py` reports DUE, or before an arch-surface ticket |
 | Sign-off | PM | All tickets for a feature done |
 | Autonomous loop | Orchestrator | Ticket Status `ready`, no arch surface |

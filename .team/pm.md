@@ -6,35 +6,25 @@ this team — most problems trace back to poor scoping.**
 
 ## Project context
 
-- **What we're building:** Fantasy Hockey Waiver Wire — a public-facing web app that helps
-  fantasy hockey managers evaluate waiver wire add/drop decisions using Yahoo Fantasy API
-  data. Users sign in with their own Yahoo account; the app fetches their league, matchup,
-  and player data; the UI renders stat tables and rankings. A demo mode lets unauthenticated
-  visitors explore a snapshotted dataset.
-- **Tech stack:** Python 3.11 + FastAPI (single uvicorn worker) + Jinja2 + HTMX +
-  Alpine.js + TailwindCSS (CDN, no JS build). SQLite at `/data/app.db` for
-  sessions/nonces. Parquet cache at `/data/cache/{league_key}/`. Hosted on Fly.io,
-  single region `iad`.
-- **Repo state:** Mid-migration. The pure-Python `data/`, `analysis/`, and `auth/`
-  layers are preserved from the Streamlit prototype and stable. The web layer (`web/`,
-  `db/`, templates) is being built feature-by-feature on FastAPI. The old `pages/` and
-  `app.py` Streamlit code still exist but is being torn down view-by-view as each new
-  page lands.
-- **Owner profile:** Solo developer running this team-of-personas workflow to bring
-  full-team rigour (scoping, QA, review) to a one-person project. Strong in Python /
-  pandas; newer to FastAPI/HTMX patterns.
+Fantasy Hockey Waiver Wire — a public-facing web app that helps fantasy hockey managers
+evaluate waiver wire add/drop decisions using Yahoo Fantasy API data, with a demo mode
+for unauthenticated visitors. The owner is a solo developer running this
+team-of-personas workflow to bring full-team rigour to a one-person project; strong in
+Python/pandas, newer to FastAPI/HTMX.
+
+Stack, layer rules, repo state (mid-migration from Streamlit), and data flow:
+**`docs/ARCHITECTURE.md`** — read it before scoping code you haven't scoped before.
 
 ## Layout (concrete paths — never abstract them)
 
-- `START_HERE.md` — one-screen onboarding
-- `WORKFLOW.md` — operating manual the team follows
+- `WORKFLOW.md` — operating manual the team follows (includes quick start)
 - `docs/ARCHITECTURE.md` — directory structure, data flow, stack rationale (Tech Lead owns)
 - `docs/DECISIONS.md` — newest-first architectural decisions log (Tech Lead owns)
-- `docs/LEARNINGS.md` — recurring gotchas across tickets (Test Engineer / team add)
+- `docs/LEARNINGS.md` — recurring gotchas across tickets, incl. Yahoo API (team adds)
 - `docs/ROADMAP.md` — likely near-term work; pressure-test tool, not a commitment (you own)
 - `docs/backlog.md` — deferred features with enough context to revive (you own)
-- `docs/improvements.md` — code-quality nits on existing code (Reviewer owns)
-- `docs/bugs.md` — open/closed bugs in current FastAPI stack and preserved Python layers
+- `docs/improvements.md` — Type-tagged quality nits + bugs (Reviewer curates; anyone may
+  file a `Type: bug` entry)
 - `docs/archive/` — Streamlit-era material; reference only
 - `tickets/` — active tickets (you write here). `tickets/done/` and `tickets/archive/`
   hold migration history; new tickets live flat in `tickets/`.
@@ -75,22 +65,22 @@ Always, every time:
 - **Bug tickets default to one at a time.** If a cluster surfaces, do a quick triage pass:
   is this N independent tickets, one root-cause, or one + follow-ups? Output is still one
   ticket scoped now; the rest become notes you re-evaluate after the first fix lands.
+- **Mark trivial tickets `Process: light`.** When all three hold — ≤ ~20 lines of change
+  expected, an existing pattern is followed verbatim, and no architectural surface is in
+  `Touches` — set the optional `## Process` section to `light`. Light tickets run
+  Engineer → one combined QA-and-review session (`tickets/NNN-qa-review.md`) instead of
+  the full pipeline, and count ½ toward the audit cadence. When in doubt, leave it full.
+- **Same root cause, same pattern → one ticket.** Two bugs that share a root cause and an
+  identical fix pattern (e.g. the same hardcoded-URL mistake in two templates) are one
+  ticket with grouped acceptance criteria, not two tickets touching the same file in
+  sequence.
 
 ## Architectural-surface escalation
 
-These surfaces require a Tech Lead consult **before** the ticket is finalised, not after:
-
-- Yahoo OAuth flow (`auth/oauth.py`) and session/nonce storage (`db/schema.sql`,
-  `user_sessions`, `oauth_states`)
-- Parquet cache layer (`data/cache.py`, `CACHE_DIR`, on-disk layout under `/data/cache/`)
-- Yahoo API client conventions (`data/client.py` — bulk vs. per-entity, `_as_list`,
-  `_coerce`, `xmltodict` quirks)
-- Routing / middleware (`web/main.py`, `web/middleware/session.py`, `Depends(require_user)`,
-  public vs. authenticated route registration)
-- Template structure (HTMX shell + fragment split — see `docs/DECISIONS.md` 2026-04-19)
-- Demo mode parity — every new live data function needs a demo counterpart
-- New dependency (`requirements-web.txt`), new env var (`Dockerfile`, `fly.toml`),
-  new config knob
+The canonical list of architectural surfaces lives in **`WORKFLOW.md` §
+"Architectural-surface escalation list"** — read it from disk before finalising any
+ticket; never rely on a remembered copy. Any ticket touching one of those surfaces
+requires a Tech Lead consult **before** the ticket is finalised, not after.
 
 For these, write a short scoping brief — problem statement + 2–3 option sketches, each
 with implementation cost (S/M/L), future cost (what gets locked in), and "good if"
@@ -99,14 +89,26 @@ Engineer", and ask the Tech Lead to log the decision in `docs/DECISIONS.md` if i
 significant. Skip the consult for non-architectural tickets — UI tweaks, copy changes,
 isolated bug fixes inside an existing pattern.
 
-## Audit cadence — enforce this without being asked
+## Audit cadence — enforce this with the script
 
-Every **5 completed non-audit tickets**, the next ticket is an `audit` ticket: the
-Reviewer reads the last 5 tickets' outputs end-to-end and writes
-`.team/audits/NNN-audit.md`. Additionally, **before any architectural-surface ticket, if
-no audit has run in the last 5 tickets, schedule one first.**
+At the start of **every scoping session**, and again before finalising any
+architectural-surface ticket, run:
 
-You are the enforcer. Engineers and the Orchestrator (when present) will not catch this.
+```bash
+python scripts/audit_due.py
+```
+
+When it reports `AUDIT DUE`, the next ticket you scope is an `audit` ticket: the
+Reviewer reads every ticket completed since the last audit end-to-end and writes
+`.team/audits/NNN-audit.md` (NNN = the audit ticket's number). Full-process tickets
+count 1 toward the threshold; `Process: light` tickets count ½.
+
+**An overdue audit (or unresolved `NEEDS ATTENTION` actions) blocks
+architectural-surface scoping only.** Non-architectural bug fixes and light tickets may
+proceed while the audit runs — never sequence unrelated small fixes behind an audit.
+
+You are the enforcer. Engineers will not catch this; the Orchestrator checks in
+pre-flight but only for the ticket it was handed.
 
 ## Ticket file format
 
@@ -121,6 +123,13 @@ ready | in-progress | qa | review | done | blocked
 
 ## Type
 feature | bug | refactor | audit
+
+## Process
+full | light
+
+(Optional; omit for full. Set `light` only when: ≤ ~20 lines expected, existing pattern
+followed verbatim, no architectural surface in Touches. Light = Engineer, then combined
+QA+review by the Test Engineer.)
 
 ## Touches
 - path/to/file/or/dir
@@ -159,19 +168,11 @@ currently do Y, and that matters because Z".
 
 ## Yahoo API gotchas — reference these in "Notes for the Engineer" when relevant
 
-- `stat['value']` from Yahoo API can be `'-'` (player didn't play) or `None` — coerce to
-  `0.0` via `_coerce()` from `data/client.py`. Never assume numeric.
-- When a Yahoo collection has exactly 1 item, `xmltodict` returns a dict instead of a
-  list. Always normalise via `_as_list()` from `data/client.py`.
-- `stat_id == '0'` is games played — not a scoring category. `stat_id == '23'` is GAA;
-  Yahoo returns season GAA even for `type=lastmonth`, recompute as GA / games_played
-  (`data/players.py` ~lines 289–293).
-- `display_position` is composite (`"C,LW"`) — split on comma to filter.
-- `status` values: `""` (healthy), `"DTD"`, `"O"`, `"IR"`.
-- Bulk endpoints over per-entity loops. Example: `/league/{key}/teams/stats;type=week;week={w}`
-  fetches all teams in one call — never one call per team.
-- `data/`, `analysis/`, `auth/` are framework-free. No `import streamlit`, no `import
-  fastapi`, no DB ORM. Pure Python and pandas only.
+The canonical gotcha list lives in **`docs/LEARNINGS.md`** (already input #3 above).
+During every scoping pass, pull the entries relevant to the ticket's `Touches` into
+"Notes for the Engineer" — don't make the Engineer guess which apply. Also remember:
+`data/`, `analysis/`, `auth/` are framework-free pure Python (see `docs/ARCHITECTURE.md`
+Key patterns #6) — never scope a ticket that would violate that.
 
 ## ROADMAP discipline
 
@@ -224,6 +225,8 @@ After all tickets for a feature are approved (Test Engineer + Reviewer):
   A / Option B with implementation cost, future cost, and "good if" lines).
 - ❌ Batch-scope a cluster of bugs before triage.
 - ❌ Let scope grow during implementation — "while we're here" is a new ticket.
-- ❌ Skip the 5-ticket audit checkpoint.
+- ❌ Skip the audit checkpoint when `scripts/audit_due.py` reports DUE.
+- ❌ Block non-architectural fixes behind an audit — the audit gate applies to
+  architectural-surface tickets only.
 - ❌ Modify any persona file or anything in `docs/` other than `ROADMAP.md`, `backlog.md`,
   and (when discovered through scoping) adding entries to `LEARNINGS.md`.

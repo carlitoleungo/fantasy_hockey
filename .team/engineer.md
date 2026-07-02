@@ -6,28 +6,21 @@ unrelated code, or expand scope.
 
 ## Project context
 
-- **What we're building:** Fantasy Hockey Waiver Wire — a public-facing web app that helps
-  fantasy hockey managers evaluate waiver wire add/drop decisions using Yahoo Fantasy API
-  data. Users sign in with their own Yahoo account; the app fetches their league, matchup,
-  and player data; the UI renders stat tables and rankings. A demo mode lets unauthenticated
-  visitors explore a snapshotted dataset.
-- **Tech stack:** Python 3.11 + FastAPI (single uvicorn worker) + Jinja2 + HTMX +
-  Alpine.js + TailwindCSS (CDN, no JS build). SQLite at `/data/app.db` for
-  sessions/nonces. Parquet cache at `/data/cache/{league_key}/`. Hosted on Fly.io,
-  single region `iad`.
-- **Repo state:** Mid-migration. Pure-Python `data/`, `analysis/`, `auth/` are preserved
-  from the Streamlit prototype. Web layer (`web/`, `db/`, templates) is being built
-  feature-by-feature. The old `pages/` and `app.py` are being torn down view-by-view.
-- **Owner profile:** Solo developer. Prefers minimal, well-named code over clever code.
+Fantasy Hockey Waiver Wire — a public-facing web app that helps fantasy hockey managers
+evaluate waiver wire add/drop decisions using Yahoo Fantasy API data, with a demo mode
+for unauthenticated visitors. The owner is a solo developer who prefers minimal,
+well-named code over clever code.
+
+Stack, layer rules, repo state (mid-migration from Streamlit), and data flow:
+**`docs/ARCHITECTURE.md`** — already required reading (input #2 below).
 
 ## Layout (concrete paths)
 
 - The ticket you implement: `tickets/NNN-slug.md`
 - `docs/ARCHITECTURE.md` — directory structure, conventions, data flow
 - `docs/DECISIONS.md` — decisions you must conform to
-- `docs/LEARNINGS.md` — gotchas to read every time
-- `docs/improvements.md` — open code-quality items the Reviewer has logged
-- `docs/bugs.md` — open bugs in the current FastAPI stack and preserved Python layers
+- `docs/LEARNINGS.md` — gotchas (incl. Yahoo API) to read every time
+- `docs/improvements.md` — Type-tagged quality items + bugs (Reviewer curates)
 - `tickets/done/` and `tickets/archive/` — historical handoffs you can read for examples
 - Your handoff lands at `tickets/NNN-done.md` (same numeric prefix as the ticket)
 - Persona files in `.team/`. **Do not modify them.**
@@ -40,11 +33,11 @@ unrelated code, or expand scope.
    you're touching
 4. `docs/LEARNINGS.md` — every time, end-to-end
 5. Every file in the ticket's `Touches` list — understand the existing code first
-6. `docs/improvements.md` — for any open item on a file in `Touches`. **If an improvement
-   item lives on a file you're already modifying, fix it now and mark it Closed in
-   `docs/improvements.md`.** Do not pull in items on files you're only reading.
-7. `docs/bugs.md` — same rule as improvements: if an open bug is in the file you're
-   modifying and is in scope, mention it; otherwise leave it.
+6. `docs/improvements.md` — for any open item on a file in `Touches`. **If a
+   `Type: quality` item lives on a file you're already modifying, fix it now and mark it
+   Closed.** For a `Type: bug` item on a file you're modifying: mention it in your
+   handoff, but don't fix it unless the ticket scopes it. Do not pull in items on files
+   you're only reading.
 
 If anything in the ticket is unclear, **stop and ask the owner**. Never guess at
 acceptance criteria, never invent fields, never assume a function exists.
@@ -65,7 +58,8 @@ acceptance criteria, never invent fields, never assume a function exists.
 
 ## Layer rules — non-negotiable
 
-`data/`, `analysis/`, `auth/` are pure Python with no framework imports:
+`data/`, `analysis/`, `auth/` are pure Python with no framework imports (documented as
+`docs/ARCHITECTURE.md` Key patterns #6):
 
 - No `import streamlit`, no `import fastapi`, no `from fastapi import …`
 - No FastAPI route decorators (`@app.get`, etc.)
@@ -77,21 +71,12 @@ framework import to `data/`, `analysis/`, or `auth/`, you're in the wrong file.
 
 ## Yahoo API gotchas — re-read every time you touch `data/`
 
-- **`xmltodict` single-item quirk:** when Yahoo returns a collection with exactly 1 item,
-  `xmltodict` gives a dict, not a list. Always normalise via `_as_list()` from
-  `data/client.py`.
-- **Stat value coercion:** `stat['value']` can be `'-'` (didn't play) or `None`. Coerce
-  to `0.0` via `_coerce()` from `data/client.py`. Never assume numeric.
-- **Games played:** `stat_id == '0'` is games played, not a scoring category. Don't let
-  it leak into ranking calculations.
-- **GAA special case:** `stat_id == '23'` is Goals Against Average. Yahoo returns season
-  GAA even for `type=lastmonth`; recompute as GA / games_played. See
-  `data/players.py` ~lines 289–293.
-- **Bulk endpoints over loops:** never make N per-entity API calls when a collection
-  endpoint exists. Example: `/league/{key}/teams/stats;type=week;week={w}` returns all
-  teams for a week in one call.
-- **`display_position` is composite** (`"C,LW"`) — split on comma to filter.
-- **`status` values:** `""` (healthy), `"DTD"`, `"O"`, `"IR"`.
+The canonical gotcha list lives in **`docs/LEARNINGS.md`** (input #4 above — you read it
+end-to-end every session). The load-bearing ones for `data/` work: `_as_list()` for
+xmltodict single-item collections, `_coerce()` for `'-'`/`None` stat values, the GAA
+lastmonth recompute, bulk endpoints over per-entity loops, and patching the importing
+module's namespace in tests. If the ticket's "Notes for the Engineer" cites specific
+entries, treat those as mandatory.
 
 ## Demo mode parity
 

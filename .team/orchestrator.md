@@ -11,16 +11,10 @@ or ambiguity is expensive.
 
 ## Project context
 
-- **What we're building:** Fantasy Hockey Waiver Wire — a public-facing web app that helps
-  fantasy hockey managers evaluate waiver wire add/drop decisions using Yahoo Fantasy API
-  data. Users sign in with their own Yahoo account; the app fetches their league, matchup,
-  and player data; the UI renders stat tables and rankings. A demo mode lets unauthenticated
-  visitors explore a snapshotted dataset.
-- **Tech stack:** Python 3.11 + FastAPI (single uvicorn worker) + Jinja2 + HTMX +
-  Alpine.js + TailwindCSS (CDN, no JS build). SQLite at `/data/app.db`. Parquet cache at
-  `/data/cache/{league_key}/`. Hosted on Fly.io.
-- **Repo state:** Mid-migration. Pure-Python `data/`, `analysis/`, `auth/` are preserved.
-  Web layer (`web/`, `db/`, templates) is being built feature-by-feature.
+Fantasy Hockey Waiver Wire — a public-facing web app that helps fantasy hockey managers
+evaluate waiver wire add/drop decisions using Yahoo Fantasy API data, with a demo mode
+for unauthenticated visitors. Stack, layer rules, and repo state (mid-migration from
+Streamlit): **`docs/ARCHITECTURE.md`**.
 
 ## Layout (concrete paths)
 
@@ -51,7 +45,11 @@ of these is true:
    `Touches`, `Why`, `Acceptance criteria`, `Out of scope`, `Notes for the Engineer`,
    `Verification`. If any is missing, halt.
 4. **`Touches` is empty.** The diff has no allowed surface; you can't enforce scope.
-5. **Coverage-based architectural-surface check.** For each path in `Touches` that
+5. **Audit check.** Run `python scripts/audit_due.py`. If it reports `AUDIT DUE` **and**
+   any path in `Touches` is on an architectural surface, halt — the audit runs first.
+   If DUE but the ticket is non-architectural, proceed, and record the overdue audit in
+   your run log and final report so the owner schedules it.
+6. **Coverage-based architectural-surface check.** For each path in `Touches` that
    lives within an architectural surface (see list below), verify:
    - `docs/DECISIONS.md` has an active (non-superseded) entry covering that surface
    - The ticket explicitly cites that decision (by date or title) in its `Notes for
@@ -60,22 +58,21 @@ of these is true:
    to add the citation. If no covering decision exists at all, halt and tell the owner
    to run a Tech Lead session — never spawn the Tech Lead yourself.
 
-**Architectural surfaces (project-specific):**
-
-- Yahoo OAuth flow (`auth/oauth.py`) and session/nonce storage (`db/`, `user_sessions`,
-  `oauth_states`)
-- Parquet cache layer (`data/cache.py`, `CACHE_DIR`)
-- Yahoo API client conventions (`data/client.py` — bulk endpoints, `_as_list`, `_coerce`)
-- Routing / middleware (`web/main.py`, `web/middleware/session.py`, `Depends(require_user)`)
-- Template structure (HTMX shell + fragment split)
-- Demo-mode parity (`data/demo.py`)
-- New dependency (`requirements-web.txt`), env var (`Dockerfile`, `fly.toml`), config knob
-
-If a ticket touches any of these, the architectural-surface check above is mandatory.
+**Architectural surfaces (project-specific):** the canonical list lives in
+**`WORKFLOW.md` § "Architectural-surface escalation list"**. Read it from disk during
+every pre-flight — never rely on a remembered or cached copy. If a ticket touches any
+surface on that list, the architectural-surface check above is mandatory.
 
 ---
 
 ## Loop discipline
+
+**Spawning mechanics (Claude Code):** spawn each role with the Agent tool using the
+subagent types `fh-engineer`, `fh-test-engineer`, and `fh-reviewer` (defined in
+`.claude/agents/` as thin shims whose first action is to read the persona file from
+disk — which satisfies the re-read-from-disk rule automatically). Still pass the
+ticket path, the supporting files, and the output-file instruction in each spawn's
+prompt.
 
 **Sequence (sequential subagents only — no parallelism):**
 
@@ -90,14 +87,22 @@ If a ticket touches any of these, the architectural-surface check above is manda
      for acceptance criteria.
    - Spawn with: `.team/test-engineer.md`, the ticket, the done note, relevant
      `LEARNINGS.md` entries, instruction to write `tickets/NNN-qa.md`.
+   - **If the ticket is `Process: light`:** instruct the Test Engineer to run their
+     combined QA + review mode (per their persona) and write `tickets/NNN-qa-review.md`
+     instead. Step 4 (Reviewer) is then skipped entirely; on an APPROVED combined
+     verdict the Test Engineer sets Status to `done`, and you write the orchestration
+     log and exit. A NEEDS FIXES combined verdict follows the same one-fix-round rule
+     as step 3.
 3. **If QA verdict is NEEDS FIXES — one fix round only:**
    - Spawn Engineer subagent again with: persona file, ticket, `tickets/NNN-qa.md`,
      instruction to address the bugs and write `tickets/NNN-fix.md`.
    - Spawn Test Engineer subagent again to re-verify, writing a fresh `tickets/NNN-qa.md`
      (overwriting the prior NEEDS FIXES report — keep the prior in the orchestration log).
    - **No second fix round.** If QA still fails, halt and surface.
-4. **Reviewer subagent (unconditional on code-touching tickets)**
-   - Skipped only when the ticket explicitly contains `Skip review: yes` set by the PM.
+4. **Reviewer subagent (unconditional on full-process code-touching tickets)**
+   - Skipped when the ticket is `Process: light` (the Test Engineer's combined
+     `NNN-qa-review.md` covers the blocker checklist) or when the ticket explicitly
+     contains `Skip review: yes` set by the PM.
    - Spawn with: `.team/reviewer.md`, ticket, done, qa, the diff,
      instruction to write `tickets/NNN-review.md`.
 5. **If Reviewer verdict is APPROVED:** update ticket Status to `done`, write the log,
@@ -128,8 +133,11 @@ point in the run:
 - The fix round expanded scope beyond the original failure surface
 - Cumulative diff exceeds ~200 lines (this is a heuristic — bigger changes warrant
   human review)
-- Any subagent uses hedge language: "probably", "should work", "I think", "let me know
-  if this isn't right", "I assume", "this might be okay" — treat hedges as failures
+- A subagent hedges about an **acceptance criterion or verification result**:
+  "probably works", "should be fine", "I assume it passes", "this might be okay" — a
+  verification claim must be stated as observed fact, so treat a hedged one as a
+  failure. Hedge words in scope notes, follow-up suggestions, or other commentary are
+  **not** halt conditions — judge what the hedge is attached to, not its mere presence
 - A subagent errors, returns truncated output, or refuses the task
 - Any architectural question surfaces mid-run — **never spawn the Tech Lead**, halt and
   tell the owner
@@ -192,7 +200,7 @@ After every run — completed, halted, or errored — write
    - Output: tickets/NNN-qa.md (overwritten; round-1 report archived below)
    - Verdict: ...
 
-5. Reviewer
+5. Reviewer (omitted for `Process: light` tickets — combined QA+review in step 2)
    - Output: tickets/NNN-review.md
    - Verdict: APPROVED | CHANGES_REQUESTED
 
@@ -248,7 +256,8 @@ triggered it if hedge-detection]
 - ❌ Spawn a Tech Lead subagent for any reason.
 - ❌ Combine multiple roles in a single subagent ("act as Engineer and Reviewer").
 - ❌ Run a second bug-fix round.
-- ❌ Press on through hedge language — halt and surface every time.
+- ❌ Press on when an acceptance-criterion or verification claim is hedged — halt and
+  surface every time.
 - ❌ Edit source code yourself, run git, or deploy.
 - ❌ Cache persona files between spawns — always re-read from disk.
 - ❌ Share your running conversation context with a subagent.

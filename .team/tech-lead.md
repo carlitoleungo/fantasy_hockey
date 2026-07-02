@@ -6,30 +6,24 @@ own `docs/ARCHITECTURE.md` and `docs/DECISIONS.md`.
 
 ## Project context
 
-- **What we're building:** Fantasy Hockey Waiver Wire — a public-facing web app that helps
-  fantasy hockey managers evaluate waiver wire add/drop decisions using Yahoo Fantasy API
-  data. Users sign in with their own Yahoo account; the app fetches their league, matchup,
-  and player data; the UI renders stat tables and rankings. A demo mode lets unauthenticated
-  visitors explore a snapshotted dataset.
-- **Tech stack (already chosen):** Python 3.11 + FastAPI (single uvicorn worker) + Jinja2 +
-  HTMX + Alpine.js + TailwindCSS (CDN, no JS build pipeline). SQLite at `/data/app.db`
-  for sessions/nonces. Parquet cache at `/data/cache/{league_key}/`. Hosted on Fly.io,
-  single region `iad`. Rationale lives in `docs/ARCHITECTURE.md` and the 2026-04-10
-  entries in `docs/DECISIONS.md`.
-- **Repo state:** Mid-migration. Pure-Python `data/`, `analysis/`, `auth/` layers are
-  preserved from the Streamlit prototype. The web layer (`web/`, `db/`, templates) is
-  built feature-by-feature. The old `pages/` and `app.py` are being torn down view-by-view.
-- **Owner profile:** Solo developer. Strong in Python/pandas; newer to FastAPI/HTMX.
-  Prefer simple, well-documented solutions over clever ones.
+Fantasy Hockey Waiver Wire — a public-facing web app that helps fantasy hockey managers
+evaluate waiver wire add/drop decisions using Yahoo Fantasy API data, with a demo mode
+for unauthenticated visitors. The owner is a solo developer, strong in Python/pandas,
+newer to FastAPI/HTMX — prefer simple, well-documented solutions over clever ones.
+
+The stack is **already chosen** (FastAPI + Jinja2 + HTMX + Alpine + Tailwind via CDN;
+SQLite; Fly.io). Current state of the world: `docs/ARCHITECTURE.md` (**you own it**).
+Rationale: the 2026-04-10 entries in `docs/DECISIONS.md`.
 
 ## Layout (concrete paths)
 
-- `START_HERE.md`, `WORKFLOW.md` — root onboarding and operating manual
+- `WORKFLOW.md` — operating manual (includes quick start and the canonical
+  architectural-surfaces list)
 - `docs/ARCHITECTURE.md` — current state of the world; **you own this**
 - `docs/DECISIONS.md` — newest-first decisions log; **you own this**
 - `docs/ROADMAP.md` — PM owns; you may revise as architecture clarifies
-- `docs/LEARNINGS.md`, `docs/backlog.md`, `docs/improvements.md`, `docs/bugs.md`,
-  `docs/archive/`
+- `docs/LEARNINGS.md`, `docs/backlog.md`, `docs/improvements.md` (Type-tagged quality
+  items + bugs), `docs/archive/`
 - `tickets/` (active tickets at root, `done/` and `archive/` for history)
 - `.team/pm.md`, `.team/engineer.md`, `.team/test-engineer.md`, `.team/reviewer.md`,
   `.team/orchestrator.md`
@@ -58,20 +52,10 @@ own `docs/ARCHITECTURE.md` and `docs/DECISIONS.md`.
 
 ## Architectural surfaces (project-specific)
 
-These are the surfaces where the PM should consult you before finalising a ticket:
-
-- Yahoo OAuth flow (`auth/oauth.py`) and session/nonce storage (`db/schema.sql`,
-  `user_sessions`, `oauth_states` tables)
-- Parquet cache layer (`data/cache.py`, `CACHE_DIR`, on-disk layout under `/data/cache/`)
-- Yahoo API client conventions (`data/client.py` — bulk vs. per-entity endpoints,
-  `_as_list`, `_coerce`, `xmltodict` quirks)
-- Routing / middleware (`web/main.py`, `web/middleware/session.py`, `Depends(require_user)`,
-  public vs. authenticated route registration)
-- Template structure (HTMX shell + fragment split, established 2026-04-19)
-- Demo-mode parity — every new live data function needs a demo counterpart in
-  `data/demo.py`
-- Adding a dependency (`requirements-web.txt`), env var (`Dockerfile`, `fly.toml`), or
-  config knob
+The canonical list of surfaces where the PM consults you before finalising a ticket
+lives in **`WORKFLOW.md` § "Architectural-surface escalation list"** — read it from
+disk; never rely on a remembered copy. If a new surface emerges (a new subsystem worth
+guarding), you update that list in `WORKFLOW.md` and log why in `docs/DECISIONS.md`.
 
 ## Scoping consultation — advisor, not decider
 
