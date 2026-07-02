@@ -95,11 +95,11 @@ fantasy_hockey/
   demo/data/                 # Unchanged
   docs/
     ARCHITECTURE.md          # This file
-    decisions.md             # Historical decisions log
+    DECISIONS.md             # Newest-first decisions log
   requirements.txt           # Existing Streamlit deps (kept for prototype)
   requirements-web.txt       # fastapi uvicorn[standard] jinja2 itsdangerous python-multipart
   Dockerfile                 # python:3.11-slim; installs requirements-web.txt
-  fly.toml                   # port 8000; /data volume mount
+  fly.toml                   # planned, not yet in repo (deployment is a roadmap item); port 8000; /data volume mount
 ```
 
 ## Key patterns
@@ -124,6 +124,12 @@ fantasy_hockey/
 5. **HTMX fragment pattern for filter interactions** — filter controls POST to
    `/api/waiver/players` with `HX-Request: true`; the handler returns a rendered HTML
    `<table>` fragment that HTMX swaps into the DOM. No JSON API needed.
+
+6. **Pure-Python `data/`, `analysis/`, `auth/` layers** — no framework imports (no
+   `import streamlit`, no `import fastapi`), no route decorators, no DB ORM calls (raw
+   `sqlite3` lives in `db/connection.py` only). These modules take inputs and return
+   DataFrames or plain Python dicts; route handlers in `web/` are the only integration
+   point. The Reviewer treats violations as always-blockers.
 
 ## Data flow
 
@@ -171,13 +177,6 @@ Browser → /demo/* route → data/demo.py loads static parquet/JSON → Jinja2 
 
 ## Decisions log
 
-| Date | Decision | Rationale | Alternatives considered |
-|------|----------|-----------|------------------------|
-| 2026-04-10 | FastAPI over Flask or Django as the backend framework | FastAPI's async-native request handling supports concurrent per-user Yahoo OAuth callbacks without threading configuration; automatic OpenAPI docs aid single-engineer maintenance; Pydantic validation integrates cleanly with the existing Python data stack. Flask lacks native async support and requires extra libs (Flask-Login, Blueprints) to reach feature parity. Django's ORM, admin, and templating are heavy for a thin API-proxy app, and its opinionated project layout conflicts with the existing `data/`/`analysis/` module structure | Flask (synchronous by default, OAuth callback handling requires extra libs); Django (high-ceremony ORM + settings overhead; incompatible project layout assumptions) |
-| 2026-04-10 | FastAPI + HTMX + Jinja2; no JS build pipeline | Single-engineer Python team; UI is tables and filters, not a rich SPA; HTMX handles partial-page updates without a JS framework or build step | React + FastAPI (adds build pipeline and a language context switch); Vue (same trade-offs as React at smaller scale) |
-| 2026-04-10 | Responsive web only; PWA deferred | Waiver wire UX (select filters, scan table, pick player) fits a mobile browser without native code; native adds two codebases and app-store friction for marginal UX gain | React Native (rejected); PWA (deferred — manifest.json can be added later without architecture change) |
-| 2026-04-10 | Single uvicorn worker | SQLite is not safe for concurrent writes across multiple processes; a single worker eliminates write-lock contention with no throughput cost at the expected scale (dozens–low hundreds of concurrent users) | Multiple workers with Postgres (adds managed DB cost and ops complexity) |
-| 2026-04-10 | SQLite for session/nonce storage | Zero infrastructure; single file; WAL mode handles concurrent reads; `DELETE … WHERE state = ?` is atomic within one process | Redis (adds a second service to operate); Postgres (adds cost and managed-DB complexity) |
-| 2026-04-10 | Fly.io with persistent volume | Container-based one-command deploys; persistent volume at `/data` solves cache ephemerality without adding an object-storage SDK; North American single-region sufficient for the audience | Railway (similar DX, less mature persistent volume support); AWS ECS (excessive operational overhead for a single engineer) |
-| 2026-04-10 | Parquet cache stays on local disk (`/data/cache/`) | `data/cache.py` requires zero changes; `CACHE_DIR` env var redirects the path; the persistent volume makes disk storage durable | S3 / Cloudflare R2 (would require modifying `cache.py` and adding an SDK dependency) |
-| 2026-04-10 | Server-side session: tokens in DB, session_id in cookie | Long-lived OAuth tokens are sensitive credentials; keeping them in the DB limits exposure if a cookie is stolen or leaked | Signed cookie with tokens embedded (simpler, but tokens leave the server) |
+All architecture and stack decisions live in [`docs/DECISIONS.md`](DECISIONS.md)
+(newest-first). The original stack selection is recorded there as the 2026-04-10
+entries.

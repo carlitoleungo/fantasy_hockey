@@ -1,6 +1,7 @@
 # Key Decisions Log
 
-Historical implementation decisions. Read this file when you need context on *why* something was done a particular way.
+Historical implementation decisions, **newest first**. Read this file when you need
+context on *why* something was done a particular way.
 
 > **Scope:** This file covers decisions that apply to the current FastAPI stack and the preserved data/analysis/auth layers. For decisions specific to the Streamlit prototype (session state patterns, Streamlit page structure, Streamlit token storage), see [`docs/archive/prototype-decisions.md`](archive/prototype-decisions.md).
 
@@ -124,6 +125,183 @@ point whether `optional_user` is still the right fit or whether a more granular 
 
 ---
 
+### Feature pages: HTMX fragment pattern with shell + fragment template split (2026-05-30)
+
+Supersedes the 2026-04-19 entry of the same title. Two changes: (1) corrects a factual error — the 2026-04-19 entry read "015 (head-to-head)" but ticket 015 is the leaderboard and ticket 016 is head-to-head; (2) adds the missing `Revisit if` clause.
+
+**Question / context:** Per scoping brief `013` Decision 1, each feature page needs a strategy for handling filter-driven data updates without a full page reload.
+
+**Options considered:**
+- **A (full-page re-render):** Filter POST returns a full HTML response. Simple, no partial-swap complexity. Unacceptable for waiver wire's per-(position, stat) lazy-loading, which inherently requires fragment fetches.
+- **B (HTMX fragment, chosen):** Each page is split into a full-page shell (`index.html`) plus one or more `_fragment.html` templates returned by dedicated fragment route handlers. Filter controls use `hx-get` / `hx-post` + `hx-target` to swap only the fragment.
+- **C (Alpine.js client-side filtering):** Preload all data; filter in the browser. The hybrid "is this filter client or server?" mental model adds cognitive overhead, and the waiver wire player pool is too large to preload.
+
+**Decision:** Option B — HTMX fragment pattern. Ticket 014 establishes the convention; ticket 015 (leaderboard) and ticket 016 (head-to-head) inherit it. All future feature pages follow the same shell + fragment split.
+
+**Why:** Waiver wire lazy-loading makes fragment fetches unavoidable; extending the same pattern to all feature pages keeps the mental model consistent and avoids a hybrid approach. Matches ARCHITECTURE.md Key patterns #5.
+
+**Revisit if:** A future feature page requires rich client-side interactivity beyond filter swaps (e.g. drag-and-drop, live editing) where an Alpine.js component is more natural than an HTMX round-trip; or the number of fragment endpoints per page grows large enough that a lightweight JSON API plus client-side rendering becomes simpler to maintain.
+
+---
+
+### Feature pages: HTMX fragment pattern with shell + fragment template split (2026-04-19)
+
+Per scoping brief `013` Decision 1. Each feature page is split into `web/templates/<feature>/index.html` (full-page shell: layout, filter controls, initial state) plus one or more fragment templates (e.g. `_table.html`) returned by separate route handlers. Filter controls use `hx-get` / `hx-post` with `hx-target` to swap only the fragment — not the whole page. Chosen over full-page re-render (Option A) because waiver wire's per-(position, stat) lazy-loading requires fragment fetches anyway, and over Alpine-side filtering (Option C) because the hybrid "is this filter client or server?" mental model is not worth the perceived-UX gain and waiver wire's player pool is too large to preload. This also matches ARCHITECTURE.md Key patterns #5. Ticket 014 is the first page to establish the convention; 015 (head-to-head) and the waiver wire ticket inherit it. *(Superseded 2026-05-30 — factual error corrected and `Revisit if` added; see entry above.)*
+
+### Feature pages: rank → Tailwind class mapping lives in templates, not analysis (2026-04-19)
+
+Per scoping brief `013` Decision 2. `analysis/team_scores.avg_ranks()` continues to return integer ranks (1..N). A Jinja filter or macro — added in ticket 014 alongside the first page that needs it — maps `(rank, team_count) → Tailwind class` (best rank → `bg-green-100`, worst rank → `bg-red-100`, otherwise no background). Chosen over server-computed class strings (Option A) to preserve the ARCHITECTURE.md invariant that `analysis/` has no framework or styling dependencies, and over client-side Alpine styling (Option C) because shipping raw ranks only to re-derive min/max in JS duplicates information already computed server-side. Team count is `len(rows)` at render time, so the template has everything it needs.
+
+### League context: session-state propagation retained; path-based URLs deferred (2026-04-19)
+
+Per scoping brief `013` Decision 3. Kept the existing `user_sessions.league_key` session-state approach (ticket 011). Feature routes stay bare (`/overview`, `/waiver`, `/projection`) and look up the selected league from the session row via the `require_user` dependency. Rejected path-based URLs (`/leagues/{key}/overview`, Option A) for now because (a) the project is explicitly single-user local use per CLAUDE.md "Out of scope," making multi-tab and URL-sharing speculative future needs, and (b) ticket 011 already built the session-state plumbing, so Option A would cost a preceding refactor ticket before ticket 014 can proceed. **Revisit trigger:** when multi-user public deployment is scoped (alongside per-user cache storage, already on the roadmap), re-evaluate — bookmarkable league URLs and multi-tab become more valuable in a shared deployment. Not chosen: Option C (query-string + session fallback) — hybrid sources of truth are worse than either pure approach.
+
+### Nav shell: minimal league label + logout in base.html; feature links added per ticket (2026-04-19)
+
+Per scoping brief `013` Decision 4. Ticket 014 adds a minimal header to `web/templates/base.html` showing the selected league name (linking back to `/` for league switching) and a logout link. Feature-page links (Overview, Waiver, Projection) are added to the header as each page lands, not up front. Chosen over building the full nav now (Option A) because designing links for pages that don't exist risks drift, and over deferring nav entirely (Option B) because every subsequent ticket would have to retrofit the shared header. Convention for adding feature links: each feature page ticket appends its own nav entry in the same block; ordering matches the roadmap order (Overview → Waiver → Projection).
+
+---
+
+### Stack: FastAPI over Flask or Django as the backend framework (2026-04-10)
+
+**Question / context:** Choosing the backend framework for the public rebuild of the Streamlit prototype.
+
+**Options considered:**
+- **Flask:** Synchronous by default; OAuth callback handling and sessions require extra libraries (Flask-Login, Blueprints) to reach feature parity.
+- **Django:** ORM, admin, and templating are heavy for a thin API-proxy app; its opinionated project layout conflicts with the existing `data/`/`analysis/` module structure.
+- **FastAPI (chosen).**
+
+**Decision:** FastAPI.
+
+**Why:** Async-native request handling supports concurrent per-user Yahoo OAuth callbacks without threading configuration; automatic OpenAPI docs aid single-engineer maintenance; Pydantic validation integrates cleanly with the existing Python data stack.
+
+**Revisit if:** The app grows needs FastAPI serves poorly (e.g. a heavy admin/CMS surface where Django's batteries pay off), or a framework change is already forced by an infrastructure migration.
+
+### Stack: FastAPI + HTMX + Jinja2; no JS build pipeline (2026-04-10)
+
+**Question / context:** Choosing the frontend approach for a single-engineer Python team building a UI that is tables and filters, not a rich SPA.
+
+**Options considered:**
+- **React + FastAPI:** Adds a build pipeline and a language context switch.
+- **Vue:** Same trade-offs as React at smaller scale.
+- **Server-rendered Jinja2 + HTMX (chosen).**
+
+**Decision:** Jinja2 templates + HTMX (+ Alpine.js and TailwindCSS via CDN); no JS build pipeline.
+
+**Why:** HTMX handles partial-page updates without a JS framework or build step; the whole UI stays in Python-adjacent territory the owner can maintain alone.
+
+**Revisit if:** The UI grows rich client-side interactivity (drag-and-drop, live editing, offline state) that HTMX round-trips can't express cleanly — see also the 2026-05-30 HTMX fragment entry's revisit clause.
+
+### Platform: responsive web only; PWA deferred (2026-04-10)
+
+**Question / context:** Whether mobile use requires a native app or PWA.
+
+**Options considered:**
+- **React Native:** Rejected — two codebases and app-store friction for marginal UX gain.
+- **PWA:** Deferred — a `manifest.json` can be added later without architecture change.
+- **Responsive web (chosen).**
+
+**Decision:** Responsive web only.
+
+**Why:** The waiver wire UX (select filters, scan table, pick player) fits a mobile browser without native code.
+
+**Revisit if:** Users ask for offline access or home-screen install — the PWA path is additive and cheap at that point.
+
+### Runtime: single uvicorn worker (2026-04-10)
+
+**Question / context:** How many worker processes to run given SQLite as the session store.
+
+**Options considered:**
+- **Multiple workers with Postgres:** Adds managed-DB cost and ops complexity.
+- **Single uvicorn worker (chosen).**
+
+**Decision:** Single uvicorn worker.
+
+**Why:** SQLite is not safe for concurrent writes across multiple processes; a single worker eliminates write-lock contention with no throughput cost at the expected scale (dozens–low hundreds of concurrent users).
+
+**Revisit if:** Sustained concurrency outgrows one worker — any move to multiple workers must be scoped together with a Postgres (or equivalent) migration, never independently.
+
+### Storage: SQLite for session/nonce storage (2026-04-10)
+
+**Question / context:** Where to store OAuth session tokens and CSRF nonces.
+
+**Options considered:**
+- **Redis:** Adds a second service to operate.
+- **Postgres:** Adds cost and managed-DB complexity.
+- **SQLite (chosen).**
+
+**Decision:** SQLite at `/data/app.db` (tables `oauth_states`, `user_sessions`).
+
+**Why:** Zero infrastructure; single file; WAL mode handles concurrent reads; `DELETE … WHERE state = ?` is atomic within one process.
+
+**Revisit if:** The deployment moves to multiple processes or machines (shared write access breaks the single-worker assumption above).
+
+### Deployment: Fly.io with persistent volume (2026-04-10)
+
+**Question / context:** Choosing a hosting platform for the public app.
+
+**Options considered:**
+- **Railway:** Similar DX, less mature persistent-volume support.
+- **AWS ECS:** Excessive operational overhead for a single engineer.
+- **Fly.io (chosen).**
+
+**Decision:** Fly.io, single region (`iad`), 1 container + 1 persistent volume at `/data`.
+
+**Why:** Container-based one-command deploys; the persistent volume solves cache ephemerality without adding an object-storage SDK; North American single-region is sufficient for the audience.
+
+**Revisit if:** Fly.io pricing/free-tier changes materially, or the audience grows to need multi-region.
+
+### Cache: parquet cache stays on local disk (`/data/cache/`) (2026-04-10)
+
+**Question / context:** Whether the prototype's parquet cache layer needs a new storage backend for the deployed app.
+
+**Options considered:**
+- **S3 / Cloudflare R2:** Would require modifying `cache.py` and adding an SDK dependency.
+- **Local disk on the persistent volume (chosen).**
+
+**Decision:** `data/cache.py` unchanged; `CACHE_DIR` env var points at `/data/cache/` on the Fly.io volume.
+
+**Why:** Zero code changes to a stable module; the persistent volume makes disk storage durable across deploys.
+
+**Revisit if:** Per-user cache storage is scoped for shared deployment (already on the roadmap) — the keying scheme changes then, and object storage should be re-evaluated at the same time.
+
+### Auth: server-side session — tokens in DB, session_id in cookie (2026-04-10)
+
+**Question / context:** Where OAuth tokens live between requests.
+
+**Options considered:**
+- **Signed cookie with tokens embedded:** Simpler, but tokens leave the server on every request.
+- **Server-side session (chosen).**
+
+**Decision:** Tokens stored in the `user_sessions` table; the browser holds only an opaque `session_id` cookie (`HttpOnly; Secure; SameSite=Lax`).
+
+**Why:** Long-lived OAuth tokens are sensitive credentials; keeping them in the DB limits exposure if a cookie is stolen or leaked.
+
+**Revisit if:** Horizontal scaling requires a shared session store (see the SQLite entry's revisit clause) — the cookie contract can stay the same while the backing store changes.
+
+---
+
+### client.py: bulk teams/stats endpoint replaces per-team fetching (2026-03-23)
+`get_all_teams_week_stats()` uses `/league/{key}/teams/stats;type=week;week={w}` to fetch every team's stats for a week in a single API call. This replaces the previous pattern of calling `get_team_week_stats()` once per team per week. For a 12-team league over 20 weeks, this reduces API calls from ~240 to ~20 (plus setup calls). `matchups.py` now uses this bulk endpoint exclusively. The per-team `get_team_week_stats()` is retained in `client.py` for cases where only one team's stats are needed.
+
+### client.py: _coerce() handles None values, not just '-' (2026-03-23)
+The Yahoo API can return `None` for stat values (not just the string `'-'`). `_coerce()` and the `games_played` handler now treat `None` identically to `'-'` — coerced to 0. This fixes the `float() argument must be a string or a real number, not 'NoneType'` error.
+
+### players.py: type=lastmonth is the correct param for last-30-day player stats (2026-03-23)
+Confirmed via validate_api.py against a live league. `date=lastmonth` and `week=lastmonth` both return season totals. `out=stats` on the league players collection endpoint also always returns season totals regardless of `sort_type`. Only `/player/{key}/stats;type=lastmonth` (and the batch form `/players;player_keys={keys}/stats;type=lastmonth`) returns the last 30 days.
+
+### players.py: two API calls per page of 25 players (2026-03-23)
+`get_available_players()` uses a two-call-per-page pattern:
+1. `/leagues;league_keys={key}/players;status=A;sort=OR;sort_type=season;out=stats;start={n};count=25` — player list with season stats inline and player keys
+2. `/players;player_keys={keys}/stats;type=lastmonth` — batch lastmonth stats for those same keys
+
+This gives both stat periods in 2 API calls per page (8 total for 100 players) instead of 1+N. The batch lastmonth call returns `{player_key: stats}` only — no metadata — so metadata is taken from the season response and re-attached by the caller.
+
+### players.py: imports private helpers from data/client.py (2026-03-23)
+`data/players.py` imports `_get`, `_as_list`, `_coerce`, and `BASE_URL` directly from `data/client.py`. These are intentionally shared across the data layer. The same patch-target rule applies: tests for `players.py` must patch `data.players._get`, not `data.client._get`.
+
+---
+
 ### Auth: yahoo_oauth not used for the OAuth flow (2026-03-03)
 `yahoo_oauth`'s `OAuth2` class assumes interactive terminal input — it opens a browser and waits for the user to paste an authorisation code. The app uses a redirect-based callback: Yahoo sends the user back to the redirect URI with `?code=...`. These are incompatible. The auth flow is implemented directly with `requests` instead. The core pattern (check validity → refresh if needed → return authenticated session) is preserved in `auth/oauth.py`.
 
@@ -162,54 +340,6 @@ When two teams score identically on a stat in the same week, both receive the lo
 
 ### team_scores.py: LOWER_IS_BETTER covers both full name and abbreviation (2026-03-03)
 Yahoo stat column names in the matchups DataFrame are the full `stat_name` strings returned by the API (e.g. "Goals Against Average"), not abbreviations. `LOWER_IS_BETTER` includes both the full names and common abbreviations ("GA", "GAA") for defensive breadth. If a league uses non-standard stat names, callers can pass an explicit `lower_is_better` set to `avg_ranks()`.
-
-### client.py: bulk teams/stats endpoint replaces per-team fetching (2026-03-23)
-`get_all_teams_week_stats()` uses `/league/{key}/teams/stats;type=week;week={w}` to fetch every team's stats for a week in a single API call. This replaces the previous pattern of calling `get_team_week_stats()` once per team per week. For a 12-team league over 20 weeks, this reduces API calls from ~240 to ~20 (plus setup calls). `matchups.py` now uses this bulk endpoint exclusively. The per-team `get_team_week_stats()` is retained in `client.py` for cases where only one team's stats are needed.
-
-### client.py: _coerce() handles None values, not just '-' (2026-03-23)
-The Yahoo API can return `None` for stat values (not just the string `'-'`). `_coerce()` and the `games_played` handler now treat `None` identically to `'-'` — coerced to 0. This fixes the `float() argument must be a string or a real number, not 'NoneType'` error.
-
-### players.py: type=lastmonth is the correct param for last-30-day player stats (2026-03-23)
-Confirmed via validate_api.py against a live league. `date=lastmonth` and `week=lastmonth` both return season totals. `out=stats` on the league players collection endpoint also always returns season totals regardless of `sort_type`. Only `/player/{key}/stats;type=lastmonth` (and the batch form `/players;player_keys={keys}/stats;type=lastmonth`) returns the last 30 days.
-
-### players.py: two API calls per page of 25 players (2026-03-23)
-`get_available_players()` uses a two-call-per-page pattern:
-1. `/leagues;league_keys={key}/players;status=A;sort=OR;sort_type=season;out=stats;start={n};count=25` — player list with season stats inline and player keys
-2. `/players;player_keys={keys}/stats;type=lastmonth` — batch lastmonth stats for those same keys
-
-This gives both stat periods in 2 API calls per page (8 total for 100 players) instead of 1+N. The batch lastmonth call returns `{player_key: stats}` only — no metadata — so metadata is taken from the season response and re-attached by the caller.
-
-### players.py: imports private helpers from data/client.py (2026-03-23)
-`data/players.py` imports `_get`, `_as_list`, `_coerce`, and `BASE_URL` directly from `data/client.py`. These are intentionally shared across the data layer. The same patch-target rule applies: tests for `players.py` must patch `data.players._get`, not `data.client._get`.
-
-### Feature pages: HTMX fragment pattern with shell + fragment template split (2026-05-30)
-
-Supersedes the 2026-04-19 entry of the same title. Two changes: (1) corrects a factual error — the 2026-04-19 entry read "015 (head-to-head)" but ticket 015 is the leaderboard and ticket 016 is head-to-head; (2) adds the missing `Revisit if` clause.
-
-**Question / context:** Per scoping brief `013` Decision 1, each feature page needs a strategy for handling filter-driven data updates without a full page reload.
-
-**Options considered:**
-- **A (full-page re-render):** Filter POST returns a full HTML response. Simple, no partial-swap complexity. Unacceptable for waiver wire's per-(position, stat) lazy-loading, which inherently requires fragment fetches.
-- **B (HTMX fragment, chosen):** Each page is split into a full-page shell (`index.html`) plus one or more `_fragment.html` templates returned by dedicated fragment route handlers. Filter controls use `hx-get` / `hx-post` + `hx-target` to swap only the fragment.
-- **C (Alpine.js client-side filtering):** Preload all data; filter in the browser. The hybrid "is this filter client or server?" mental model adds cognitive overhead, and the waiver wire player pool is too large to preload.
-
-**Decision:** Option B — HTMX fragment pattern. Ticket 014 establishes the convention; ticket 015 (leaderboard) and ticket 016 (head-to-head) inherit it. All future feature pages follow the same shell + fragment split.
-
-**Why:** Waiver wire lazy-loading makes fragment fetches unavoidable; extending the same pattern to all feature pages keeps the mental model consistent and avoids a hybrid approach. Matches ARCHITECTURE.md Key patterns #5.
-
-**Revisit if:** A future feature page requires rich client-side interactivity beyond filter swaps (e.g. drag-and-drop, live editing) where an Alpine.js component is more natural than an HTMX round-trip; or the number of fragment endpoints per page grows large enough that a lightweight JSON API plus client-side rendering becomes simpler to maintain.
-
-### Feature pages: HTMX fragment pattern with shell + fragment template split (2026-04-19)
-Per scoping brief `013` Decision 1. Each feature page is split into `web/templates/<feature>/index.html` (full-page shell: layout, filter controls, initial state) plus one or more fragment templates (e.g. `_table.html`) returned by separate route handlers. Filter controls use `hx-get` / `hx-post` with `hx-target` to swap only the fragment — not the whole page. Chosen over full-page re-render (Option A) because waiver wire's per-(position, stat) lazy-loading requires fragment fetches anyway, and over Alpine-side filtering (Option C) because the hybrid "is this filter client or server?" mental model is not worth the perceived-UX gain and waiver wire's player pool is too large to preload. This also matches ARCHITECTURE.md Key patterns #5. Ticket 014 is the first page to establish the convention; 015 (head-to-head) and the waiver wire ticket inherit it. *(Superseded 2026-05-30 — factual error corrected and `Revisit if` added; see entry above.)*
-
-### Feature pages: rank → Tailwind class mapping lives in templates, not analysis (2026-04-19)
-Per scoping brief `013` Decision 2. `analysis/team_scores.avg_ranks()` continues to return integer ranks (1..N). A Jinja filter or macro — added in ticket 014 alongside the first page that needs it — maps `(rank, team_count) → Tailwind class` (best rank → `bg-green-100`, worst rank → `bg-red-100`, otherwise no background). Chosen over server-computed class strings (Option A) to preserve the ARCHITECTURE.md invariant that `analysis/` has no framework or styling dependencies, and over client-side Alpine styling (Option C) because shipping raw ranks only to re-derive min/max in JS duplicates information already computed server-side. Team count is `len(rows)` at render time, so the template has everything it needs.
-
-### League context: session-state propagation retained; path-based URLs deferred (2026-04-19)
-Per scoping brief `013` Decision 3. Kept the existing `user_sessions.league_key` session-state approach (ticket 011). Feature routes stay bare (`/overview`, `/waiver`, `/projection`) and look up the selected league from the session row via the `require_user` dependency. Rejected path-based URLs (`/leagues/{key}/overview`, Option A) for now because (a) the project is explicitly single-user local use per CLAUDE.md "Out of scope," making multi-tab and URL-sharing speculative future needs, and (b) ticket 011 already built the session-state plumbing, so Option A would cost a preceding refactor ticket before ticket 014 can proceed. **Revisit trigger:** when multi-user public deployment is scoped (alongside per-user cache storage, already on the roadmap), re-evaluate — bookmarkable league URLs and multi-tab become more valuable in a shared deployment. Not chosen: Option C (query-string + session fallback) — hybrid sources of truth are worse than either pure approach.
-
-### Nav shell: minimal league label + logout in base.html; feature links added per ticket (2026-04-19)
-Per scoping brief `013` Decision 4. Ticket 014 adds a minimal header to `web/templates/base.html` showing the selected league name (linking back to `/` for league switching) and a logout link. Feature-page links (Overview, Waiver, Projection) are added to the header as each page lands, not up front. Chosen over building the full nav now (Option A) because designing links for pages that don't exist risks drift, and over deferring nav entirely (Option B) because every subsequent ticket would have to retrofit the shared header. Convention for adding feature links: each feature page ticket appends its own nav entry in the same block; ordering matches the roadmap order (Overview → Waiver → Projection).
 
 ### Notebook dead ends: do not port (2026-03-03)
 The following notebook sections are explicitly marked dead ends or are broken and should not be ported without explicit confirmation:
