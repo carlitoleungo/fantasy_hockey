@@ -25,7 +25,12 @@ and become a wishlist — prune.
    can find dual-eligible players (e.g. C + LW). UI-layer only: the per-position player
    pool cache is already keyed by position, so this is a route + template change (loop
    the fetch over selected positions, union the pools). Demo parity included.
-3. **Demo mode snapshot tooling** — `data/demo.py` snapshot generation script and fixture
+3. **Week Projection roster-breakdown readability** — scoped into ticket **034**
+   (2026-07-03). Presentation-only cleanup of the `_matchup.html` roster breakdown:
+   separate goalie stats from skater stats, abbreviate column headers (Yahoo
+   `abbreviation`) and player names to reduce horizontal scroll. Depends on 031 (demo
+   parity) so the change lands consistently on both the authenticated and demo renders.
+4. **Demo mode snapshot tooling** — `data/demo.py` snapshot generation script and fixture
    data refresh. The current demo dataset is static; this ticket produces tooling to regenerate
    it from a live season so the public demo URL serves current-looking numbers.
 
@@ -46,7 +51,8 @@ and become a wishlist — prune.
 
 ---
 
-_Last updated: 2026-07-03 (added off-season past-week dev/test spike 033 to Watching).
+_Last updated: 2026-07-03 (scoped Week Projection roster-breakdown readability into
+ticket 034; added off-season past-week dev/test spike 033 to Watching).
 Prior: 2026-07-02 (Waiver multi-position filter scoped into ticket 032; week projection
 migration scoped into tickets 028–031; shipped 025/027 removed). The PM maintains this
 file during scoping and product reviews._
