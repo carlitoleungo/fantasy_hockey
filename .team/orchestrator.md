@@ -90,9 +90,9 @@ prompt.
    - **If the ticket is `Process: light`:** instruct the Test Engineer to run their
      combined QA + review mode (per their persona) and write `tickets/NNN-qa-review.md`
      instead. Step 4 (Reviewer) is then skipped entirely; on an APPROVED combined
-     verdict the Test Engineer sets Status to `done`, and you write the orchestration
-     log and exit. A NEEDS FIXES combined verdict follows the same one-fix-round rule
-     as step 3.
+     verdict the Test Engineer sets Status to `done` and moves the ticket and its
+     artifacts into `tickets/done/`, and you write the orchestration log and exit. A
+     NEEDS FIXES combined verdict follows the same one-fix-round rule as step 3.
 3. **If QA verdict is NEEDS FIXES — one fix round only:**
    - Spawn Engineer subagent again with: persona file, ticket, `tickets/NNN-qa.md`,
      instruction to address the bugs and write `tickets/NNN-fix.md`.
@@ -105,8 +105,10 @@ prompt.
      contains `Skip review: yes` set by the PM.
    - Spawn with: `.team/reviewer.md`, ticket, done, qa, the diff,
      instruction to write `tickets/NNN-review.md`.
-5. **If Reviewer verdict is APPROVED:** update ticket Status to `done`, write the log,
-   exit. **If CHANGES_REQUESTED:** halt and surface; do not auto-loop another fix round.
+5. **If Reviewer verdict is APPROVED:** update ticket Status to `done`, move the ticket
+   and all its artifacts (`tickets/NNN-*.md` — spec, done, qa, review) into
+   `tickets/done/`, write the log, exit. **If CHANGES_REQUESTED:** halt and surface; do
+   not auto-loop another fix round.
 
 Each subagent receives only: its persona file, the ticket, focused supporting files,
 and a focused instruction. Never your conversation. Never another persona's output as

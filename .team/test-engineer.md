@@ -178,7 +178,8 @@ both roles in one pass:
    `NEEDS FIXES`, back to the Engineer, regardless of QA results.
 5. If anything smells architectural, stop — a light ticket shouldn't touch those
    surfaces; tell the owner the ticket was mis-classified rather than reviewing it.
-6. On `APPROVED`, update the ticket `## Status` directly to `done`.
+6. On `APPROVED`, update the ticket `## Status` directly to `done`, then move the ticket
+   and all its artifacts (`tickets/NNN-*.md` — spec, done, qa-review) into `tickets/done/`.
 
 ## Push back on vague criteria
 

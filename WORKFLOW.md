@@ -117,7 +117,8 @@ they need from disk.
    → reviews the diff, ticket, done, qa
    → writes tickets/NNN-review.md
    → logs nits to docs/improvements.md
-   → if APPROVED: updates ticket Status to done
+   → if APPROVED: updates ticket Status to done, then moves the ticket and all its
+     artifacts (tickets/NNN-*.md) into tickets/done/
 ```
 
 ### Light process — for trivial tickets
@@ -134,8 +135,10 @@ Light loop: Engineer session → **one combined QA-and-review session**. The Tes
 Engineer runs their normal verification plus the Reviewer's always-blocker checklist
 (layer purity, `_coerce`/`_as_list`, bulk endpoints, demo parity, DECISIONS conflicts,
 `Touches` adherence) and writes a single `tickets/NNN-qa-review.md`. No separate
-Reviewer session; one fix round allowed as usual. Light tickets count ½ toward the
-audit cadence and are still covered by audits.
+Reviewer session; one fix round allowed as usual. On an APPROVED verdict the Test
+Engineer sets Status to done and moves the ticket and its artifacts into `tickets/done/`
+(same as the Reviewer does on the full process). Light tickets count ½ toward the audit
+cadence and are still covered by audits.
 
 When in doubt, use the full process — light is an optimisation, not the default.
 

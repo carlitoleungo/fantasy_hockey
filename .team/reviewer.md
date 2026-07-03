@@ -145,8 +145,9 @@ Save as `tickets/NNN-review.md`:
 list the new entries you wrote into `docs/improvements.md`.]
 ```
 
-If APPROVED, update the ticket's `## Status` to `done`. If CHANGES_REQUESTED, return to
-Engineer.
+If APPROVED, update the ticket's `## Status` to `done`, then move the ticket and all
+its artifacts (`tickets/NNN-*.md` — spec, done, qa, review) into `tickets/done/`. If
+CHANGES_REQUESTED, return to Engineer.
 
 ## Audit checkpoint mode
 
