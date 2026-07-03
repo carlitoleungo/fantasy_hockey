@@ -54,6 +54,21 @@ Data modules import helpers by name (`from data.client import _get`), which bind
 name in the importing module. Patching `data.client._get` has no effect on them — patch
 `data.players._get`, `data.leagues._get`, etc. (See DECISIONS.md 2026-03-03 entry.)
 
+### Off-season → no live data; week-keyed feature pages only show empty states
+
+We develop during the NHL off-season, so live Yahoo data for week-keyed features is
+empty or stale: matchups, weekly scoreboards, `type=lastmonth` player rates, and
+`schedule.get_remaining_games` (which counts games from today forward) all return
+nothing meaningful. The app fetches **live snapshots by default** (`current_week` is read
+live from `league["current_week"]` — `data/client.py:145`; available waiver players are
+never cached and always fetched live). Consequence: an authenticated live visual test or
+QA pass of any week-keyed page (Week Projection 029/030, matchups) can only exercise the
+empty/placeholder state — it cannot validate real compute against live data. **Demo mode
+(`data/demo.py`, snapshotted at `snapshot_week`) is the current answer for a *visual*
+check**, but it does not exercise the authenticated live-fetch code paths in
+`client.py` / `cache.py`. Testing those against a *specific past week* is unsolved and
+being explored — see the scoping brief `tickets/033-dev-past-week-testing-spike.md`.
+
 ---
 
 [Test Engineer and team members add entries here as they're discovered]

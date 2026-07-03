@@ -31,6 +31,12 @@ and become a wishlist — prune.
 
 ## Watching (maybe, not soon)
 
+- **Off-season dev/test against a past week** — feasibility spike, scoped as scoping brief
+  **033** (2026-07-03). During the off-season the live-snapshot-by-default design leaves
+  week-keyed pages (Week Projection, matchups) showing only empty states, so authenticated
+  live-fetch paths can't be QA'd with real data. The spike explores a `week` override, a
+  seeded parquet snapshot, or reusing the demo fixture — **needs a Tech Lead consult before
+  it becomes a real ticket** (touches `data/cache.py` and `data/client.py` conventions).
 - **Per-user cache storage migration** — required before any shared deployment; see the
   `docs/backlog.md` entry for full context.
 - **Deployment configuration** — blocked on feature pages being migrated first; see the
@@ -40,6 +46,7 @@ and become a wishlist — prune.
 
 ---
 
-_Last updated: 2026-07-02 (Waiver multi-position filter scoped into ticket 032; week
-projection migration scoped into tickets 028–031; shipped 025/027 removed). The PM
-maintains this file during scoping and product reviews._
+_Last updated: 2026-07-03 (added off-season past-week dev/test spike 033 to Watching).
+Prior: 2026-07-02 (Waiver multi-position filter scoped into ticket 032; week projection
+migration scoped into tickets 028–031; shipped 025/027 removed). The PM maintains this
+file during scoping and product reviews._
