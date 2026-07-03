@@ -144,9 +144,21 @@ Write `tickets/NNN-done.md`:
 **Scope notes:**
 - [Anything outside the ticket scope you noticed — should become a new ticket]
 
+**Improvements items closed:**
+- [If this ticket was scoped from a `docs/improvements.md` item (the ticket's Why or
+  Notes cites it as the item it resolves), the item you moved to `## Closed` with a
+  ticket-NNN resolution note — or "none" if this ticket wasn't scoped from one]
+
 **Known limitations / things I couldn't fully test:**
 - [Honest list — visual edge cases, browser-only checks, etc.]
 ```
+
+**Before you update Status to `qa`:** if this ticket was scoped from a
+`docs/improvements.md` item — i.e. the ticket cites an improvements entry as the thing it
+resolves — move that entry to `## Closed` with a one-line ticket-NNN resolution note. This
+is distinct from input #6 (close `quality` items on files you *touched*): a scoped-from
+item must be closed even if it lives on a file outside your `Touches`. A resolved item
+left under `## Open` is the recurring gap audits 024 and 032 flagged.
 
 Then update the ticket's `## Status` line to `qa`.
 
@@ -175,6 +187,8 @@ QA will return your ticket without writing a QA report if AC test coverage is mi
 - ❌ Write a per-entity Yahoo API loop without checking for a bulk endpoint.
 - ❌ Use `stat['value']` without `_coerce()`. Use a Yahoo array without `_as_list()`.
 - ❌ Add a new live data function and forget to flag the missing demo counterpart.
+- ❌ Hand off a ticket that was scoped from a `docs/improvements.md` item without moving
+  that item to `## Closed` with a resolution note.
 - ❌ Hedge in your handoff ("probably works", "should be fine", "let me know if I missed
   anything") — that's a halt signal to the Orchestrator. State what you verified and
   what you couldn't.

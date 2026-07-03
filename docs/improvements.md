@@ -75,15 +75,6 @@ The condition fires on **every** page load for the rest of the day, because each
 
 ---
 
-### No automated tests for `/demo/overview` and `/demo/overview/table` routes
-
-**Type:** quality
-**Source:** Code review 020
-**File:** `tests/test_overview_routes.py` (or a new `tests/test_demo_overview_routes.py`)
-**Detail:** The demo overview routes have no automated test coverage. QA and the Engineer both noted this gap. The waiver demo routes have `test_demo_waiver_shell_returns_200` as a parallel in `test_waiver_routes.py`. Add at minimum: `test_demo_overview_shell_returns_200` (GET /demo/overview → 200, no auth cookie required), `test_demo_overview_table_returns_fragment` (GET /demo/overview/table?week=N → 200, response begins with `<div`, no `<html>` tag), and `test_demo_overview_no_auth_required` (no session cookie → still 200, not 302). These match the coverage pattern already established for the waiver demo routes. *(Scoped as ticket 027.)*
-
----
-
 ### Simplify redundant assertion in TC14 of `test_home_routes.py`
 
 **Type:** quality
@@ -181,6 +172,13 @@ The condition fires on **every** page load for the rest of the day, because each
 ## Closed
 
 <!-- Move resolved items here with a brief resolution note -->
+
+### No automated tests for `/demo/overview` and `/demo/overview/table` routes
+
+**Type:** quality
+**Source:** Code review 020
+**File:** `tests/test_demo_overview_routes.py`
+**Resolved:** Ticket 027 — added `tests/test_demo_overview_routes.py` (6 tests) covering all three required names (`test_demo_overview_shell_returns_200`, `test_demo_overview_table_returns_fragment`, `test_demo_overview_no_auth_required`) plus HTMX-target and no-Yahoo-call assertions. Closed at audit 032 (the item was left under Open after 027 shipped).
 
 ### "Compare two teams" link hard-codes `/overview/head-to-head` in shared template
 

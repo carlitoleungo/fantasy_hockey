@@ -131,6 +131,13 @@ fantasy_hockey/
    DataFrames or plain Python dicts; route handlers in `web/` are the only integration
    point. The Reviewer treats violations as always-blockers.
 
+7. **Shared live/demo compute helper for feature pages** — where a feature page has both
+   an authenticated and a `/demo/*` route, both handlers assemble their own data (live
+   fetch vs. snapshot) and delegate to a single shared compute/render helper, so the two
+   renderings cannot drift. `web/routes/projection.py`'s `_render_matchup` is the reference;
+   see DECISIONS.md 2026-07-03. (The older overview/waiver routes predate this and assemble
+   independently — fine to leave as-is.)
+
 ## Data flow
 
 ```

@@ -9,7 +9,7 @@
 > entry if the call is significant. The PM then scopes the actual implementation ticket(s).
 
 ## Status
-blocked  <!-- pending Tech Lead consult; cannot become `ready` until the open questions are resolved -->
+resolved  <!-- Tech Lead consult complete 2026-07-03; see "Tech Lead resolution" below. No runtime override; PM to scope the optional fixture-capture + tests follow-up. -->
 
 ## Type
 feature  <!-- spike/exploratory; may resolve into a refactor or "wontfix" -->
@@ -146,3 +146,80 @@ week-14 snapshot (behind a dev flag), reusing fixtures we already maintain.
 - Tech Lead consult required before this can become a `ready` implementation ticket.
 - Informational overlap with ticket 031 (`/demo/projection` parity) — the Tech Lead should
   weigh how much of this need 031's demo path already covers.
+
+---
+
+## Tech Lead resolution (2026-07-03)
+
+**Feasibility verdict:** A runtime live past-week override is feasible but **not worth it**.
+The chosen path is a variant of Option B — capture past-week raw responses as **test
+fixtures**, not a seeded runtime cache — combined with demo mode for the visual/compute
+check. Options A and C are **rejected**. Recorded as DECISIONS.md 2026-07-03 "Dev/test: no
+runtime past-week override; use captured fixtures + demo mode instead."
+
+**Why (the crux, answered):** Two of projection's core inputs are inherently "as of now"
+and cannot be sourced for a past week from the live API — `type=lastmonth` (no historical
+window; empty off-season) and `get_remaining_games` (counts from today → ~0 for a past
+week, collapsing the projection). A `current_week` override alone (Option A) fetches only
+the inputs that were *never* the problem (scoreboard, `teams/stats;week=N` — both already
+`week`-parameterized) and leaves the two that made 029 untestable unsolved. Once you seed
+those too, "test against live past-week data" *is* just richer demo fixtures — with more
+risk. So the honest answer to open question 1 is: not worth it; it pushes to B/C, which
+collapses back into demo fixtures.
+
+**Answers to the open questions:**
+1. **Worth it at all?** No — see crux above. Do not pursue a live past-week override.
+2. **Where should the override live / production gating?** Moot — no runtime override is
+   built, so there is no knob to gate. This is the single strongest reason to reject Option
+   A: a dev-only "which week is now" seam is a permanent production-safety liability.
+3. **Conflict with the 2026-05-31 always-re-fetch guard?** Moot for the chosen path (no
+   runtime override, no delta-fetch interaction). It *was* a real conflict for the rejected
+   Option A/B-runtime (seeded current-week data is clobbered by the live empty fetch) — one
+   more reason those are rejected.
+4. **Cache correctness / leakage?** Eliminated: fixtures live in `tests/fixtures/`, are
+   never written to `CACHE_DIR`, and are never loaded by the running app. No isolated cache
+   namespace needed because nothing fake ever enters a real session's cache.
+5. **Boundary policy (Option C)?** Sourcing authenticated routes from `data/demo.py` is
+   **forbidden** — it blurs the demo/authenticated boundary the team keeps clean. Note the
+   two needs are already met without it: demo mode covers the *visual + compute* check (and,
+   post-ticket-031, runs the exact authenticated compute+render tail via the shared
+   `_render_matchup` helper — DECISIONS.md 2026-07-03), while fixture-based tests cover the
+   *fetch/parse/cache* paths demo mode bypasses.
+6. **Scope of the eventual ticket(s)?** The follow-up (if the PM scopes it) is small and
+   fits the ≤2–3 files rule: a one-off capture step producing past-week raw JSON into
+   `tests/fixtures/`, plus tests exercising the parse/cache/fetch-orchestration functions
+   against them. No production code change. No split needed.
+
+**Handoff to PM:** This spike is resolved to a decision, not a `ready` implementation
+ticket. The optional follow-up for the PM to scope is: *capture a past-week raw Yahoo
+response set into `tests/fixtures/` and add tests for the authenticated parse/cache/fetch
+paths* (`data/client.py`, `data/cache.py`, `data/scoreboard.py`). No dev-only week override
+or data-source swap is to be built.
+
+---
+
+## PM follow-up decision (2026-07-03)
+
+**Outcome: the optional fixture-capture + tests follow-up is DEFERRED** (not scoped into a
+ticket). Recorded in `docs/backlog.md` → "Past-week real-fixture capture + parse/cache tests"
+and reflected in `docs/ROADMAP.md` (Watching). This spike stays `resolved` as a decision
+record.
+
+**Why (PM judgment):** On inspection the parse/cache/orchestration paths the resolution
+points at are *already* comprehensively covered by fixture-based tests — `tests/test_client.py`,
+`tests/test_scoreboard.py`, `tests/test_cache.py`, and `tests/test_matchups.py` (delta-fetch
+orchestration incl. the 2026-05-31 always-re-fetch-current-week guard). The only net-new value
+from a real capture is (1) real-shape hardening and (2) one client-parse→cache round-trip
+integration seam — both nice-to-have, not a hole. The highest-value slice (real captured
+fixtures) also can't run as a clean one-session Engineer ticket: it needs a manual owner-only
+capture (live authenticated session against a completed past week during off-season, plus PII
+sanitisation), which would make a "ready" ticket actually `blocked`. It further overlaps
+ROADMAP item 5 "Demo mode snapshot tooling." Demo mode (post-031, sharing `_render_matchup`)
+plus the existing synthetic suites already meet both needs the resolution identified.
+
+**Disagreement flagged (per handoff):** No disagreement with the *decision* (no runtime
+override — fully agree). The one nuance: the resolution frames the follow-up's target paths as
+a coverage gap ("paths demo mode bypasses"), but those paths are already covered; the genuine
+gap is narrower (real-shape fixtures + one integration seam), which is what tipped this to
+defer rather than scope now. Trivially reversible — say the word and I'll scope it, structured
+as an owner-capture prerequisite (Part 1) + Engineer tests (Part 2).

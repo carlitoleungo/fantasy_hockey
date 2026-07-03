@@ -108,6 +108,52 @@ smaller than this entry originally assumed:
 
 ---
 
+## Past-week real-fixture capture + parse/cache tests — DEFERRED 2026-07-03 (from spike 033)
+
+**Original request:** Follow-up to the ticket 033 spike resolution (DECISIONS.md 2026-07-03
+"Dev/test: no runtime past-week override; use captured fixtures + demo mode instead"):
+capture a real past-week raw Yahoo response set into `tests/fixtures/` once, then add tests
+exercising the authenticated fetch/parse/cache paths that demo mode bypasses
+(`data/client.py`, `data/cache.py`, `data/scoreboard.py`).
+**What was included:** Nothing yet — deferred, not scoped into a ticket.
+**What was deferred:** The whole capture + tests effort.
+**Why deferred (PM judgment, 2026-07-03):** The named parse/cache/orchestration paths are
+*already* comprehensively covered by fixture-based tests — `tests/test_client.py` (every
+parse branch, single-item wrapping, `-`/`None` coercion, URL+week construction),
+`tests/test_scoreboard.py` (week dates, all pairings, single-matchup wrapping, week in URL,
+error cases), `tests/test_cache.py` (read/write/append/last_updated/is_stale/isolation/
+CACHE_DIR), and `tests/test_matchups.py` (delta-fetch: empty/partial cache, current-week
+always re-fetched, prev-week re-fetch, dedup, one-call-per-week, season-not-started). The
+resolution's framing ("paths demo mode bypasses") describes paths that are in fact covered —
+just with hand-built fixtures rather than captured ones. The only *net-new* value is:
+(1) real-shape hardening — real Yahoo payloads (goalie categories incl. GAA/GA lower-is-
+better, full skater+goalie stat sets, real multi-matchup + roster shapes) could stress parse
+assumptions the synthetic fixtures don't; and (2) one integration seam — flowing real client
+parse output through the real cache round-trip together (today client-parse and cache are
+tested separately, and `test_matchups.py` feeds the cache *fake* client output). Both are
+nice-to-have, not a dangerous hole.
+**Why it's not a clean one-session Engineer ticket:** The capture step needs a manual,
+owner-only action — a live authenticated Yahoo session against a league with a *completed*
+past week, run during the off-season (must first confirm last season's league key is still
+queryable), plus sanitising real PII (team names, manager nicknames, league keys) out of the
+saved JSON. The Engineer can't do this in-session, so a "ready" ticket would actually be
+`blocked` on an owner prerequisite.
+**Context for later — how to pick this up:** When the owner next has live authenticated
+access (e.g. once the season starts, or by querying a still-accessible past-season league):
+capture `scoreboard;week=N`, `teams/stats;type=week;week=N`, and team `roster` responses for
+one completed week; sanitise identifiers; save under `tests/fixtures/` with a
+`realweek_` prefix to distinguish from the synthetic set. Then add (a) parse assertions over
+the real payloads in the existing `test_client.py`/`test_scoreboard.py` and (b) one
+integration test flowing real parse output → `cache.append` → `cache.read` round-trip. Keep
+`type=lastmonth` and `get_remaining_games` out of scope — they can't be sourced for a past
+week (DECISIONS.md 2026-07-03). **Overlaps ROADMAP item 5 "Demo mode snapshot tooling"** — if
+that lands a live-capture script first, reuse its capture/sanitise step here rather than
+building a second one.
+**Estimated complexity:** Small (fixtures + assertions in existing test files), but gated on a
+manual owner capture.
+
+---
+
 ## UX cleanup and design application
 
 **Original request:** General UX polish pass; details TBD, but must include applying existing designs to the built pages.

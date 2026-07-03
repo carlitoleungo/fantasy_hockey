@@ -7,6 +7,63 @@ context on *why* something was done a particular way.
 
 ---
 
+### Nav shell: conditional on auth/demo state via shared shell-context; no second auth-derivation path (2026-07-03)
+
+Extends (does not supersede) the 2026-04-19 "Nav shell: minimal league label + logout in base.html; feature links added per ticket" entry, and applies the 2026-05-30 `optional_user` decision to template context.
+
+**Question / context:** Ticket 036. `web/templates/base.html` renders the nav (Overview / Waiver / Projection / Logout) unconditionally on every page. Demo mode now has three feature pages (`/demo/overview`, `/demo/waiver`, `/demo/projection`), and on all of them — plus the logged-out home page — every nav link points at an auth-gated route (or a no-op logout), so a demo/logged-out visitor who clicks any header link is bounced to `/auth/login`. The shell needs to know whether the current render is authenticated, demo, or logged-out-home. There is no template context-injection point today (`web/templates.py` instantiates `Jinja2Templates` with only a `rank_color` filter), and `selected_league_name` is currently threaded per-handler (8 of 9 full-page handlers pass it; the home logged-out branch omits it — an existing instance of exactly the drift this decision guards against). Nine full-page handlers across four route files render templates extending `base.html`.
+
+**Options considered:**
+- **A (per-handler boolean flags):** Each full-page handler passes `is_authenticated` / `demo_mode` inline. Reuses the already-resolved `CurrentUser` (single auth source of truth) and adds zero per-fragment cost, but repeats the keys in ~14 context dicts and relies on per-handler discipline — the same discipline that already lapsed for `selected_league_name`.
+- **B (Starlette `context_processors=[...]` on `Jinja2Templates`):** One processor injects the flags into every template. *Rejected.* A context processor receives only the `Request`, not the resolved `CurrentUser`, so it must **re-derive auth from the `session_id` cookie + DB** — a second copy of session-lookup/token-refresh logic. This is the exact anti-pattern the **2026-05-30 `optional_user`** decision rejected ("duplicates security-critical logic; any future change to `require_user` must also be applied to the inline copy"). It also runs on **every `TemplateResponse`, including every HTMX fragment render** (waiver `_table`, projection `_matchup`, overview `_table`) — adding a cookie+DB read to fragment swaps that never use nav context, on a single-worker SQLite deployment. Two independent reasons to reject.
+- **C (shared `shell_context()` helper, chosen):** A small helper in `web/routes/common.py` takes the resolved user (or `None`) plus a `demo` flag and returns the shell keys (`is_authenticated`, `demo_mode`, and `selected_league_name`); each full-page handler spreads it into its context. `base.html` branches on those keys.
+
+**Decision:** Option C. Shell/nav context is assembled by a shared `shell_context(...)` helper that **reuses the user already resolved by `require_user`/`optional_user`** — never a second cookie/DB lookup — and `base.html` renders the nav conditionally on `is_authenticated` / `demo_mode`. `base.html` must default to the authenticated nav when the flags are absent, so any page not yet migrated keeps rendering as it does today (no regression, and the migration can land in stages). Option A is an acceptable lighter variant of the same principle (reuse the resolved user, no context processor) if the owner prefers no helper; Option B is rejected outright.
+
+**Why:** Reusing the resolved user keeps one source of truth for "is this request authenticated," consistent with the 2026-05-30 `optional_user` decision, and avoids taxing every fragment render. Centralising the key *shape* in one helper fixes the existing `selected_league_name` drift and gives future feature pages one thing to copy — the same "make drift structurally impossible" philosophy as the 2026-07-03 shared compute-helper entry below, applied to context assembly. Feature-link ordering (Overview → Waiver → Projection) from the 2026-04-19 entry is preserved.
+
+**Revisit if:** The app grows a genuinely public (non-demo, non-home) page family that needs nav state but has no user dependency in scope, making a request-only derivation unavoidable; or the number of shell-context keys grows enough that a small dataclass reads more clearly than a dict.
+
+---
+
+### Web routes: demo and live handlers share a single compute/render helper (2026-07-03)
+
+**Question / context:** Ticket 031 factored the Week Projection route's compute-tally-breakdown-render tail into `_render_matchup(...)` in `web/routes/projection.py`, fed by both the authenticated handler (`_matchup_impl`) and the demo handler (`demo_projection_matchup`). The two paths differ only in *data assembly* — live Yahoo API calls vs. reading `data/demo.py`'s snapshot — while the projection math, category tally, per-player breakdown, and template render are shared, so live and demo cannot drift. The older demo routes (overview, waiver) assemble their live and demo contexts independently, with no shared compute helper, so they *could* drift. Audit 032 surfaced two competing conventions with nothing in this log saying which future feature pages should follow.
+
+**Options considered:**
+- **A (independent assembly — the overview/waiver precedent):** Each demo handler builds its own context end-to-end. Simple per-handler with no shared signature to maintain, but the live and demo renderings of the same page can silently diverge (different tally logic, different rounding, a template var set on one path but not the other). Demo mode is user-facing, so drift ships bugs to unauthenticated visitors.
+- **B (shared compute/render helper — projection's precedent, chosen):** Live and demo handlers each do only their own data assembly, then hand a common set of resolved inputs to one shared helper that does all compute + render. Guarantees the two paths are identical below the assembly seam. Costs a slightly wider helper signature (resolved inputs passed as keyword args).
+
+**Decision:** Option B — for a feature page with both an authenticated and a demo route, the two handlers should share a single compute/render helper whose only difference from either caller is data assembly (live fetch vs. snapshot read). `projection._render_matchup` is the reference implementation. The older overview/waiver demo routes are pre-pattern and are fine to leave as-is; converge them only if they are being substantially reworked for another reason.
+
+**Why:** Demo mode is a user-facing correctness surface, not a throwaway. A shared compute path makes live/demo drift structurally impossible instead of relying on a reviewer to catch it, at the cost of one keyword-argument seam — a good trade for a single-engineer project. It also shrinks the off-season testing gap (see the past-week-testing spike entry below): because demo already runs the *real* compute+render tail, only the fetch/assembly head is authenticated-only.
+
+**Revisit if:** A feature page's live and demo paths need genuinely different compute (not just different data assembly) — e.g. demo shows a simplified or annotated variant — at which point forcing a shared helper adds branching that is worse than two honest handlers; or the shared helper's signature grows wide enough that a small resolved-inputs dataclass reads more clearly than keyword passing.
+
+---
+
+### Dev/test: no runtime past-week override; use captured fixtures + demo mode instead (2026-07-03)
+
+Resolves the ticket 033 spike ("develop & test week-keyed pages against a specific past week").
+
+**Question / context:** We develop during the NHL off-season, when Yahoo returns empty/stale data for week-keyed features (matchups, weekly scoreboards, `type=lastmonth` rates, remaining-games schedules). Ticket 029 (Week Projection shell) could not be exercised against real matchup/projection data for this reason. The spike asked whether we can point the authenticated live-fetch paths at a specific past week — via a dev-mode `current_week` override (Option A), a seeded parquet cache (Option B), or reusing the demo snapshot in authenticated routes (Option C) — to develop and QA them with real data.
+
+**The blocking technical fact:** Two of the projection's core inputs are inherently "as of now" and cannot be sourced for a past week from the live API: (1) `type=lastmonth` returns the last 30 days as of today only — there is no historical-window parameter (see the 2026-03-23 entry) and off-season it is empty; (2) `get_remaining_games` counts NHL games from today forward, so for a past week it returns ~0 and the projection collapses to "0 games left." A `current_week` override alone (Option A) therefore fetches only the inputs that were *never* the problem (scoreboard pairings and `teams/stats;week=N`, both already `week`-parameterized) while leaving the two that made 029 untestable unsolved. Sourcing those too means seeding lastmonth rates and remaining games from a snapshot — at which point "test against live past-week data" has collapsed into "richer demo fixtures."
+
+**Options considered:**
+- **A (runtime `week`/dev-mode override threaded through the fetches):** Rejected. Does not source the two inputs that matter, and introduces a permanent production-safety liability — a code path that reads "which week is now" from somewhere other than Yahoo, plus a config knob that must be gated out of production forever and is easy to leave on. A new config knob + a `data/client.py` convention change (two architectural surfaces) bought for coverage it cannot actually deliver.
+- **B-runtime (seed `CACHE_DIR` with a captured past-week snapshot):** Rejected as a *runtime* mechanism. Fights the 2026-05-31 always-re-fetch guard for `current_week` (seeded current-week data is clobbered by the live empty fetch) and puts fake data one directory away from genuine authenticated sessions.
+- **C (source authenticated routes from `data/demo.py`):** Rejected outright. Blurs the demo/authenticated boundary the team deliberately keeps clean; a data-source-swapping dev flag in the authenticated path is exactly the kind of thing left on by accident.
+- **B-tests (capture a past-week raw response set as *test fixtures*, chosen):** Capture real past-week Yahoo responses once and store them in `tests/fixtures/`, then unit/integration-test the parse/cache/fetch-orchestration functions against them — the pattern CLAUDE.md's testing strategy already prescribes (fixtures in, no live calls). Combined with demo mode for the visual/compute check.
+
+**Decision:** Do **not** build a runtime past-week override or a dev data-source swap. The two real needs are met separately: (1) *visual + compute* verification during off-season is already covered by demo mode — and because live and demo now share `_render_matchup` (2026-07-03 entry above), the demo page exercises the exact authenticated compute+render tail; (2) *coverage of the authenticated fetch/parse/cache paths* is met by capturing a past-week raw response set into `tests/fixtures/` and testing those functions directly, never by a runtime seam. Options A and C are rejected; no dev-only "current week is now X" knob enters the codebase.
+
+**Why:** The spike's own crux question answers itself: once you seed the un-sourceable inputs, the live-override exercise *is* just demo fixtures with more risk. The fixture-in-tests route gives real, deterministic coverage of the parse/cache logic that demo mode bypasses, off-season or not, with zero production-safety surface — no knob to gate, no fake data near a live session, no boundary crossing. It is strictly better than a runtime override on every axis that matters here.
+
+**Revisit if:** Yahoo adds an arbitrary historical-window stats parameter (removing the `type=lastmonth` limitation) *and* `get_remaining_games` gains a bounded past-week form — at which point a live past-week fetch could source all inputs and a narrowly-gated dev override might become worth its safety cost; or a future week-keyed feature depends only on inputs that *are* week-parameterizable today (scoreboard, `teams/stats;week=N`), for which a read-only past-week smoke test carries far less risk and could be reconsidered on its own.
+
+---
+
 ### matchups.py: current_week always re-fetched to reflect intra-week stats (2026-05-31)
 
 Supersedes the "matchups.py: current week is included in delta fetch; won't refresh mid-week (2026-03-03)" entry.
@@ -284,11 +341,17 @@ Per scoping brief `013` Decision 4. Ticket 014 adds a minimal header to `web/tem
 ### client.py: bulk teams/stats endpoint replaces per-team fetching (2026-03-23)
 `get_all_teams_week_stats()` uses `/league/{key}/teams/stats;type=week;week={w}` to fetch every team's stats for a week in a single API call. This replaces the previous pattern of calling `get_team_week_stats()` once per team per week. For a 12-team league over 20 weeks, this reduces API calls from ~240 to ~20 (plus setup calls). `matchups.py` now uses this bulk endpoint exclusively. The per-team `get_team_week_stats()` is retained in `client.py` for cases where only one team's stats are needed.
 
+**Revisit if:** Yahoo deprecates or rate-limits the bulk `teams/stats` collection endpoint, or a feature needs a single team's stats often enough that the retained per-team `get_team_week_stats()` becomes the primary path again.
+
 ### client.py: _coerce() handles None values, not just '-' (2026-03-23)
 The Yahoo API can return `None` for stat values (not just the string `'-'`). `_coerce()` and the `games_played` handler now treat `None` identically to `'-'` — coerced to 0. This fixes the `float() argument must be a string or a real number, not 'NoneType'` error.
 
+**Revisit if:** Yahoo's response format changes so stat values arrive already typed (JSON numbers/nulls) rather than strings, making the string-vs-`None` coercion in `_coerce()` unnecessary.
+
 ### players.py: type=lastmonth is the correct param for last-30-day player stats (2026-03-23)
 Confirmed via validate_api.py against a live league. `date=lastmonth` and `week=lastmonth` both return season totals. `out=stats` on the league players collection endpoint also always returns season totals regardless of `sort_type`. Only `/player/{key}/stats;type=lastmonth` (and the batch form `/players;player_keys={keys}/stats;type=lastmonth`) returns the last 30 days.
+
+**Revisit if:** Yahoo adds a parameter for an arbitrary historical N-day window, or changes what `type=lastmonth` returns — this "as of now only" limitation is what blocks past-week testing (see the 2026-07-03 past-week-testing spike entry).
 
 ### players.py: two API calls per page of 25 players (2026-03-23)
 `get_available_players()` uses a two-call-per-page pattern:
@@ -297,8 +360,12 @@ Confirmed via validate_api.py against a live league. `date=lastmonth` and `week=
 
 This gives both stat periods in 2 API calls per page (8 total for 100 players) instead of 1+N. The batch lastmonth call returns `{player_key: stats}` only — no metadata — so metadata is taken from the season response and re-attached by the caller.
 
+**Revisit if:** Yahoo exposes lastmonth stats inline on the players collection endpoint (removing the second batch call), or changes the 25-players-per-page limit.
+
 ### players.py: imports private helpers from data/client.py (2026-03-23)
 `data/players.py` imports `_get`, `_as_list`, `_coerce`, and `BASE_URL` directly from `data/client.py`. These are intentionally shared across the data layer. The same patch-target rule applies: tests for `players.py` must patch `data.players._get`, not `data.client._get`.
+
+**Revisit if:** The shared helpers (`_get`, `_as_list`, `_coerce`) move to a dedicated shared module, or `data.client` stops being the canonical home for the Yahoo transport layer — either would change the correct import source and patch target.
 
 ---
 
@@ -309,6 +376,8 @@ This gives both stat periods in 2 API calls per page (8 total for 100 players) i
 
 ### client.py: unknown and display-only stats silently skipped (2026-03-03)
 The notebook emitted `"Unknown Stat ID: 22"` columns for unrecognised stat IDs and relied on the caller to drop them (`df.drop(columns=['Unknown Stat ID: 22'])`). `client.get_team_week_stats()` instead silently ignores any stat not in the enabled categories lookup. This keeps the DataFrame clean without requiring callers to know which IDs to drop.
+
+**Revisit if:** A feature needs to surface unrecognised or display-only stats to the user (e.g. a debug view of raw Yahoo categories), at which point silent skipping would hide data the caller wants.
 
 ### client.py: _as_list() handles the single-item xmltodict gotcha centrally (2026-03-03)
 Rather than scattering `if int(@count) == 1` checks (as the notebook did for teams), a single `_as_list(value)` helper normalises any dict-or-list value to always be a list. Used on: the stat categories list, `stat_position_type` (which can be a list when a stat applies to multiple position types), the teams list, and the per-week stat list.
@@ -330,8 +399,12 @@ Rather than scattering `if int(@count) == 1` checks (as the notebook did for tea
 ### leagues.py: patch target is data.leagues._get, not data.client._get (2026-03-03)
 `leagues.py` imports `_get` directly via `from data.client import _get`. This binds the name in `leagues.py`'s own namespace, so patching `data.client._get` in tests has no effect. Tests for `leagues.py` must patch `data.leagues._get`. The same rule applies to any future module that imports `_get` (or other helpers) by name from `data.client` — always patch the name in the importing module's namespace.
 
+**Revisit if:** The data layer stops importing helpers by name from `data.client` (e.g. moves to a shared module imported as a namespace, `import data.transport as t; t._get(...)`), removing the name-binding gotcha that makes the patch target non-obvious.
+
 ### leagues.py: get_user_hockey_leagues() filters by game code, not game name (2026-03-03)
 The Yahoo games endpoint returns a `code` field (e.g. `"nhl"`, `"mlb"`) that is stable across seasons. `get_user_hockey_leagues()` filters on `game_code == "nhl"`. The human-readable `name` field ("Yahoo Fantasy Hockey") is not used for filtering as it could change.
+
+**Revisit if:** Yahoo changes or retires the stable game `code` field, or the app expands beyond NHL to other sports where a different (or parameterized) game filter is needed.
 
 ### team_scores.py: avg_ranks uses method='min' for ties (2026-03-03)
 When two teams score identically on a stat in the same week, both receive the lower (better) rank and the next rank is skipped. This matches standard sports ranking convention (two teams tied for 1st → both rank 1, next team ranks 3rd).

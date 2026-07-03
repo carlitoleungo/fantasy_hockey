@@ -39,6 +39,10 @@ Always, every time:
    scoping, fix it (or remove it) before proceeding. Do not treat it as authoritative.
 2. `docs/DECISIONS.md` — what's already been decided, and why? If this ticket would
    contradict or strain a past decision, either align with it or escalate to the Tech Lead.
+   **When you cite an entry in a ticket, cite the live one** — DECISIONS is append-only and
+   supersedes in place with a new dated entry (e.g. the HTMX shell+fragment decision is
+   2026-05-30, which supersedes the same-title 2026-04-19 entry). Grep the title for a
+   later dated copy before quoting a date. (Audit 032: ticket 029 cited the superseded date.)
 3. `docs/LEARNINGS.md` — recurring gotchas that should shape "Notes for the Engineer".
 4. `docs/backlog.md` — has a version of this been deferred before? Reuse the context.
 5. `docs/ARCHITECTURE.md` — only if the ticket touches code you haven't scoped before.
@@ -53,6 +57,17 @@ Always, every time:
 - **Acceptance criteria must be observable behaviour, never "code looks right".** Examples:
   "Visiting /waiver returns 200 and the response HTML contains a `<form>` with action
   `/api/waiver/players`" — yes. "Code is clean" — no. ≤5 acceptance-criteria checkboxes.
+- **Write redirect ACs against the real guard target.** The logged-out path redirects to
+  `/auth/login` (via `require_user` → `RequiresLogin` → the `web/main.py` handler); `/` is
+  only the *authenticated-but-no-league* target. Don't write "redirects to `/`" for a
+  logged-out guard — verify the target in `web/middleware/session.py` + `web/main.py`.
+  (Audit 032: tickets 029/031 both got this wrong.)
+- **Record the improvements item a ticket is scoped from.** If you scope a ticket to
+  resolve a `docs/improvements.md` entry, name that entry in the ticket's Why or Notes as
+  the item it resolves, and add closing it to the ticket's DoD/Verification. The Engineer
+  moves it to `## Closed` on handoff (their DoD) — but only if the ticket tells them which
+  item. You cannot edit `improvements.md` yourself (Reviewer curates it); recording the
+  origin in the ticket is how the close-out happens. (Audit 024/032 recurring gap.)
 - **Never bundle "set up X and make X useful".** That's two tickets. Scaffold first,
   populate second.
 - **Never span data layer and UI layer in one ticket.** Data ticket first, UI ticket
