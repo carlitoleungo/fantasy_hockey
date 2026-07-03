@@ -1,7 +1,7 @@
 # 031 — Week Projection demo parity
 
 ## Status
-ready
+done
 
 ## Type
 feature

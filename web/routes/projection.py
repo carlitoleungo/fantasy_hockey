@@ -24,6 +24,7 @@ from web.routes.common import _get_league_key
 from web.templates import templates
 
 router = APIRouter()
+public_router = APIRouter()
 
 
 @router.get("/projection")
@@ -150,10 +151,50 @@ def _matchup_impl(request: Request, session, league_key: str, my_team_key: str):
     from_date = max(date.today(), date.fromisoformat(scoreboard_data["week_start"]))
     games_remaining = schedule_module.get_remaining_games(all_abbrs, from_date, week_end)
 
-    # Project both teams.
     my_current = {s: float(live_by_key.get(my_team_key, {}).get(s, 0.0)) for s in enabled_stats}
     opp_current = {s: float(live_by_key.get(opponent_key, {}).get(s, 0.0)) for s in enabled_stats}
 
+    return _render_matchup(
+        request,
+        current_week=current_week,
+        week_start=scoreboard_data["week_start"],
+        week_end=scoreboard_data["week_end"],
+        stat_categories=stat_categories,
+        enabled_stats=enabled_stats,
+        my_team_name=my_team_name,
+        opponent_name=opponent_name,
+        my_current=my_current,
+        opp_current=opp_current,
+        my_roster=my_roster,
+        opp_roster=opp_roster,
+        lastmonth_stats=lastmonth_stats,
+        games_remaining=games_remaining,
+    )
+
+
+def _render_matchup(
+    request: Request,
+    *,
+    current_week,
+    week_start,
+    week_end,
+    stat_categories,
+    enabled_stats,
+    my_team_name,
+    opponent_name,
+    my_current,
+    opp_current,
+    my_roster,
+    opp_roster,
+    lastmonth_stats,
+    games_remaining,
+):
+    """Project both teams, tally categories, and render the matchup fragment.
+
+    Shared by the live (`_matchup_impl`) and demo compute paths — both assemble
+    the same resolved inputs (rosters, last-30 stats, games remaining, live
+    week-to-date) and hand them here for identical compute + render.
+    """
     my_projected = project_team_stats(
         my_current, my_roster, lastmonth_stats, games_remaining, stat_categories
     )
@@ -188,8 +229,8 @@ def _matchup_impl(request: Request, session, league_key: str, my_team_key: str):
         {
             "has_matchup": True,
             "current_week": current_week,
-            "week_start": scoreboard_data["week_start"],
-            "week_end": scoreboard_data["week_end"],
+            "week_start": week_start,
+            "week_end": week_end,
             "my_team_name": my_team_name,
             "opponent_name": opponent_name,
             "my_wins": counts[my_team_name],
@@ -220,3 +261,88 @@ def projection_matchup(
         return RedirectResponse("/projection", status_code=302)
     session = make_session(current_user.access_token)
     return _matchup_impl(request, session, league_key, selected)
+
+
+# ---------------------------------------------------------------------------
+# Demo routes (no auth required)
+# ---------------------------------------------------------------------------
+
+@public_router.get("/demo/projection")
+def demo_projection_shell(request: Request):
+    from data import demo as demo_module
+
+    ctx = demo_module.get_projection_context()
+    return templates.TemplateResponse(
+        request,
+        "projection/index.html",
+        {
+            "teams": ctx.get("teams", []),
+            "selected_league_name": "Demo League",
+            "matchup_url": "/demo/projection/matchup",
+        },
+    )
+
+
+@public_router.get("/demo/projection/matchup")
+def demo_projection_matchup(
+    request: Request,
+    team_key: str | None = None,
+    my_team: str | None = None,
+):
+    from data import demo as demo_module
+
+    selected = team_key or my_team
+    if not selected:
+        return RedirectResponse("/demo/projection", status_code=302)
+
+    ctx = demo_module.get_projection_context()
+    pair = demo_module.get_projection_pair_data()
+
+    stat_categories = ctx["stat_categories"]
+    enabled_stats = [c["stat_name"] for c in stat_categories if c["is_enabled"]]
+    scoreboard = ctx["scoreboard"]
+    teams = ctx["teams"]
+    live_by_key = {row["team_key"]: row for row in ctx["live_stats_rows"]}
+    lastmonth_stats = pair["lastmonth_stats"]
+    games_remaining = pair["games_remaining"]
+
+    # Fixed demo matchup: resolve the pair directly (no scoreboard loop). The
+    # selector only offers the two teams in the pair; swap orderings so the
+    # roster breakdowns stay correct whichever side is selected.
+    if selected == pair["opp_team_key"]:
+        my_team_key = pair["opp_team_key"]
+        opponent_key = pair["my_team_key"]
+        my_roster = pair["opp_roster"]
+        opp_roster = pair["my_roster"]
+    else:
+        my_team_key = pair["my_team_key"]
+        opponent_key = pair["opp_team_key"]
+        my_roster = pair["my_roster"]
+        opp_roster = pair["opp_roster"]
+
+    my_team_name = next(
+        (t["team_name"] for t in teams if t["team_key"] == my_team_key), my_team_key
+    )
+    opponent_name = next(
+        (t["team_name"] for t in teams if t["team_key"] == opponent_key), opponent_key
+    )
+
+    my_current = {s: float(live_by_key.get(my_team_key, {}).get(s, 0.0)) for s in enabled_stats}
+    opp_current = {s: float(live_by_key.get(opponent_key, {}).get(s, 0.0)) for s in enabled_stats}
+
+    return _render_matchup(
+        request,
+        current_week=ctx["current_week"],
+        week_start=scoreboard["week_start"],
+        week_end=scoreboard["week_end"],
+        stat_categories=stat_categories,
+        enabled_stats=enabled_stats,
+        my_team_name=my_team_name,
+        opponent_name=opponent_name,
+        my_current=my_current,
+        opp_current=opp_current,
+        my_roster=my_roster,
+        opp_roster=opp_roster,
+        lastmonth_stats=lastmonth_stats,
+        games_remaining=games_remaining,
+    )
