@@ -15,6 +15,7 @@ from web.routes.health import router as health_router
 from web.routes.home import router as home_router
 from web.routes.overview import public_router as overview_public_router
 from web.routes.overview import router as overview_router
+from web.routes.projection import router as projection_router
 from web.routes.waiver import public_router as waiver_public_router
 from web.routes.waiver import router as waiver_router
 from web.templates import templates
@@ -70,3 +71,4 @@ app.include_router(overview_public_router)
 app.include_router(overview_router)
 app.include_router(waiver_public_router)
 app.include_router(waiver_router)
+app.include_router(projection_router)

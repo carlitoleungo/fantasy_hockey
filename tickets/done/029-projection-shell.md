@@ -1,7 +1,7 @@
 # 029 — Week Projection shell route + nav
 
 ## Status
-ready
+done
 
 ## Type
 feature
