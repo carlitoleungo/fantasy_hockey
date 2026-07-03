@@ -1,8 +1,22 @@
+from datetime import date
+
+import pandas as pd
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import RedirectResponse
 
+from analysis.matchup_sim import tally
+from analysis.projection import _is_rate_stat, compare_projections, project_team_stats
+from analysis.team_scores import lower_is_better_from_categories
 from auth.oauth import make_session
-from data.client import get_teams
+from data import players as players_module
+from data import roster as roster_module
+from data import schedule as schedule_module
+from data import scoreboard as scoreboard_module
+from data.client import (
+    get_all_teams_week_stats,
+    get_settings_and_categories,
+    get_teams,
+)
 from data.leagues import get_user_hockey_leagues
 from db.connection import db_dep
 from web.middleware.session import CurrentUser, require_user
@@ -37,3 +51,172 @@ def projection_shell(
             "matchup_url": "/projection/matchup",
         },
     )
+
+
+# ---------------------------------------------------------------------------
+# Matchup fragment
+# ---------------------------------------------------------------------------
+
+def _player_breakdown(roster, lastmonth_stats, games_remaining, enabled_stats):
+    """Per-player projected contribution for one team.
+
+    Counting stat → lastmonth / games_played * remaining_games.
+    Rate stat (GAA, SV%) → the lastmonth rate directly (never summed).
+    Ports pages/04_week_projection.py:504-527.
+    """
+    rows = []
+    for player in roster:
+        remaining = games_remaining.get(player["team_abbr"], 0)
+        lm = lastmonth_stats.get(player["player_key"], {})
+        gp = lm.get("games_played", 0)
+        stats = {}
+        for stat in enabled_stats:
+            if _is_rate_stat(stat):
+                stats[stat] = lm.get(stat, 0.0)
+            else:
+                stats[stat] = (lm.get(stat, 0.0) / gp * remaining) if gp > 0 else 0.0
+        rows.append({
+            "player_name": player["player_name"],
+            "position": player.get("display_position", ""),
+            "team_abbr": player.get("team_abbr", ""),
+            "games_left": remaining,
+            "stats": stats,
+        })
+    rows.sort(key=lambda r: r["games_left"], reverse=True)
+    return rows
+
+
+def _matchup_impl(request: Request, session, league_key: str, my_team_key: str):
+    settings, stat_categories = get_settings_and_categories(session, league_key)
+    current_week = settings["current_week"]
+    enabled_stats = [c["stat_name"] for c in stat_categories if c["is_enabled"]]
+
+    teams = get_teams(session, league_key)
+    scoreboard_data = scoreboard_module.get_current_matchup(
+        session, league_key, current_week
+    )
+
+    # Resolve opponent from scoreboard matchup pairings (04_week_projection:352-369)
+    opponent_key = None
+    for m in scoreboard_data["matchups"]:
+        if m["team_a_key"] == my_team_key:
+            opponent_key = m["team_b_key"]
+            break
+        elif m["team_b_key"] == my_team_key:
+            opponent_key = m["team_a_key"]
+            break
+
+    my_team_name = next(
+        (t["team_name"] for t in teams if t["team_key"] == my_team_key),
+        my_team_key,
+    )
+
+    if opponent_key is None:
+        return templates.TemplateResponse(
+            request,
+            "projection/_matchup.html",
+            {
+                "has_matchup": False,
+                "current_week": current_week,
+                "my_team_name": my_team_name,
+            },
+        )
+
+    opponent_name = next(
+        (t["team_name"] for t in teams if t["team_key"] == opponent_key),
+        opponent_key,
+    )
+
+    # Live week-to-date for all teams in one bulk call (never per-team).
+    live_stats_rows = get_all_teams_week_stats(
+        session, league_key, current_week, stat_categories
+    )
+    live_by_key = {row["team_key"]: row for row in live_stats_rows}
+
+    # Today's date excludes players dropped mid-week (04_week_projection:396-398).
+    today_str = date.today().isoformat()
+    my_roster = roster_module.get_team_roster(session, my_team_key, date=today_str)
+    opp_roster = roster_module.get_team_roster(session, opponent_key, date=today_str)
+
+    all_player_keys = [p["player_key"] for p in my_roster + opp_roster]
+    all_abbrs = list({p["team_abbr"] for p in my_roster + opp_roster if p["team_abbr"]})
+
+    # Bulk last-30-day stats for both rosters at once (batches of 25 internally).
+    lastmonth_stats = players_module.get_players_lastmonth_stats(
+        session, league_key, all_player_keys
+    )
+
+    week_end = date.fromisoformat(scoreboard_data["week_end"])
+    from_date = max(date.today(), date.fromisoformat(scoreboard_data["week_start"]))
+    games_remaining = schedule_module.get_remaining_games(all_abbrs, from_date, week_end)
+
+    # Project both teams.
+    my_current = {s: float(live_by_key.get(my_team_key, {}).get(s, 0.0)) for s in enabled_stats}
+    opp_current = {s: float(live_by_key.get(opponent_key, {}).get(s, 0.0)) for s in enabled_stats}
+
+    my_projected = project_team_stats(
+        my_current, my_roster, lastmonth_stats, games_remaining, stat_categories
+    )
+    opp_projected = project_team_stats(
+        opp_current, opp_roster, lastmonth_stats, games_remaining, stat_categories
+    )
+
+    comparison = compare_projections(
+        my_projected, opp_projected, stat_categories,
+        lower_is_better=lower_is_better_from_categories(stat_categories),
+    )
+
+    # Tally: map "team_a"/"team_b"/"Tie" to names (04_week_projection:457-469).
+    sim_rows = [
+        {
+            "category": r["category"],
+            "team_a": r["team_a"],
+            "team_b": r["team_b"],
+            "winner": my_team_name if r["winner"] == "team_a"
+                      else (opponent_name if r["winner"] == "team_b" else "Tie"),
+        }
+        for r in comparison
+    ]
+    counts = tally(pd.DataFrame(sim_rows), my_team_name, opponent_name)
+
+    my_breakdown = _player_breakdown(my_roster, lastmonth_stats, games_remaining, enabled_stats)
+    opp_breakdown = _player_breakdown(opp_roster, lastmonth_stats, games_remaining, enabled_stats)
+
+    return templates.TemplateResponse(
+        request,
+        "projection/_matchup.html",
+        {
+            "has_matchup": True,
+            "current_week": current_week,
+            "week_start": scoreboard_data["week_start"],
+            "week_end": scoreboard_data["week_end"],
+            "my_team_name": my_team_name,
+            "opponent_name": opponent_name,
+            "my_wins": counts[my_team_name],
+            "ties": counts["Tie"],
+            "opp_wins": counts[opponent_name],
+            "comparison": comparison,
+            "enabled_stats": enabled_stats,
+            "my_breakdown": my_breakdown,
+            "opp_breakdown": opp_breakdown,
+            "is_rate_stat": _is_rate_stat,
+        },
+    )
+
+
+@router.get("/projection/matchup")
+def projection_matchup(
+    request: Request,
+    team_key: str | None = None,
+    my_team: str | None = None,
+    current_user: CurrentUser = Depends(require_user),
+    db=Depends(db_dep),
+):
+    league_key = _get_league_key(db, current_user.session_id)
+    if not league_key:
+        return RedirectResponse("/", status_code=302)
+    selected = team_key or my_team
+    if not selected:
+        return RedirectResponse("/projection", status_code=302)
+    session = make_session(current_user.access_token)
+    return _matchup_impl(request, session, league_key, selected)

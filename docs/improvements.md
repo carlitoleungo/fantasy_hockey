@@ -124,6 +124,15 @@ The condition fires on **every** page load for the rest of the day, because each
 
 ---
 
+### Converge Week Projection matchup route on a single team query-param name
+
+**Type:** quality
+**Source:** Code review 030
+**File:** `web/routes/projection.py` line 218; `web/templates/projection/index.html`
+**Detail:** `GET /projection/matchup` accepts both `team_key` and `my_team` (`selected = team_key or my_team`) because ticket 030's AC1 specified `?my_team=` while the immutable 029 shell sends `?team_key=` (in `<select name="team_key">` and the auto-load `hx-get`). Accepting both was the only way to satisfy the AC and the out-of-scope shell without editing 029 — a sound reconciliation, but it leaves two param names for one concept permanently. In a follow-up shell ticket, converge on a single name (drop `my_team`, or rename the shell control to `my_team`) so the route interface has one source of truth, then remove the alias fallback.
+
+---
+
 ### Move `_is_rate_stat` import to module level in `tests/test_projection.py`
 
 **Type:** quality

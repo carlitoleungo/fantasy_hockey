@@ -1,7 +1,7 @@
 # 030 — Week Projection matchup fragment (compute + render)
 
 ## Status
-ready
+done
 
 ## Type
 feature
@@ -41,6 +41,7 @@ compute-and-render half of `pages/04_week_projection.py`.
   - `schedule.get_remaining_games(all_abbrs, from_date, week_end)` where `from_date = max(date.today(), week_start)` (see `pages/04_week_projection.py:407-409`).
 - Compute with the existing pure functions: `project_team_stats`, `compare_projections`, `_is_rate_stat` from `analysis/projection.py`; `lower_is_better_from_categories` from `analysis/team_scores.py`; `tally` from `analysis/matchup_sim.py`. `compare_projections` returns `winner` as `"team_a"/"team_b"/"Tie"` — map to team names for `tally` exactly as `pages/04_week_projection.py:457-469`.
 - Roster-breakdown per-player math is `pages/04_week_projection.py:504-527`: counting stat → `lastmonth / games_played * remaining`; rate stat → show the lastmonth rate directly; guard `games_played == 0`.
+- This endpoint returns a bare HTML fragment (no `base.html`), per `docs/DECISIONS.md` 2026-05-30 "Feature pages: HTMX fragment pattern with shell + fragment template split": the shell (029) is `projection/index.html`; `_matchup.html` is the fragment it swaps in via `hx-get`.
 - Templating: rank/format → CSS class mapping lives in the **template**, not analysis (`docs/DECISIONS.md` 2026-04-19 "rank → Tailwind class mapping lives in templates"). Use Tailwind utility classes (the Streamlit `_TABLE_CSS` shadow-DOM block does **not** port — the FastAPI app uses Tailwind via base.html). Roster-breakdown tabs may be an Alpine `x-data` toggle or two stacked tables — engineer's choice within the stack.
 - Keep `_matchup.html` free of any hardcoded route URLs so ticket 031 can render it unchanged for demo.
 - Yahoo gotchas from `docs/LEARNINGS.md` that apply here: GAA (`stat_id==23`) is recomputed for lastmonth inside `players.py` already — do not recompute again; `stat_id==0` is games-played, not a category; enabled-only via `is_enabled`. These are handled by the existing functions — just don't undo them.
