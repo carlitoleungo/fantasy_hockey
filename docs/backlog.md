@@ -70,31 +70,31 @@ hypothetical roster change.
 
 ---
 
-## Waiver Wire: Multi-position filtering — HIGH PRIORITY
+## Waiver Wire: Multi-position filtering — SCOPED 2026-07-02 → ticket 032
 
 **Original request:** Allow selecting multiple positions simultaneously on the waiver wire
 page (e.g. C + LW to find dual-eligible forwards).
-**What was included:** Single-select radio buttons (All / C / LW / RW / D / G) — one
-position at a time only.
-**What was deferred:** Multi-select position filtering.
-**Context for later:** Two surfaces need to change:
-1. `web/templates/waiver/index.html` — convert position pill `<input type="radio">` to
-   `<input type="checkbox" name="positions">` (keep "All" as a special case that clears
-   the others). The form already uses `hx-trigger="change"` so HTMX re-POST fires
-   automatically.
-2. `analysis/waiver_ranking.py` — `filter_by_position(df, position)` takes a single
-   string. Update signature to accept a list (or comma-separated string) and filter
-   using `display_position` contains-any logic. Note: `display_position` is composite
-   (`"C,LW"`) — split on comma when matching.
-3. `web/routes/waiver.py` — update the `position` form field to accept `list[str]`
-   (FastAPI: `positions: list[str] = Form([])`); update the cache key and `api_position`
-   mapping accordingly. Per-position caching will need a decision on how to key multi-select
-   combinations (union of individual position caches vs. a new combined key).
-**Why deferred:** The waiver wire tickets (018, 019a, 019b) used the Streamlit prototype's
-single-select design. Multi-select is core UX — managers routinely look for C/LW or
-LW/RW eligible players.
-**Estimated complexity:** Medium (template + analysis + route changes; cache key strategy
-needs a short Tech Lead or PM decision)
+**Resolution:** Scoped as a single UI-layer ticket (032). On investigation the change is
+smaller than this entry originally assumed:
+- **No cache-key decision needed.** `data/cache.py` already keys the player pool by
+  `(league_key, position, stat)` (see `read_player_pool` / `write_player_pool` /
+  `is_player_pool_stale`). Multi-select just loops the existing per-position fetch over
+  each selected position and unions the pools — no new cache layout, no `data/cache.py`
+  change.
+- **No `analysis/` change needed.** `filter_by_position(df, position_group)` stays
+  single-position; the route calls it per selected position and unions the results (or
+  the API per-position fetch already narrows the pool). Keeps the change to route +
+  template only.
+- **Per-position API fetch is load-bearing.** `fetch_season_pool` returns only the
+  top-25 per stat sort, so an "All" pool crowds out sparse positions (D, G). The route
+  must fetch each selected position's pool separately — do NOT collapse to one "All"
+  fetch. See the comment in `pages/03_waiver_wire.py` ~line 247 (archive) for the
+  original rationale.
+**Correction to the original premise:** The Streamlit prototype
+(`pages/03_waiver_wire.py`, archive) was ALSO single-select (pill buttons, one
+`ww_position` value) — multi-select is net-new UX, not a port of prior behaviour.
+**Estimated complexity:** Small–Medium (2 files: `web/routes/waiver.py`,
+`web/templates/waiver/index.html`).
 
 ---
 

@@ -20,7 +20,12 @@ and become a wishlist — prune.
    - **030** — `/projection/matchup` fragment: rosters + schedule + last-30 + compute.
    - **031** — `/demo/projection` parity (reuses existing `demo.get_projection_*`).
    Sequential dependency chain 028 → 029 → 030 → 031.
-2. **Demo mode snapshot tooling** — `data/demo.py` snapshot generation script and fixture
+2. **Waiver wire multi-position filter** — scoped into ticket **032** (2026-07-02).
+   Convert the waiver page's single-select position pills to a multi-select so managers
+   can find dual-eligible players (e.g. C + LW). UI-layer only: the per-position player
+   pool cache is already keyed by position, so this is a route + template change (loop
+   the fetch over selected positions, union the pools). Demo parity included.
+3. **Demo mode snapshot tooling** — `data/demo.py` snapshot generation script and fixture
    data refresh. The current demo dataset is static; this ticket produces tooling to regenerate
    it from a live season so the public demo URL serves current-looking numbers.
 
@@ -35,5 +40,6 @@ and become a wishlist — prune.
 
 ---
 
-_Last updated: 2026-07-02 (Week projection migration scoped into tickets 028–031;
-shipped 025/027 removed). The PM maintains this file during scoping and product reviews._
+_Last updated: 2026-07-02 (Waiver multi-position filter scoped into ticket 032; week
+projection migration scoped into tickets 028–031; shipped 025/027 removed). The PM
+maintains this file during scoping and product reviews._
