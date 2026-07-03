@@ -17,7 +17,7 @@ from data.schedule import get_remaining_games
 from data.scoreboard import get_current_matchup
 from db.connection import db_dep
 from web.middleware.session import CurrentUser, require_user
-from web.routes.overview import _get_league_key
+from web.routes.common import _get_league_key
 from web.templates import templates
 
 PAGE_SIZE = 25

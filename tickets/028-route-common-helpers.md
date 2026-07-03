@@ -1,7 +1,7 @@
 # 028 — Extract shared route helper to web/routes/common.py
 
 ## Status
-ready
+done
 
 ## Type
 refactor

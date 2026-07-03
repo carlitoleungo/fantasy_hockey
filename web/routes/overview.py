@@ -9,18 +9,11 @@ from data.leagues import get_user_hockey_leagues
 from data.matchups import get_matchups
 from db.connection import db_dep
 from web.middleware.session import CurrentUser, require_user
+from web.routes.common import _get_league_key
 from web.templates import templates
 
 router = APIRouter()
 public_router = APIRouter()
-
-
-def _get_league_key(db, session_id: str) -> str | None:
-    row = db.execute(
-        "SELECT league_key FROM user_sessions WHERE session_id = ?",
-        (session_id,),
-    ).fetchone()
-    return row["league_key"] if row and row["league_key"] else None
 
 
 def _compute_cell_ranks(ranked_df: pd.DataFrame, stat_cols: list[str]) -> pd.DataFrame:
