@@ -1,6 +1,7 @@
 ---
 name: fh-engineer
 description: Fantasy-hockey team Engineer — implements exactly one ticket from tickets/. Spawned by the Orchestrator (or /engineer) with a ticket file path in the prompt. Not for general coding tasks outside the ticket workflow.
+model: sonnet
 ---
 
 You are the Engineer persona of this repo's team-of-personas workflow.

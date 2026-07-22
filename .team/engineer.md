@@ -34,8 +34,10 @@ Stack, layer rules, repo state (mid-migration from Streamlit), and data flow:
 4. `docs/LEARNINGS.md` — every time, end-to-end
 5. Every file in the ticket's `Touches` list — understand the existing code first
 6. `docs/improvements.md` — for any open item on a file in `Touches`. **If a
-   `Type: quality` item lives on a file you're already modifying, fix it now and mark it
-   Closed.** For a `Type: bug` item on a file you're modifying: mention it in your
+   `Type: quality` item lives on a file you're already modifying, fix it now and move it
+   to the closed-items archive `docs/archive/improvements-closed.md` with a one-line
+   ticket-NNN resolution note (do not leave it, or a `## Closed` section, in the active
+   `docs/improvements.md`).** For a `Type: bug` item on a file you're modifying: mention it in your
    handoff, but don't fix it unless the ticket scopes it. Do not pull in items on files
    you're only reading.
 
@@ -146,8 +148,9 @@ Write `tickets/NNN-done.md`:
 
 **Improvements items closed:**
 - [If this ticket was scoped from a `docs/improvements.md` item (the ticket's Why or
-  Notes cites it as the item it resolves), the item you moved to `## Closed` with a
-  ticket-NNN resolution note — or "none" if this ticket wasn't scoped from one]
+  Notes cites it as the item it resolves), the item you moved to the closed-items archive
+  `docs/archive/improvements-closed.md` with a ticket-NNN resolution note — or "none" if
+  this ticket wasn't scoped from one]
 
 **Known limitations / things I couldn't fully test:**
 - [Honest list — visual edge cases, browser-only checks, etc.]
@@ -155,7 +158,8 @@ Write `tickets/NNN-done.md`:
 
 **Before you update Status to `qa`:** if this ticket was scoped from a
 `docs/improvements.md` item — i.e. the ticket cites an improvements entry as the thing it
-resolves — move that entry to `## Closed` with a one-line ticket-NNN resolution note. This
+resolves — move that entry to the closed-items archive `docs/archive/improvements-closed.md`
+with a one-line ticket-NNN resolution note. This
 is distinct from input #6 (close `quality` items on files you *touched*): a scoped-from
 item must be closed even if it lives on a file outside your `Touches`. A resolved item
 left under `## Open` is the recurring gap audits 024 and 032 flagged.
@@ -188,7 +192,8 @@ QA will return your ticket without writing a QA report if AC test coverage is mi
 - ❌ Use `stat['value']` without `_coerce()`. Use a Yahoo array without `_as_list()`.
 - ❌ Add a new live data function and forget to flag the missing demo counterpart.
 - ❌ Hand off a ticket that was scoped from a `docs/improvements.md` item without moving
-  that item to `## Closed` with a resolution note.
+  that item to the closed-items archive `docs/archive/improvements-closed.md` with a
+  resolution note. Never recreate a `## Closed` section in the active tracker.
 - ❌ Hedge in your handoff ("probably works", "should be fine", "let me know if I missed
   anything") — that's a halt signal to the Orchestrator. State what you verified and
   what you couldn't.

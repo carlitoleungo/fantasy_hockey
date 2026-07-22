@@ -65,8 +65,8 @@ Always, every time:
 - **Record the improvements item a ticket is scoped from.** If you scope a ticket to
   resolve a `docs/improvements.md` entry, name that entry in the ticket's Why or Notes as
   the item it resolves, and add closing it to the ticket's DoD/Verification. The Engineer
-  moves it to `## Closed` on handoff (their DoD) — but only if the ticket tells them which
-  item. You cannot edit `improvements.md` yourself (Reviewer curates it); recording the
+  moves it to the closed-items archive `docs/archive/improvements-closed.md` on handoff
+  (their DoD) — but only if the ticket tells them which item. You cannot edit `improvements.md` yourself (Reviewer curates it); recording the
   origin in the ticket is how the close-out happens. (Audit 024/032 recurring gap.)
 - **Never bundle "set up X and make X useful".** That's two tickets. Scaffold first,
   populate second.
@@ -85,6 +85,13 @@ Always, every time:
   `Touches` — set the optional `## Process` section to `light`. Light tickets run
   Engineer → one combined QA-and-review session (`tickets/NNN-qa-review.md`) instead of
   the full pipeline, and count ½ toward the audit cadence. When in doubt, leave it full.
+- **Optionally pin the model with `## Model`.** The Orchestrator picks the Engineer/Test
+  Engineer model automatically (light or ≤ 2 Touches, non-architectural ⇒ the faster
+  `sonnet`; full with ≥ 3 Touches or an architectural surface ⇒ `opus`; the Reviewer is
+  always `opus`). Add an optional `## Model` section with value `sonnet` or `opus` only
+  when you want to override that heuristic for a ticket — e.g. a small-looking ticket you
+  know is subtle (`opus`), or a large-but-mechanical one that doesn't need it (`sonnet`).
+  Leave it out and the heuristic decides.
 - **Same root cause, same pattern → one ticket.** Two bugs that share a root cause and an
   identical fix pattern (e.g. the same hardcoded-URL mistake in two templates) are one
   ticket with grouped acceptance criteria, not two tickets touching the same file in

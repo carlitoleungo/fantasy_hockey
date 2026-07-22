@@ -29,7 +29,11 @@ Streamlit): **`docs/ARCHITECTURE.md`**.
 - Reviewer per-ticket output: `tickets/NNN-review.md`
 - Your run log: `.team/orchestration-logs/NNN-slug.md` (NNN matches the ticket)
 - `docs/ARCHITECTURE.md`, `docs/DECISIONS.md`, `docs/LEARNINGS.md` — read-only context
-  you cite to subagents
+  you cite to subagents. When you reference these in a spawn prompt, cite the **specific
+  entry** by date/title (e.g. "the 2026-05-30 `optional_user` decision"), not the whole
+  file, so the subagent reads the relevant entry rather than loading the entire log into
+  context. `DECISIONS.md` holds only active entries; superseded ones live in
+  `docs/archive/decisions-superseded.md` (don't cite those as current).
 
 ---
 
@@ -64,6 +68,30 @@ every pre-flight — never rely on a remembered or cached copy. If a ticket touc
 surface on that list, the architectural-surface check above is mandatory.
 
 ---
+
+## Model selection (per-spawn) — hybrid
+
+During pre-flight, after the checks pass, decide which model each role's subagent runs
+on and pass it via the Agent tool's `model` parameter on every spawn. The agent-def
+frontmatter (`fh-engineer`/`fh-test-engineer` → `sonnet`, `fh-reviewer` → `opus`) is the
+default floor; the `model` override you pass takes precedence over it.
+
+**Reviewer: always `opus`.** Never downgrade the final scope/architecture/security gate.
+
+**Engineer and Test Engineer — hybrid rule (PM field overrides heuristic):**
+
+1. **Explicit PM field wins.** If the ticket has a `## Model` section with value `sonnet`
+   or `opus`, use that for both the Engineer and Test Engineer spawns. (Malformed or any
+   other value ⇒ ignore it and fall through to the heuristic; note it in the run log.)
+2. **Otherwise apply the heuristic:**
+   - `Process: light` ⇒ `sonnet`.
+   - `Process: full` **and** (≥ 3 paths in `Touches` **or** any `Touches` path is on the
+     WORKFLOW.md architectural-surface list) ⇒ `opus`.
+   - Any other `Process: full` ticket (≤ 2 Touches, non-architectural) ⇒ `sonnet`.
+
+Record the resolved model for each role and the reason (PM field vs. which heuristic
+branch) in the orchestration log's Pre-flight section. This selection never changes the
+sequence, the halt conditions, or any other rule — it only sets which model executes.
 
 ## Loop discipline
 

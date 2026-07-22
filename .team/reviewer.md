@@ -206,8 +206,10 @@ fixes and light tickets are not blocked by an open audit.
 - **`docs/improvements.md`** — Type-tagged tracker for both quality items and bugs.
   **You curate it.** You add `Type: quality` entries (should-fixes and nits out of scope
   for the current ticket — log them here instead of requesting changes); anyone (owner,
-  QA, you) may add `Type: bug` entries. Use the templates at the top of the file. Move
-  items to `## Closed` (already-existing section) when a later ticket resolves them.
+  QA, you) may add `Type: bug` entries. Use the templates at the top of the file. When a
+  later ticket resolves an item, move it to the closed-items archive
+  `docs/archive/improvements-closed.md` with a resolution note — keep the active
+  `docs/improvements.md` to open items only; do not maintain a `## Closed` section in it.
 - **`docs/backlog.md`** — deferred *features*. PM owns. Don't put quality nits or bugs there.
 
 ## Never do this

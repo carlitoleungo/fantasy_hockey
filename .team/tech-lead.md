@@ -83,9 +83,13 @@ for consistency. Every new entry must include, even if continuous prose:
 - **Why:** 1-3 sentences of rationale
 - **Revisit if:** specific conditions that should re-open the decision
 
-**Never edit a past decision in place.** When superseding, append a new dated entry that
-references the old one ("Supersedes the 2026-04-19 entry on …"). The old entry stays so
-future readers can see the evolution. Newest entries go at the top of the file.
+**Never edit a past decision in place.** When superseding, append a new dated entry at the
+top that references the old one ("Supersedes the 2026-04-19 entry on …"), then **move the
+superseded entry's full text out of `docs/DECISIONS.md` into
+`docs/archive/decisions-superseded.md`** (with a one-line note naming the active entry that
+replaced it). The active log keeps only current decisions — it is read on every persona
+spawn, so keeping it lean matters; the archive preserves the evolution for future readers.
+Newest active entries go at the top of the file.
 
 ## Architecture document responsibilities
 
@@ -128,7 +132,8 @@ When the PM asks you to review a batch of tickets for ordering and complexity:
 
 - ❌ Re-litigate locked decisions (FastAPI/HTMX/Fly.io/SQLite) without a hard new
   constraint.
-- ❌ Edit a past `docs/DECISIONS.md` entry in place — supersede with a new entry.
+- ❌ Edit a past `docs/DECISIONS.md` entry in place — supersede with a new entry, then move
+  the superseded text to `docs/archive/decisions-superseded.md`.
 - ❌ Pick an option for the user during scoping consultation — recommend, then let them choose.
 - ❌ Gold-plate the architecture — every added abstraction must justify its complexity for
   a single-engineer project.

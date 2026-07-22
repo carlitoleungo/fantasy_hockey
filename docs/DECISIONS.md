@@ -3,7 +3,7 @@
 Historical implementation decisions, **newest first**. Read this file when you need
 context on *why* something was done a particular way.
 
-> **Scope:** This file covers decisions that apply to the current FastAPI stack and the preserved data/analysis/auth layers. For decisions specific to the Streamlit prototype (session state patterns, Streamlit page structure, Streamlit token storage), see [`docs/archive/prototype-decisions.md`](archive/prototype-decisions.md).
+> **Scope:** This file covers **active** decisions that apply to the current FastAPI stack and the preserved data/analysis/auth layers. Entries that have been superseded by a later decision are moved to [`docs/archive/decisions-superseded.md`](archive/decisions-superseded.md) to keep this log lean — cite the active entry here, never the archived one. For decisions specific to the Streamlit prototype (session state patterns, Streamlit page structure, Streamlit token storage), see [`docs/archive/prototype-decisions.md`](archive/prototype-decisions.md).
 
 ---
 
@@ -201,10 +201,6 @@ Supersedes the 2026-04-19 entry of the same title. Two changes: (1) corrects a f
 
 ---
 
-### Feature pages: HTMX fragment pattern with shell + fragment template split (2026-04-19)
-
-Per scoping brief `013` Decision 1. Each feature page is split into `web/templates/<feature>/index.html` (full-page shell: layout, filter controls, initial state) plus one or more fragment templates (e.g. `_table.html`) returned by separate route handlers. Filter controls use `hx-get` / `hx-post` with `hx-target` to swap only the fragment — not the whole page. Chosen over full-page re-render (Option A) because waiver wire's per-(position, stat) lazy-loading requires fragment fetches anyway, and over Alpine-side filtering (Option C) because the hybrid "is this filter client or server?" mental model is not worth the perceived-UX gain and waiver wire's player pool is too large to preload. This also matches ARCHITECTURE.md Key patterns #5. Ticket 014 is the first page to establish the convention; 015 (head-to-head) and the waiver wire ticket inherit it. *(Superseded 2026-05-30 — factual error corrected and `Revisit if` added; see entry above.)*
-
 ### Feature pages: rank → Tailwind class mapping lives in templates, not analysis (2026-04-19)
 
 Per scoping brief `013` Decision 2. `analysis/team_scores.avg_ranks()` continues to return integer ranks (1..N). A Jinja filter or macro — added in ticket 014 alongside the first page that needs it — maps `(rank, team_count) → Tailwind class` (best rank → `bg-green-100`, worst rank → `bg-red-100`, otherwise no background). Chosen over server-computed class strings (Option A) to preserve the ARCHITECTURE.md invariant that `analysis/` has no framework or styling dependencies, and over client-side Alpine styling (Option C) because shipping raw ranks only to re-derive min/max in JS duplicates information already computed server-side. Team count is `len(rows)` at render time, so the template has everything it needs.
@@ -388,13 +384,6 @@ Rather than scattering `if int(@count) == 1` checks (as the notebook did for tea
 `cache.last_updated()` returns when something was written (a datetime), not which weeks are present. For the delta fetch pattern, what matters is which week numbers exist in the data. `_last_cached_week()` reads `df['week'].max()` from the cached parquet file. `cache.last_updated()` / `cache.is_stale()` are reserved for time-based staleness checks (e.g. player stats refreshed daily).
 
 **Revisit if:** The cache layer is extended to track which week numbers are present as explicit metadata (e.g. a `cached_weeks` column in `last_updated.json`), making a full parquet read unnecessary to determine the last cached week.
-
-### matchups.py: current week is included in delta fetch; won't refresh mid-week (2026-03-03)
-*(Superseded 2026-05-31 — the `bug-week23-all-zeroes` fix changed this behaviour; `current_week` is now always re-fetched on every call. See the 2026-05-31 entry above.)*
-
-`get_matchups()` fetches up to and including `current_week`. Once that week is cached, the next call finds `last_cached_week == current_week` and fetches nothing new until Yahoo advances `current_week`. Intra-week stat updates are therefore not reflected until the cache is manually cleared. This is acceptable for a daily-use tool; a `force_refresh` flag can be added later if needed.
-
-**Revisit if:** Users report stale intra-week data as a real problem (e.g. mid-week trade or injury decisions), at which point a `force_refresh` query parameter or a time-based TTL on the current week's cache entry should be added.
 
 ### leagues.py: patch target is data.leagues._get, not data.client._get (2026-03-03)
 `leagues.py` imports `_get` directly via `from data.client import _get`. This binds the name in `leagues.py`'s own namespace, so patching `data.client._get` in tests has no effect. Tests for `leagues.py` must patch `data.leagues._get`. The same rule applies to any future module that imports `_get` (or other helpers) by name from `data.client` — always patch the name in the importing module's namespace.
