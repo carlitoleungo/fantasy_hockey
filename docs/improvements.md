@@ -160,16 +160,16 @@ The condition fires on **every** page load for the rest of the day, because each
 
 ---
 
+---
+
+## Closed
+
 ### TC10 missing `>GR<` assertion for games-remaining column
 
 **Type:** quality
 **Source:** Code review 019b
 **File:** `tests/test_waiver.py` — `test_waiver_post_lastmonth_returns_gp_column_and_footer`
-**Detail:** TC10 asserts `>GP<` is present in the response body but does not assert `>GR<`. AC1 for ticket 019b requires both the GP and GR column headers to appear when `period="Last 30 days"`. QA manually confirmed `>GR<` renders correctly, but the test gap means a regression that removes the GR header would not be caught by the automated suite. Add `assert ">GR<" in body` to TC10.
-
----
-
-## Closed
+**Resolved:** Ticket 032 — added `assert ">GR<" in body` to TC10 (`tests/test_waiver.py` was in this ticket's Touches). Closed while in-scope per Engineer persona input #6.
 
 <!-- Move resolved items here with a brief resolution note -->
 

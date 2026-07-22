@@ -372,7 +372,7 @@ def test_waiver_post_position_no_matching_rows(ctx):
     ):
         response = client.post(
             "/api/waiver/players",
-            data={"stats": ["Goals"], "position": "G", "period": "Season", "page": "0"},
+            data={"stats": ["Goals"], "positions": ["G"], "period": "Season", "page": "0"},
             cookies={"session_id": "sid-test"},
         )
 
@@ -469,8 +469,9 @@ def test_waiver_post_lastmonth_returns_gp_column_and_footer(ctx):
     body = response.text
     assert "<table" in body
     assert "last 30 days stats" in body
-    # GP column header present
+    # GP and GR column headers present
     assert ">GP<" in body
+    assert ">GR<" in body
 
 
 # ---------------------------------------------------------------------------
@@ -640,3 +641,167 @@ def test_waiver_post_lastmonth_empty_lm_pool_falls_back_to_season(ctx):
     assert "<table" in body
     # Fell back to season stats — season player names are present
     assert "Player 0" in body
+
+
+# ---------------------------------------------------------------------------
+# 032 — Multi-position filter
+# ---------------------------------------------------------------------------
+
+def _make_multi_position_pool() -> pd.DataFrame:
+    """Pool spanning every position group, one player each (plus a dual C,LW).
+
+    Goalie is given a Goals value so a D+G search can rank both groups on the
+    same category (the ticket permits a fixture where D and G share the ranking
+    stat, since analysis/waiver_ranking is out of scope here).
+    """
+    rows = [
+        {"player_key": "nhl.p.1", "player_name": "Center One", "team_abbr": "TOR",
+         "display_position": "C", "status": "", "Goals": 20.0, "Assists": 10.0},
+        {"player_key": "nhl.p.2", "player_name": "Dual CenterWing", "team_abbr": "BOS",
+         "display_position": "C,LW", "status": "", "Goals": 18.0, "Assists": 12.0},
+        {"player_key": "nhl.p.3", "player_name": "Left Winger", "team_abbr": "MTL",
+         "display_position": "LW", "status": "", "Goals": 15.0, "Assists": 8.0},
+        {"player_key": "nhl.p.4", "player_name": "Right Winger", "team_abbr": "NYR",
+         "display_position": "RW", "status": "", "Goals": 12.0, "Assists": 6.0},
+        {"player_key": "nhl.p.5", "player_name": "Blue Liner", "team_abbr": "EDM",
+         "display_position": "D", "status": "", "Goals": 8.0, "Assists": 20.0},
+        {"player_key": "nhl.p.6", "player_name": "Net Minder", "team_abbr": "CGY",
+         "display_position": "G", "status": "", "Goals": 5.0, "Assists": 2.0},
+    ]
+    return pd.DataFrame(rows)
+
+
+# AC1 — GET /demo/waiver renders position checkboxes (not radios)
+def test_demo_waiver_shell_renders_position_checkboxes(ctx):
+    _, client = ctx
+
+    with (
+        patch("data.demo.get_matchups", return_value=_make_matchups_df()),
+        patch("data.demo.get_stat_categories", return_value=_make_stat_categories()),
+    ):
+        response = client.get("/demo/waiver")
+
+    assert response.status_code == 200
+    body = response.text
+    for pos in ["C", "LW", "RW", "D", "G"]:
+        assert f'type="checkbox" name="positions" value="{pos}"' in body
+    # Position inputs must be checkboxes, never radios.
+    assert 'type="radio" name="positions"' not in body
+    assert 'name="position"' not in body
+
+
+# AC2 — positions=C + positions=LW → only C-or-LW-eligible players listed
+def test_demo_waiver_post_c_lw_only_matching_positions(ctx):
+    _, client = ctx
+
+    with patch("data.demo.load_season_pool", return_value=_make_multi_position_pool()):
+        response = client.post(
+            "/demo/api/waiver/players",
+            data={"stats": ["Goals"], "positions": ["C", "LW"], "period": "Season", "page": "0"},
+        )
+
+    assert response.status_code == 200
+    body = response.text
+    # C, C/LW and LW players appear
+    assert "Center One" in body
+    assert "Dual CenterWing" in body
+    assert "Left Winger" in body
+    # RW-only, D-only and G-only players are excluded
+    assert "Right Winger" not in body
+    assert "Blue Liner" not in body
+    assert "Net Minder" not in body
+
+
+# AC3 — positions=D + positions=G → union: a D and a G both appear
+def test_demo_waiver_post_d_g_union(ctx):
+    _, client = ctx
+
+    with patch("data.demo.load_season_pool", return_value=_make_multi_position_pool()):
+        response = client.post(
+            "/demo/api/waiver/players",
+            data={"stats": ["Goals"], "positions": ["D", "G"], "period": "Season", "page": "0"},
+        )
+
+    assert response.status_code == 200
+    body = response.text
+    assert "Blue Liner" in body   # D-eligible
+    assert "Net Minder" in body   # G-eligible
+    # A non-selected position is excluded
+    assert "Center One" not in body
+
+
+# AC4 — no positions submitted → default "all positions" preserved
+def test_demo_waiver_post_no_positions_spans_groups(ctx):
+    _, client = ctx
+
+    with patch("data.demo.load_season_pool", return_value=_make_multi_position_pool()):
+        response = client.post(
+            "/demo/api/waiver/players",
+            data={"stats": ["Goals"], "period": "Season", "page": "0"},
+        )
+
+    assert response.status_code == 200
+    body = response.text
+    # Players from more than one position group are present
+    assert "Center One" in body    # C
+    assert "Right Winger" in body   # RW
+    assert "Blue Liner" in body     # D
+    assert "Net Minder" in body     # G
+
+
+# AC4 (explicit "All") — positions=All behaves the same as no filter
+def test_demo_waiver_post_positions_all_spans_groups(ctx):
+    _, client = ctx
+
+    with patch("data.demo.load_season_pool", return_value=_make_multi_position_pool()):
+        response = client.post(
+            "/demo/api/waiver/players",
+            data={"stats": ["Goals"], "positions": ["All"], "period": "Season", "page": "0"},
+        )
+
+    assert response.status_code == 200
+    body = response.text
+    assert "Center One" in body    # C
+    assert "Right Winger" in body   # RW
+    assert "Blue Liner" in body     # D
+    assert "Net Minder" in body     # G
+
+
+# Live branch — per-position fetch loop: fetch_season_pool once per selected position
+def test_live_multi_position_fetches_each_position(ctx):
+    conn, client = ctx
+    _insert_session(conn)
+
+    def fake_fetch(session, league_key, sort_id, id_to_name, position=None):
+        return pd.DataFrame([{
+            "player_key": f"nhl.p.{position}",
+            "player_name": f"{position} Player",
+            "team_abbr": "TOR",
+            "display_position": position,
+            "status": "",
+            "Goals": 10.0,
+            "Assists": 5.0,
+        }])
+
+    with (
+        patch("web.routes.waiver.make_session", return_value=MagicMock()),
+        patch("web.routes.waiver._get_league_key", return_value="419.l.11111"),
+        patch("web.routes.waiver.get_stat_categories", return_value=_make_stat_categories()),
+        patch("web.routes.waiver.cache.is_player_pool_stale", return_value=True),
+        patch("web.routes.waiver.fetch_season_pool", side_effect=fake_fetch) as mock_fetch,
+        patch("web.routes.waiver.cache.write_player_pool"),
+    ):
+        response = client.post(
+            "/api/waiver/players",
+            data={"stats": ["Goals"], "positions": ["C", "LW"], "period": "Season", "page": "0"},
+            cookies={"session_id": "sid-test"},
+        )
+
+    assert response.status_code == 200
+    # One fetch per selected position (single stat), each with its own position arg.
+    assert mock_fetch.call_count == 2
+    fetched_positions = {call.kwargs.get("position") for call in mock_fetch.call_args_list}
+    assert fetched_positions == {"C", "LW"}
+    # Both positions' players merged into the one table.
+    assert "C Player" in response.text
+    assert "LW Player" in response.text

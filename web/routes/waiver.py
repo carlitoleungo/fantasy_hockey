@@ -132,7 +132,7 @@ def _merge_pool(existing: pd.DataFrame, new_rows: pd.DataFrame) -> pd.DataFrame:
 
 
 def _waiver_post_impl(
-    position: str,
+    positions: list[str],
     stats: list[str],
     period: str,
     page: int,
@@ -143,6 +143,10 @@ def _waiver_post_impl(
     league_key: str | None = None,
 ):
     form_action = "/demo/api/waiver/players" if demo else "/api/waiver/players"
+
+    # Empty list or an "All" selection means "no position filter" — fetch and
+    # show the combined "All" pool. Otherwise fetch/filter each selected position.
+    selected = [p for p in positions if p and p != "All"]
 
     # Empty-state: no stats selected
     if not stats:
@@ -167,24 +171,31 @@ def _waiver_post_impl(
         cats = get_stat_categories(session, league_key)
         name_to_id = {c["stat_name"]: c["stat_id"] for c in cats if c["is_enabled"]}
         id_to_name = {c["stat_id"]: c["stat_name"] for c in cats if c["is_enabled"]}
-        api_position = None if position == "All" else position
+
+        # Fetch each selected position's pool separately (per-position cache
+        # keys). fetch_season_pool returns only the top-25 per stat sort, so a
+        # single "All" fetch would crowd out sparse positions (D, G). Empty
+        # selection ⇒ fetch the combined "All" pool as before.
+        fetch_positions = selected if selected else ["All"]
 
         season_pool = pd.DataFrame()
-        for stat in stats:
-            if stat not in name_to_id:
-                continue
-            if not cache.is_player_pool_stale(league_key, position, stat):
-                cached = cache.read_player_pool(league_key, position, stat)
-                if cached is not None:
-                    season_pool = _merge_pool(season_pool, cached)
+        for pos in fetch_positions:
+            api_position = None if pos == "All" else pos
+            for stat in stats:
+                if stat not in name_to_id:
                     continue
-            sort_id = name_to_id[stat]
-            fetched = fetch_season_pool(
-                session, league_key, sort_id, id_to_name, position=api_position
-            )
-            if not fetched.empty:
-                cache.write_player_pool(league_key, position, stat, fetched)
-            season_pool = _merge_pool(season_pool, fetched)
+                if not cache.is_player_pool_stale(league_key, pos, stat):
+                    cached = cache.read_player_pool(league_key, pos, stat)
+                    if cached is not None:
+                        season_pool = _merge_pool(season_pool, cached)
+                        continue
+                sort_id = name_to_id[stat]
+                fetched = fetch_season_pool(
+                    session, league_key, sort_id, id_to_name, position=api_position
+                )
+                if not fetched.empty:
+                    cache.write_player_pool(league_key, pos, stat, fetched)
+                season_pool = _merge_pool(season_pool, fetched)
 
     # ---------------------------------------------------------------------------
     # Last 30 days branch
@@ -243,7 +254,19 @@ def _waiver_post_impl(
     else:
         base_df = season_pool
 
-    filtered_df = filter_by_position(base_df, position)
+    # Union the pool across each selected position, de-duplicated on player_key.
+    # "All"/empty ⇒ no position filter.
+    if not selected or base_df.empty:
+        filtered_df = base_df
+    else:
+        filtered_df = (
+            pd.concat(
+                [filter_by_position(base_df, p) for p in selected],
+                ignore_index=True,
+            )
+            .drop_duplicates(subset="player_key")
+            .reset_index(drop=True)
+        )
 
     # Guard rank_players against missing columns
     safe_cats = [s for s in stats if s in filtered_df.columns]
@@ -290,7 +313,7 @@ def _waiver_post_impl(
 @router.post("/api/waiver/players")
 def waiver_players(
     request: Request,
-    position: str = Form("All"),
+    positions: list[str] = Form([]),
     stats: list[str] = Form([]),
     period: str = Form("Season"),
     page: int = Form(0),
@@ -302,7 +325,7 @@ def waiver_players(
         return RedirectResponse("/", status_code=302)
     session = make_session(current_user.access_token)
     return _waiver_post_impl(
-        position, stats, period, page, request,
+        positions, stats, period, page, request,
         demo=False, session=session, league_key=league_key,
     )
 
@@ -310,12 +333,12 @@ def waiver_players(
 @public_router.post("/demo/api/waiver/players")
 def demo_waiver_players(
     request: Request,
-    position: str = Form("All"),
+    positions: list[str] = Form([]),
     stats: list[str] = Form([]),
     period: str = Form("Season"),
     page: int = Form(0),
 ):
     return _waiver_post_impl(
-        position, stats, period, page, request,
+        positions, stats, period, page, request,
         demo=True,
     )

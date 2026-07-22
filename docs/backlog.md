@@ -164,4 +164,30 @@ manual owner capture.
 
 ---
 
+## Waiver ranking: cross-position NaN composites bury a position group — FILED 2026-07-04 (from ticket 032)
+
+**Original request:** Flagged by the code author during ticket 032 (multi-position waiver
+filter). Not a defect in 032's union logic — a separate, pre-existing ranking-behaviour issue.
+**What it is:** `analysis/waiver_ranking.rank_players` sinks players whose composite score is
+NaN in any selected stat to the bottom of the ranking. When a search mixes a skater-only stat
+with a goalie-only stat (now easily reachable via a D+G multi-position search, thanks to 032),
+every goalie is NaN on the skater stat and vice-versa — so one position group is pushed to the
+bottom and buried on later pages, even though both groups are correctly present in the pool.
+**Why it surfaced now:** 032 made disjoint-stat, cross-position combinations far more
+reachable than the old single-select UX did. The old UX effectively never mixed a skater-only
+and goalie-only stat in one ranked list.
+**What was deferred:** The whole fix. 032 ships without addressing it (correctly — the union
+logic is right; the goalies/defencemen are in the pool, just ranked low).
+**Context for later:** Fix lives in `analysis/waiver_ranking.py` (`rank_players` and its NaN
+handling), pure-Python/pandas layer — testable against fixtures, no framework or API surface.
+Open design question to resolve when scoping: what *should* a mixed skater+goalie stat ranking
+do? Options include (a) rank within each position group and interleave, (b) rank only on stats
+common to all selected positions, (c) surface a UI hint when the selected stats don't apply to
+all selected positions. Pick the behaviour before scoping — this is an analysis-layer ticket,
+so read the module first and write observable ACs over the ranked order.
+**Estimated complexity:** Small–Medium (one analysis-layer ticket + fixture tests), pending the
+ranking-behaviour design decision above.
+
+---
+
 [PM populates this file as features are scoped down during active development]

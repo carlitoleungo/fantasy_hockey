@@ -1,7 +1,13 @@
 # 032 — Waiver wire multi-position filter
 
 ## Status
-ready
+done
+
+<!-- PM 2026-07-04: Un-blocked. tests/test_waiver.py added to Touches (was an
+oversight — see Notes "Test coverage"). Code for the two app files is already done and
+self-verified (tickets/032-done.md); re-orchestration should carry that work forward,
+fix the one rename-broken test, and land the AC coverage. -->
+
 
 ## Type
 feature
@@ -12,6 +18,7 @@ full
 ## Touches
 - web/routes/waiver.py
 - web/templates/waiver/index.html
+- tests/test_waiver.py
 
 ## Why
 On the waiver wire page a manager can currently pick only one position at a time (the
@@ -91,6 +98,25 @@ table.
   stat-category chips in the same template for visual consistency.
 - Not an architectural surface: no OAuth, cache-layer, API-client, routing/middleware, or
   template shell/fragment-split changes — no Tech Lead consult required.
+- **Test coverage (`tests/test_waiver.py` — in Touches):** this file was missing from the
+  original Touches; that was an oversight (tickets 019a/019b, same route surface, both
+  listed it), corrected 2026-07-04. Two required changes:
+  1. **Fix the one rename-broken test.** `test_waiver_post_position_no_matching_rows`
+     (`tests/test_waiver.py:358`) posts the removed `position=G` field — update it to post
+     `positions=["G"]`. This is the only regression the `position`→`positions` rename
+     introduces (full suite was `1 failed, 384 passed` for this reason alone).
+  2. **Add committed AC coverage** — one test per acceptance criterion, plus `positions=All`
+     and the per-position live-fetch-loop assertion. A proven-green draft (7 tests) already
+     exists at
+     `/private/tmp/claude-501/.../ccad68c1-061c-4aa9-bde6-cbb0322adcc4/scratchpad/proposed_tests_032.py`
+     — reuse it if the path still resolves; if it doesn't (session scratchpad may be gone),
+     re-derive from the AC list above and the self-check notes in `tickets/032-done.md`.
+     Confirm the full suite is green before handoff to QA.
+- The `analysis/waiver_ranking.rank_players` NaN-composite ranking behaviour the code author
+  flagged (D+G ranked on disjoint skater/goalie stats buries one group on later pages) is
+  **out of scope here** and logged separately in `docs/backlog.md`. Do not touch
+  `analysis/waiver_ranking.py`. If AC3 needs a deterministic assertion, use a fixture where a
+  D and a G share the ranking stat (as the draft tests do).
 
 ## Verification
 - Run the app (`uvicorn web.main:app --reload`) and open `/demo/waiver` (no auth needed).
