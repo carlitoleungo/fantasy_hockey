@@ -99,6 +99,14 @@ ticket says to.
   claiming done**. Run command per `docs/ARCHITECTURE.md`:
   `uvicorn web.main:app --reload`. The Test Engineer will re-verify, but you should
   have walked the golden path yourself first.
+- **Exception — `Process: light` tickets whose ACs are fully covered by automated tests.**
+  If every acceptance criterion is asserted by a test you ran green (a route's status
+  code, a param's resolution, a redirect, rendered markup), the automated suite *is* your
+  verification: don't also spin up uvicorn and re-drive the same assertions by hand. Say
+  so explicitly in the done note ("ACs covered by tests X/Y/Z; no manual walk needed").
+  Still do the manual walk on a light ticket when a criterion is genuinely visual or
+  interactive (styling, a JS toggle firing on click, layout) — those the suite can't see.
+  This is a speed optimisation for trivial tickets only; when in doubt, walk it.
 
 ## Stack-specific guidance — TODO
 

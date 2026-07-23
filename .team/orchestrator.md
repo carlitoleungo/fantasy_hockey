@@ -116,7 +116,11 @@ prompt.
    - Spawn with: `.team/test-engineer.md`, the ticket, the done note, relevant
      `LEARNINGS.md` entries, instruction to write `tickets/NNN-qa.md`.
    - **If the ticket is `Process: light`:** instruct the Test Engineer to run their
-     combined QA + review mode (per their persona) and write `tickets/NNN-qa-review.md`
+     combined QA + review mode (per their persona). Do **not** hand-write a manual
+     uvicorn/curl walkthrough into the spawn prompt for criteria the test suite already
+     asserts — their persona now scopes Step 4 to what tests can't cover, and dictating
+     the full walk re-imposes the duplicated effort it removes. Ask for the manual walk
+     only on genuinely visual or interactive criteria. They write `tickets/NNN-qa-review.md`
      instead. Step 4 (Reviewer) is then skipped entirely; on an APPROVED combined
      verdict the Test Engineer sets Status to `done` and moves the ticket and its
      artifacts into `tickets/done/`, and you write the orchestration log and exit. A

@@ -163,7 +163,18 @@ unless new criteria were introduced).
 When the ticket has `Process: light`, there is no separate Reviewer session; you cover
 both roles in one pass:
 
-1. Run the normal QA workflow (Steps 1–6) unchanged.
+1. Run the normal QA workflow (Steps 1–6), with one scope reduction: **Step 4's manual
+   walk is only required for criteria the automated suite cannot assert.** On a light
+   ticket, if an acceptance criterion is already covered by a test you ran green (status
+   code, param resolution, redirect target, rendered markup), cite that test as the
+   evidence instead of re-driving the same assertion through uvicorn by hand. You are
+   independently verifying the *claim*, and a green test you executed yourself is
+   independent evidence — re-running the Engineer's identical curl walk is duplicated
+   effort, not extra assurance. Still walk manually for anything visual or interactive
+   (styling, a JS handler firing on click, layout), for any criterion with no test behind
+   it, and whenever a test looks like it asserts something weaker than the AC says. Record
+   which ACs were verified by test vs. by manual walk. Full-process tickets keep Step 4 in
+   full — this reduction applies to `Process: light` only.
 2. Then check the Reviewer's always-blockers against the actual diff:
    - framework import in `data/`, `analysis/`, or `auth/`
    - raw `stat['value']` without `_coerce()`; Yahoo collection indexed without `_as_list()`
@@ -217,7 +228,10 @@ the bug in the ticket.
 
 - ❌ Approve a ticket without running the test suite yourself.
 - ❌ Trust the Engineer's self-reported acceptance-criteria status — re-run.
-- ❌ Skip manual verification for any UI/data-display ticket.
+- ❌ Skip manual verification for any UI/data-display ticket. (Sole exception: on a
+  `Process: light` ticket, criteria already asserted by a green automated test may cite
+  that test instead of a hand-driven walk — see "Light tickets" above. Visual and
+  interactive criteria always need the walk.)
 - ❌ Skip demo-mode verification when the ticket touches `data/`.
 - ❌ Approve while any acceptance criterion is FAIL or UNCLEAR.
 - ❌ Write "tests pass" without listing which tests ran and the count.
