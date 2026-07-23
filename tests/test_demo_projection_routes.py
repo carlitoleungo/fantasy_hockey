@@ -5,7 +5,7 @@ Covers:
   - GET /demo/projection returns 200 without a session cookie (AC1)
   - Shell renders "Demo League", a team selector, and a matchup container whose
     HTMX points at /demo/projection/matchup (AC1)
-  - GET /demo/projection/matchup?my_team=<key> returns 200 with no auth and a
+  - GET /demo/projection/matchup?team_key=<key> returns 200 with no auth and a
     bare fragment carrying tally cards, category table, roster breakdowns (AC2)
   - The container auto-loads the default team against the demo fragment URL and
     the fragment shows real Week 14 projected numbers (AC3)
@@ -134,7 +134,7 @@ def test_demo_projection_shell_autoloads_default_team(client):
 
 
 # ---------------------------------------------------------------------------
-# AC2 — GET /demo/projection/matchup?my_team=<key> returns a bare fragment with
+# AC2 — GET /demo/projection/matchup?team_key=<key> returns a bare fragment with
 #        tally cards, category table, and roster breakdowns
 # ---------------------------------------------------------------------------
 
@@ -143,7 +143,7 @@ def test_demo_projection_matchup_returns_fragment(client):
         patch("data.demo.get_projection_context", return_value=_make_context()),
         patch("data.demo.get_projection_pair_data", return_value=_make_pair()),
     ):
-        response = client.get(f"/demo/projection/matchup?my_team={MY_KEY}")
+        response = client.get(f"/demo/projection/matchup?team_key={MY_KEY}")
     assert response.status_code == 200
     body = response.text
     # Bare fragment, not a full page.
@@ -180,6 +180,17 @@ def test_demo_projection_matchup_no_selection_redirects(client):
     assert response.headers["location"] == "/demo/projection"
 
 
+def test_demo_projection_matchup_my_team_alone_redirects(client):
+    """The removed `my_team` alias (no `team_key`) is treated as no selection."""
+    with (
+        patch("data.demo.get_projection_context", return_value=_make_context()),
+        patch("data.demo.get_projection_pair_data", return_value=_make_pair()),
+    ):
+        response = client.get(f"/demo/projection/matchup?my_team={MY_KEY}")
+    assert response.status_code == 302
+    assert response.headers["location"] == "/demo/projection"
+
+
 # ---------------------------------------------------------------------------
 # AC3 — fragment shows real projected numbers computed from the demo snapshot
 # ---------------------------------------------------------------------------
@@ -189,7 +200,7 @@ def test_demo_projection_matchup_shows_projected_numbers(client):
         patch("data.demo.get_projection_context", return_value=_make_context()),
         patch("data.demo.get_projection_pair_data", return_value=_make_pair()),
     ):
-        response = client.get(f"/demo/projection/matchup?my_team={MY_KEY}")
+        response = client.get(f"/demo/projection/matchup?team_key={MY_KEY}")
     body = response.text
     # Alpha Skater: Goals 5.0/10 gp * 3 games left = 1.5 projected goals.
     assert "1.5" in body
@@ -205,8 +216,8 @@ def test_demo_projection_matchup_swaps_orderings(client):
         patch("data.demo.get_projection_context", return_value=_make_context()),
         patch("data.demo.get_projection_pair_data", return_value=_make_pair()),
     ):
-        default = client.get(f"/demo/projection/matchup?my_team={MY_KEY}").text
-        swapped = client.get(f"/demo/projection/matchup?my_team={OPP_KEY}").text
+        default = client.get(f"/demo/projection/matchup?team_key={MY_KEY}").text
+        swapped = client.get(f"/demo/projection/matchup?team_key={OPP_KEY}").text
     # Default: my roster (Alpha Skater) renders in the first breakdown table.
     assert default.index("Alpha Skater") < default.index("Bravo Skater")
     # Swapped: the opponent's roster (Bravo Skater) is now the first table.
@@ -224,7 +235,7 @@ def test_demo_projection_no_yahoo_calls(client):
         patch("web.routes.projection.make_session") as mock_make_session,
     ):
         shell = client.get("/demo/projection")
-        frag = client.get(f"/demo/projection/matchup?my_team={MY_KEY}")
+        frag = client.get(f"/demo/projection/matchup?team_key={MY_KEY}")
     assert shell.status_code == 200
     assert frag.status_code == 200
     mock_make_session.assert_not_called()

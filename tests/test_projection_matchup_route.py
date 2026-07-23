@@ -244,18 +244,6 @@ def test_matchup_uses_single_bulk_team_stats_call(ctx):
 
 
 # ---------------------------------------------------------------------------
-# my_team query alias resolves the same as team_key
-# ---------------------------------------------------------------------------
-
-def test_matchup_my_team_alias(ctx):
-    conn, client = ctx
-    _insert_session(conn)
-    resp = _patched(client, f"?my_team={T1}")
-    assert resp.status_code == 200
-    assert "Week 14 vs Beta" in resp.text
-
-
-# ---------------------------------------------------------------------------
 # Session guards
 # ---------------------------------------------------------------------------
 
@@ -284,5 +272,14 @@ def test_matchup_missing_team_redirects_to_shell(ctx):
     conn, client = ctx
     _insert_session(conn)
     resp = client.get("/projection/matchup", cookies={"session_id": "sid-test"})
+    assert resp.status_code == 302
+    assert resp.headers["location"] == "/projection"
+
+
+def test_matchup_my_team_alone_is_not_a_selection(ctx):
+    """The removed `my_team` alias is treated as no team selected."""
+    conn, client = ctx
+    _insert_session(conn)
+    resp = client.get(f"/projection/matchup?my_team={T1}", cookies={"session_id": "sid-test"})
     assert resp.status_code == 302
     assert resp.headers["location"] == "/projection"

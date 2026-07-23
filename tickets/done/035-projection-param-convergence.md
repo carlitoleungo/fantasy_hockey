@@ -1,7 +1,7 @@
 # 035 — Converge Week Projection matchup route on a single team query-param
 
 ## Status
-ready
+done
 
 ## Type
 refactor

@@ -115,12 +115,13 @@ The condition fires on **every** page load for the rest of the day, because each
 
 ---
 
-### Converge Week Projection matchup route on a single team query-param name
+### Near-duplicate demo projection matchup tests after ticket 035's alias removal
 
 **Type:** quality
-**Source:** Code review 030
-**File:** `web/routes/projection.py` line 218; `web/templates/projection/index.html`
-**Detail:** `GET /projection/matchup` accepts both `team_key` and `my_team` (`selected = team_key or my_team`) because ticket 030's AC1 specified `?my_team=` while the immutable 029 shell sends `?team_key=` (in `<select name="team_key">` and the auto-load `hx-get`). Accepting both was the only way to satisfy the AC and the out-of-scope shell without editing 029 — a sound reconciliation, but it leaves two param names for one concept permanently. In a follow-up shell ticket, converge on a single name (drop `my_team`, or rename the shell control to `my_team`) so the route interface has one source of truth, then remove the alias fallback.
+**Source:** QA 035
+**File:** `tests/test_demo_projection_routes.py` lines 141 and 163
+**Detail:** `test_demo_projection_matchup_accepts_team_key_param` (line 163) and `test_demo_projection_matchup_returns_fragment` (line 141) are now functionally near-identical: both hit `GET /demo/projection/matchup?team_key=<key>` and assert a 200 with fragment content ("Roster Breakdown"). They diverged when `test_demo_projection_matchup_accepts_team_key_param` existed to prove `team_key` (as opposed to the `my_team` alias) was accepted; now that ticket 035 removed the `my_team` alias entirely, that distinction no longer exists. Fix: fold the two into one test, or repurpose `test_demo_projection_matchup_accepts_team_key_param` to assert something the other doesn't (e.g. a different team key / edge-case value) so it earns its keep.
+**Discovered:** QA 035
 
 ---
 

@@ -11,6 +11,13 @@
 
 ## Closed
 
+### Converge Week Projection matchup route on a single team query-param name
+
+**Type:** quality
+**Source:** Code review 030
+**File:** `web/routes/projection.py` line 218; `web/templates/projection/index.html`
+**Resolved:** Ticket 035 — removed the `my_team` parameter and the `selected = team_key or my_team` fallback from both `projection_matchup` and `demo_projection_matchup` in `web/routes/projection.py`. `team_key` is now the sole param; `?my_team=` is treated as no selection and redirects to the shell. The shell template already emitted `team_key` (unchanged).
+
 ### TC10 missing `>GR<` assertion for games-remaining column
 
 **Type:** quality

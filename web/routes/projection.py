@@ -249,14 +249,13 @@ def _render_matchup(
 def projection_matchup(
     request: Request,
     team_key: str | None = None,
-    my_team: str | None = None,
     current_user: CurrentUser = Depends(require_user),
     db=Depends(db_dep),
 ):
     league_key = _get_league_key(db, current_user.session_id)
     if not league_key:
         return RedirectResponse("/", status_code=302)
-    selected = team_key or my_team
+    selected = team_key
     if not selected:
         return RedirectResponse("/projection", status_code=302)
     session = make_session(current_user.access_token)
@@ -287,11 +286,10 @@ def demo_projection_shell(request: Request):
 def demo_projection_matchup(
     request: Request,
     team_key: str | None = None,
-    my_team: str | None = None,
 ):
     from data import demo as demo_module
 
-    selected = team_key or my_team
+    selected = team_key
     if not selected:
         return RedirectResponse("/demo/projection", status_code=302)
 
