@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python scripts/audit_due.py)",
+      "Bash(python3 scripts/audit_due.py)",
+      "Bash(python -m pytest tests/*)",
+      "Bash(python3 -m pytest tests/*)",
+      "Bash(.venv/bin/python -m pytest tests/*)",
+      "Bash(curl -s http://127.0.0.1:*)"
+    ]
+  }
+}
