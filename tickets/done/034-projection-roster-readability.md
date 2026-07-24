@@ -1,7 +1,7 @@
 # 034 — Week Projection roster-breakdown readability
 
 ## Status
-ready
+done
 
 ## Type
 feature

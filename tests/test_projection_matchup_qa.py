@@ -33,7 +33,7 @@ TEAMS = [
 SETTINGS = {"current_week": 14, "start_week": 1, "end_week": 24}
 STAT_CATEGORIES = [
     {"stat_id": "1", "stat_name": "Goals", "abbreviation": "G",
-     "stat_group": "skaters", "is_enabled": True},
+     "stat_group": "offense", "is_enabled": True},
 ]
 SCOREBOARD = {
     "week_start": "2026-03-23",

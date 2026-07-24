@@ -101,3 +101,12 @@ and `tests/test_auth_routes.py` import it from there. Dead `import sqlite3` remo
 **Type:** quality
 **Source:** Code review 011
 **Resolved:** Ticket 014 — removed stale module docstring referencing xmltodict, removed `if "xmltodict" not in sys.modules` guard, removed unused `sys` import.
+
+---
+
+### Near-duplicate demo projection matchup tests after ticket 035's alias removal
+
+**Type:** quality
+**Source:** QA 035
+**File:** `tests/test_demo_projection_routes.py`
+**Resolved:** Ticket 034 — removed `test_demo_projection_matchup_accepts_team_key_param`, which asserted nothing `test_demo_projection_matchup_returns_fragment` did not already assert once the `my_team` alias was gone. The surviving test keeps the richer fragment assertions.

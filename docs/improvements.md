@@ -115,16 +115,6 @@ The condition fires on **every** page load for the rest of the day, because each
 
 ---
 
-### Near-duplicate demo projection matchup tests after ticket 035's alias removal
-
-**Type:** quality
-**Source:** QA 035
-**File:** `tests/test_demo_projection_routes.py` lines 141 and 163
-**Detail:** `test_demo_projection_matchup_accepts_team_key_param` (line 163) and `test_demo_projection_matchup_returns_fragment` (line 141) are now functionally near-identical: both hit `GET /demo/projection/matchup?team_key=<key>` and assert a 200 with fragment content ("Roster Breakdown"). They diverged when `test_demo_projection_matchup_accepts_team_key_param` existed to prove `team_key` (as opposed to the `my_team` alias) was accepted; now that ticket 035 removed the `my_team` alias entirely, that distinction no longer exists. Fix: fold the two into one test, or repurpose `test_demo_projection_matchup_accepts_team_key_param` to assert something the other doesn't (e.g. a different team key / edge-case value) so it earns its keep.
-**Discovered:** QA 035
-
----
-
 ### Move `_is_rate_stat` import to module level in `tests/test_projection.py`
 
 **Type:** quality
@@ -158,6 +148,33 @@ The condition fires on **every** page load for the rest of the day, because each
 **Source:** Code review 018
 **File:** `tests/test_waiver_routes.py` TC4 (~line 158)
 **Detail:** TC4 checks status 200 and that `/demo/api/waiver/players` appears in the response body. It does not verify position radio inputs or stat checkbox values. The original bug (metadata columns as stat chips) was caught by manual QA, not by this test. Extend TC4 to assert all 6 position values and the expected stat names from the fixture DataFrame — matching the pattern TC1 already uses for `GET /waiver`.
+
+---
+
+### Goalie breakdown table omits the shared offense categories (Assists)
+
+**Type:** quality
+**Source:** Code review 034
+**File:** `web/routes/projection.py` lines 228-241 (`skater_columns` / `goalie_columns`)
+**Detail:** Ticket 034 splits the roster breakdown on Yahoo's `stat_group`, so the Goalies table shows only `goaltending` categories. Yahoo tags Assists as `offense` even though it applies to goalies too (`data/client.py:107-108` comments on exactly this), so a goalie's assists no longer appear anywhere in the breakdown. Measured impact in the demo snapshot is zero — all 260 cells that disappeared per fragment held `0.0`/`0.00`, and all 8 demo goalies have no offense stats at all — but a live league where a goalie records an assist would lose that number from the view. This is a product call, not a defect: the ticket explicitly prescribed the `stat_group` partition and sanctioned the two-table option. Fix direction if wanted: give the goalie columns the `goaltending` categories plus any `offense` category whose Yahoo `stat_position_types` include goalies (the raw field is already parsed in `data/client.py`, just not retained). PM may promote this to a ticket if the owner wants goalie assists back.
+
+---
+
+### `test_breakdown_values_unchanged_from_ticket_030` name overstates what it asserts
+
+**Type:** quality
+**Source:** Code review 034
+**File:** `tests/test_projection_matchup_route.py` line 395
+**Detail:** The test asserts `"11.0" in body`, `"6.0" in body`, `"2.50" in body` and `body.count("Projected Wins") == 2` against one mocked render. It is not a comparison against a pre-change render, so it cannot detect that a value changed relative to ticket 030, and the unanchored substring matching does not pin which cell holds each value (`"6.0"` also matches `16.0` or `6.05`). QA and review flagged this independently. Fix: rename to what it does (e.g. `test_comparison_table_and_tally_cards_render_expected_values`) and anchor each assertion to its cell rather than the whole body. Note a true pre/post comparison cannot live in a unit test — AC5 was verified separately by a two-server 535-cell diff during QA 034.
+
+---
+
+### Projection route test scaffolding duplicated across three test files
+
+**Type:** quality
+**Source:** Code review 034
+**File:** `tests/test_projection_matchup_route.py`, `tests/test_projection_matchup_qa.py`, `tests/test_projection_breakdown_qa.py`
+**Detail:** All three files carry their own verbatim copy of `_make_db()`, the `user_sessions` / `oauth_states` schema, the `TestClient` + `dependency_overrides` fixture, and the `TEAMS` / `SETTINGS` / `SCOREBOARD` / `LIVE_STATS` constants. There is no `tests/conftest.py`. Pre-existing duplication (two copies) that ticket 034 grew to three. Fix: add `tests/conftest.py` with a shared in-memory-session-DB fixture and a `client` fixture, and let the projection test modules keep only their own scenario data. Worth doing next time any of the three is substantially reworked.
 
 ---
 

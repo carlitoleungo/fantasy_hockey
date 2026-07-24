@@ -19,6 +19,7 @@ technique as test_demo_overview_routes.py (ticket 027).
 
 from __future__ import annotations
 
+import re
 from unittest.mock import patch
 
 import pytest
@@ -160,16 +161,6 @@ def test_demo_projection_matchup_returns_fragment(client):
     assert "Bravo Skater" in body
 
 
-def test_demo_projection_matchup_accepts_team_key_param(client):
-    with (
-        patch("data.demo.get_projection_context", return_value=_make_context()),
-        patch("data.demo.get_projection_pair_data", return_value=_make_pair()),
-    ):
-        response = client.get(f"/demo/projection/matchup?team_key={MY_KEY}")
-    assert response.status_code == 200
-    assert "Roster Breakdown" in response.text
-
-
 def test_demo_projection_matchup_no_selection_redirects(client):
     with (
         patch("data.demo.get_projection_context", return_value=_make_context()),
@@ -227,6 +218,89 @@ def test_demo_projection_matchup_swaps_orderings(client):
 # ---------------------------------------------------------------------------
 # No live Yahoo path is touched on the demo routes
 # ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# Ticket 034 AC4 — the demo fragment renders the improved breakdown too
+# ---------------------------------------------------------------------------
+
+def _make_context_with_goalie_category() -> dict:
+    ctx = _make_context()
+    ctx["stat_categories"].append(
+        {"stat_id": "23", "stat_name": "Goals Against Average", "abbreviation": "GAA",
+         "stat_group": "goaltending", "is_enabled": True}
+    )
+    for row in ctx["live_stats_rows"]:
+        row["Goals Against Average"] = 0.0
+    return ctx
+
+
+def _make_pair_with_goalie() -> dict:
+    pair = _make_pair()
+    pair["my_roster"].append(
+        {"player_key": "465.p.3", "player_name": "Charlie Goalie",
+         "team_abbr": "STL", "display_position": "G", "roster_slot": "G"}
+    )
+    pair["lastmonth_stats"]["465.p.3"] = {
+        "games_played": 10, "Goals Against Average": 2.75
+    }
+    return pair
+
+
+def test_demo_projection_matchup_splits_skaters_and_goalies(client):
+    """AC1/AC4 — the demo render separates goalie stats from skater stats."""
+    with (
+        patch("data.demo.get_projection_context",
+              return_value=_make_context_with_goalie_category()),
+        patch("data.demo.get_projection_pair_data",
+              return_value=_make_pair_with_goalie()),
+    ):
+        response = client.get(f"/demo/projection/matchup?team_key={MY_KEY}")
+    assert response.status_code == 200
+    body = response.text
+    assert ">Skaters<" in body
+    assert ">Goalies<" in body
+    tables = re.findall(
+        r'<p[^>]*>(Skaters|Goalies)</p>\s*<div[^>]*>\s*(<table.*?</table>)', body, re.S
+    )
+    labels = [label for label, _ in tables]
+    assert labels == ["Skaters", "Goalies", "Skaters"]
+    my_skaters = tables[0][1]
+    my_goalies = tables[1][1]
+    # Skater table carries no GAA column and therefore no 0.00 filler cell.
+    assert "GAA" not in my_skaters
+    assert "0.00" not in my_skaters
+    # Goalie table carries only the goaltending column.
+    assert "GAA" in my_goalies
+    assert "2.75" in my_goalies
+
+
+def test_demo_projection_matchup_abbreviates_headers_and_names(client):
+    """AC2/AC3/AC4 — abbreviated headers and player names in the demo render."""
+    with (
+        patch("data.demo.get_projection_context",
+              return_value=_make_context_with_goalie_category()),
+        patch("data.demo.get_projection_pair_data",
+              return_value=_make_pair_with_goalie()),
+    ):
+        response = client.get(f"/demo/projection/matchup?team_key={MY_KEY}")
+    body = response.text
+    tables = re.findall(
+        r'<p[^>]*>(Skaters|Goalies)</p>\s*<div[^>]*>\s*(<table.*?</table>)', body, re.S
+    )
+    headers = [
+        h
+        for _, table in tables
+        for h in re.findall(r"<th(?:\s[^>]*)?>\s*(.*?)\s*</th>", table, re.S)
+    ]
+    assert "G" in headers and "A" in headers and "GAA" in headers
+    assert "Goals" not in headers and "Assists" not in headers
+    # Player names abbreviated, full name kept as the hover title.
+    squashed = re.sub(r"\s+", " ", body)
+    assert "A. Skater" in squashed
+    assert 'title="Alpha Skater"' in body
+    assert "C. Goalie" in squashed
+    assert 'title="Charlie Goalie"' in body
+
 
 def test_demo_projection_no_yahoo_calls(client):
     with (

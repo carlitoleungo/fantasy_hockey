@@ -7,6 +7,7 @@ All data-layer functions are mocked so no live Yahoo/NHL API calls are made.
 
 from __future__ import annotations
 
+import re
 import sqlite3
 import time
 from unittest.mock import MagicMock, patch
@@ -67,8 +68,8 @@ TEAMS = [
 SETTINGS = {"current_week": 14, "start_week": 1, "end_week": 24}
 
 STAT_CATEGORIES = [
-    {"stat_id": "1", "stat_name": "Goals", "abbreviation": "G", "stat_group": "skaters", "is_enabled": True},
-    {"stat_id": "23", "stat_name": "Goals Against Average", "abbreviation": "GAA", "stat_group": "goalies", "is_enabled": True},
+    {"stat_id": "1", "stat_name": "Goals", "abbreviation": "G", "stat_group": "offense", "is_enabled": True},
+    {"stat_id": "23", "stat_name": "Goals Against Average", "abbreviation": "GAA", "stat_group": "goaltending", "is_enabled": True},
 ]
 
 SCOREBOARD = {
@@ -125,9 +126,12 @@ def _patched(
     scoreboard=SCOREBOARD,
     remaining_mock=None,
     teams_stats_mock=None,
+    rosters=None,
+    lastmonth=LASTMONTH,
 ):
     remaining_mock = remaining_mock or MagicMock(return_value=GAMES_REMAINING)
     teams_stats_mock = teams_stats_mock or MagicMock(return_value=LIVE_STATS)
+    rosters = rosters or [MY_ROSTER, OPP_ROSTER]
     with (
         patch("web.routes.projection.make_session", return_value=MagicMock()),
         patch("web.routes.projection.get_settings_and_categories",
@@ -137,9 +141,9 @@ def _patched(
         patch("web.routes.projection.scoreboard_module.get_current_matchup",
               return_value=scoreboard),
         patch("web.routes.projection.roster_module.get_team_roster",
-              side_effect=[MY_ROSTER, OPP_ROSTER]),
+              side_effect=rosters),
         patch("web.routes.projection.players_module.get_players_lastmonth_stats",
-              return_value=LASTMONTH),
+              return_value=lastmonth),
         patch("web.routes.projection.schedule_module.get_remaining_games",
               remaining_mock),
     ):
@@ -283,3 +287,122 @@ def test_matchup_my_team_alone_is_not_a_selection(ctx):
     resp = client.get(f"/projection/matchup?my_team={T1}", cookies={"session_id": "sid-test"})
     assert resp.status_code == 302
     assert resp.headers["location"] == "/projection"
+
+
+# ---------------------------------------------------------------------------
+# Ticket 034 — roster-breakdown readability
+# ---------------------------------------------------------------------------
+
+MIXED_ROSTER = [
+    {"player_key": "p.skater", "player_name": "Connor McDavid", "team_abbr": "EDM",
+     "display_position": "C", "roster_slot": "C"},
+    {"player_key": "p.goalie", "player_name": "Jake Allen", "team_abbr": "EDM",
+     "display_position": "G", "roster_slot": "G"},
+]
+MIXED_LASTMONTH = {
+    "p.skater": {"Goals": 20.0, "games_played": 10},
+    "p.goalie": {"Goals Against Average": 2.75, "games_played": 10},
+    "p.opp": {"Goals": 5.0, "games_played": 10},
+}
+
+
+def _breakdown_sections(body: str) -> list[tuple[str, str]]:
+    """Return [(section_label, table_html)] for every roster-breakdown table."""
+    tail = body.split("Roster Breakdown", 1)[1]
+    return re.findall(
+        r'<p[^>]*>(Skaters|Goalies)</p>\s*<div[^>]*>\s*(<table.*?</table>)',
+        tail,
+        re.S,
+    )
+
+
+def _mixed_response(client):
+    return _patched(
+        client,
+        f"?team_key={T1}",
+        rosters=[MIXED_ROSTER, OPP_ROSTER],
+        lastmonth=MIXED_LASTMONTH,
+    )
+
+
+def test_breakdown_splits_skaters_and_goalies(ctx):
+    """AC1 — a mixed roster renders a Skaters table and a Goalies table."""
+    conn, client = ctx
+    _insert_session(conn)
+    resp = _mixed_response(client)
+    assert resp.status_code == 200
+    sections = _breakdown_sections(resp.text)
+    labels = [label for label, _ in sections]
+    # My team: skaters + goalies. Opponent (skater only): skaters only.
+    assert labels == ["Skaters", "Goalies", "Skaters"]
+
+
+def _headers(table_html: str) -> list[str]:
+    return re.findall(r"<th(?:\s[^>]*)?>\s*(.*?)\s*</th>", table_html, re.S)
+
+
+def test_skater_section_has_no_goalie_columns(ctx):
+    """AC1 — no `0.00` GAA cell on a skater row; the column isn't there at all."""
+    conn, client = ctx
+    _insert_session(conn)
+    _, skaters = _breakdown_sections(_mixed_response(client).text)[0]
+    assert _headers(skaters) == ["Player", "GR", "G"]
+    assert "GAA" not in skaters
+    assert "0.00" not in skaters
+    # The skater's own projected Goals still renders (20/10 * 3 = 6.0).
+    assert ">6.0<" in re.sub(r"\s+", "", skaters)
+
+
+def test_goalie_section_has_no_skater_columns(ctx):
+    """AC1 (symmetric) — the goalie row carries only goaltending columns."""
+    conn, client = ctx
+    _insert_session(conn)
+    _, goalies = _breakdown_sections(_mixed_response(client).text)[1]
+    assert _headers(goalies) == ["Player", "GR", "GAA"]
+    # GAA is a rate stat -> the lastmonth rate rendered at 2dp, not a 0.0 skater cell.
+    assert "2.75" in goalies
+    assert ">0.0<" not in re.sub(r"\s+", "", goalies)
+
+
+def test_breakdown_headers_use_abbreviations(ctx):
+    """AC2 — headers show the Yahoo abbreviation, not the full stat name."""
+    conn, client = ctx
+    _insert_session(conn)
+    body = _mixed_response(client).text
+    headers = [h for _, table in _breakdown_sections(body) for h in _headers(table)]
+    assert "G" in headers
+    assert "GAA" in headers
+    assert "Goals" not in headers
+    assert "Goals Against Average" not in headers
+    # Full name is still available as the header tooltip.
+    assert 'title="Goals Against Average"' in body
+
+
+def test_breakdown_abbreviates_player_names_with_full_name_title(ctx):
+    """AC3 — `Connor McDavid` renders as `C. McDavid` with the full name on hover."""
+    conn, client = ctx
+    _insert_session(conn)
+    sections = _breakdown_sections(_mixed_response(client).text)
+    skaters = sections[0][1]
+    goalies = sections[1][1]
+    assert "C. McDavid" in re.sub(r"\s+", " ", skaters)
+    assert ">Connor McDavid<" not in skaters
+    assert 'title="Connor McDavid"' in skaters
+    assert "J. Allen" in re.sub(r"\s+", " ", goalies)
+    assert 'title="Jake Allen"' in goalies
+
+
+def test_breakdown_values_unchanged_from_ticket_030(ctx):
+    """AC5 — presentation-only: the tally cards, comparison table, and a
+    spot-checked player value are the same numbers ticket 030 rendered."""
+    conn, client = ctx
+    _insert_session(conn)
+    body = _patched(client, f"?team_key={T1}").text
+    # Comparison table: my Goals 5 + 20/10*3 = 11.0, opp 5 + 5/10*2 = 6.0
+    assert "11.0" in body
+    assert "6.0" in body
+    # Rate stat still 2dp in the comparison table
+    assert "2.50" in body
+    # Tally cards untouched
+    assert body.count("Projected Wins") == 2
+    assert "Tied" in body

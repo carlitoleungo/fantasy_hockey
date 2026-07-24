@@ -76,12 +76,14 @@ def _player_breakdown(roster, lastmonth_stats, games_remaining, enabled_stats):
                 stats[stat] = lm.get(stat, 0.0)
             else:
                 stats[stat] = (lm.get(stat, 0.0) / gp * remaining) if gp > 0 else 0.0
+        position = player.get("display_position", "")
         rows.append({
             "player_name": player["player_name"],
-            "position": player.get("display_position", ""),
+            "position": position,
             "team_abbr": player.get("team_abbr", ""),
             "games_left": remaining,
             "stats": stats,
+            "is_goalie": "G" in position.split(","),
         })
     rows.sort(key=lambda r: r["games_left"], reverse=True)
     return rows
@@ -223,6 +225,21 @@ def _render_matchup(
     my_breakdown = _player_breakdown(my_roster, lastmonth_stats, games_remaining, enabled_stats)
     opp_breakdown = _player_breakdown(opp_roster, lastmonth_stats, games_remaining, enabled_stats)
 
+    # Roster-breakdown columns, split by Yahoo's stat group so goalie-only
+    # categories never render against skaters (and vice versa). `name` keys
+    # into each player's stats dict; `abbr` is the column header.
+    enabled_categories = [
+        {
+            "name": c["stat_name"],
+            "abbr": c.get("abbreviation", c["stat_name"]),
+            "group": c["stat_group"],
+        }
+        for c in stat_categories
+        if c["is_enabled"]
+    ]
+    skater_columns = [c for c in enabled_categories if c["group"] != "goaltending"]
+    goalie_columns = [c for c in enabled_categories if c["group"] == "goaltending"]
+
     return templates.TemplateResponse(
         request,
         "projection/_matchup.html",
@@ -237,7 +254,8 @@ def _render_matchup(
             "ties": counts["Tie"],
             "opp_wins": counts[opponent_name],
             "comparison": comparison,
-            "enabled_stats": enabled_stats,
+            "skater_columns": skater_columns,
+            "goalie_columns": goalie_columns,
             "my_breakdown": my_breakdown,
             "opp_breakdown": opp_breakdown,
             "is_rate_stat": _is_rate_stat,

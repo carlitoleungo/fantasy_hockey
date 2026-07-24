@@ -66,29 +66,36 @@
   {# ------------------------------------------------------------------ #}
   {# Per-team roster breakdown (both teams)                              #}
   {# ------------------------------------------------------------------ #}
-  {% macro roster_table(rows) %}
+  {% macro roster_table(rows, columns) %}
     <div class="overflow-x-auto rounded-lg border border-gray-200">
       <table class="w-full text-sm whitespace-nowrap">
         <thead class="bg-gray-50 border-b border-gray-200">
           <tr>
             <th class="px-3 py-2 text-left font-semibold text-gray-600 sticky left-0 bg-gray-50">Player</th>
-            <th class="px-3 py-2 text-right font-semibold text-gray-600">GR</th>
-            {% for s in enabled_stats %}
-              <th class="px-3 py-2 text-right font-semibold text-gray-600">{{ s }}</th>
+            <th class="px-3 py-2 text-right font-semibold text-gray-600" title="Games Remaining">GR</th>
+            {% for c in columns %}
+              <th class="px-3 py-2 text-right font-semibold text-gray-600" title="{{ c.name }}">{{ c.abbr }}</th>
             {% endfor %}
           </tr>
         </thead>
         <tbody>
           {% for p in rows %}
+            {% set parts = p.player_name.split(' ', 1) %}
             <tr class="border-b border-gray-100">
-              <td class="px-3 py-2 sticky left-0 bg-white">
-                <span class="font-medium text-gray-800">{{ p.player_name }}</span>
+              <td class="px-3 py-2 sticky left-0 bg-white" title="{{ p.player_name }}">
+                <span class="font-medium text-gray-800">
+                  {%- if parts|length > 1 -%}
+                    {{ parts[0][0] }}. {{ parts[1] }}
+                  {%- else -%}
+                    {{ p.player_name }}
+                  {%- endif -%}
+                </span>
                 <span class="block text-xs text-gray-400">{{ p.position }} · {{ p.team_abbr }}</span>
               </td>
               <td class="px-3 py-2 text-right text-gray-700">{{ p.games_left }}</td>
-              {% for s in enabled_stats %}
-                {% set v = p.stats[s] %}
-                {% if is_rate_stat(s) %}
+              {% for c in columns %}
+                {% set v = p.stats[c.name] %}
+                {% if is_rate_stat(c.name) %}
                   <td class="px-3 py-2 text-right text-gray-700">{{ "%.2f"|format(v|float) }}</td>
                 {% else %}
                   <td class="px-3 py-2 text-right text-gray-700">{{ "%.1f"|format(v|float) }}</td>
@@ -101,11 +108,25 @@
     </div>
   {% endmacro %}
 
+  {# Skaters and goalies get their own table so neither shows the other's columns #}
+  {% macro team_breakdown(rows) %}
+    {% set skaters = rows | rejectattr("is_goalie") | list %}
+    {% set goalies = rows | selectattr("is_goalie") | list %}
+    {% if skaters %}
+      <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">Skaters</p>
+      {{ roster_table(skaters, skater_columns) }}
+    {% endif %}
+    {% if goalies %}
+      <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 mt-4 mb-1">Goalies</p>
+      {{ roster_table(goalies, goalie_columns) }}
+    {% endif %}
+  {% endmacro %}
+
   <h2 class="text-lg font-semibold text-gray-800 mb-3">Roster Breakdown</h2>
 
   <h3 class="text-sm font-semibold text-gray-700 mb-2">{{ my_team_name }}</h3>
-  {{ roster_table(my_breakdown) }}
+  {{ team_breakdown(my_breakdown) }}
 
   <h3 class="text-sm font-semibold text-gray-700 mt-6 mb-2">{{ opponent_name }}</h3>
-  {{ roster_table(opp_breakdown) }}
+  {{ team_breakdown(opp_breakdown) }}
 {% endif %}
