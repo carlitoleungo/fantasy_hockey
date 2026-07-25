@@ -6,6 +6,15 @@ ready
 ## Type
 feature
 
+## Milestone
+m2
+
+(Demo mode is the stranger-evaluation path — M2 ("evaluate it via demo mode without signing
+in"), not M1's authenticated Overview/Waiver/Projection journey. **Blocked by: ticket 036a**
+(m1), which provides `shell_context()` + the conditional `base.html`; see Dependencies below.
+A later-milestone ticket depending on an earlier-milestone one is fine. Judgment call, owner
+may veto to m1; see the PM scoping report.)
+
 ## Touches
 - web/routes/overview.py
 - web/routes/waiver.py

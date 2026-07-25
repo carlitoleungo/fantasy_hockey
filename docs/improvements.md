@@ -38,6 +38,49 @@
 
 ## Open
 
+### League settings and stat categories re-fetched from Yahoo on every request
+
+**Type:** bug
+**Symptom:** Every authenticated page load makes at least 2 Yahoo API calls that return
+season-invariant data. `get_league_settings()` and `get_stat_categories()` both GET the
+same `/league/{league_key}/settings` endpoint and neither is cached, so a fully warm
+parquet cache still costs 2 calls per render. On the waiver page these are the *only*
+remaining calls once pools are warm, so they dominate the steady-state API budget.
+**Root cause:** `data/client.py:65` (`get_league_settings`) and `data/client.py:94`
+(`get_stat_categories`) call `_get()` directly with no cache check. Call sites include
+`data/matchups.py:36` (every `get_matchups()`) and `web/routes/waiver.py:171` (every
+waiver POST). The response changes at most once per season for stat categories, and
+`current_week` changes weekly.
+**Fix (not yet implemented):** Cache the parsed settings response per league via
+`data/cache.py`. `current_week` is the only field with meaningful churn, so a short TTL
+(1–6 h) on the whole settings payload captures nearly all the saving without risking a
+stale week boundary. Note `get_matchups()` re-derives `current_week` from this call, so
+the TTL must stay well under a week. Both functions should share one cached fetch rather
+than each caching separately, since they hit the same endpoint.
+**Affected files:** `data/client.py`, `data/cache.py`, `data/matchups.py`,
+`web/routes/waiver.py`
+**Discovered:** 2026-07-23 (Tech Lead M1 readiness consult)
+
+---
+
+### Cross-league duplication: `ww_lastmonth` and NHL schedule are cached per league or not at all
+
+**Type:** quality
+**Source:** Tech Lead M1 readiness consult 2026-07-23
+**File:** `data/players.py:155` (`fetch_lastmonth_batch`), `data/schedule.py:37`
+(`get_remaining_games`), `data/cache.py` path helpers
+**Detail:** Last-30-day player stats come from `/players;player_keys=…/stats;type=lastmonth`,
+which carries no `league_key` — the data is pure NHL fact, identical across leagues, but is
+cached once per league. `get_remaining_games()` calls the public NHL API and is not cached at
+all, putting 1–2 live third-party calls in the hot path of every "Last 30 days" render.
+Deferred to M2 by DECISIONS.md 2026-07-23 "Cache: league-independent data gets a shared tier
+at M2"; the M1 cache-hardening work only adds the `CACHE_DIR/_shared/` path affordance. When
+building the tier, see that entry's "Known hazard" note — `_parse_stats` filters lastmonth
+columns to the league's enabled stats, so raw `stat_id`-keyed values must be stored and
+projected at read time.
+
+---
+
 ### `matchups.py` re-fetch loop causes parquet bloat and unnecessary API calls
 
 **Type:** bug

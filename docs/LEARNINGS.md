@@ -60,8 +60,9 @@ We develop during the NHL off-season, so live Yahoo data for week-keyed features
 empty or stale: matchups, weekly scoreboards, `type=lastmonth` player rates, and
 `schedule.get_remaining_games` (which counts games from today forward) all return
 nothing meaningful. The app fetches **live snapshots by default** (`current_week` is read
-live from `league["current_week"]` — `data/client.py:145`; available waiver players are
-never cached and always fetched live). Consequence: an authenticated live visual test or
+live from `league["current_week"]` — `data/client.py:145`; available waiver player pools
+are cached with a 24 h TTL, so an off-season fetch caches an empty/stale pool for a day
+unless `CACHE_DIR` is cleared). Consequence: an authenticated live visual test or
 QA pass of any week-keyed page (Week Projection 029/030, matchups) can only exercise the
 empty/placeholder state — it cannot validate real compute against live data. **Demo mode
 (`data/demo.py`, snapshotted at `snapshot_week`) is the current answer for a *visual*

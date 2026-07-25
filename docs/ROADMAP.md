@@ -9,34 +9,96 @@ and become a wishlist — prune.
 
 ---
 
+## Launch milestones
+
+The owner has defined three launch milestones. These are **approved and final** — they
+are the stable definitions the ticket template's `## Milestone` field and the backlog
+template's `**Milestone:**` field point at. Do not re-litigate the intent here; scope
+against it.
+
+### M1 — my league + close friends
+
+Deployed at a stable HTTPS URL; up to ~8 authenticated users across 4–6 leagues (a mix of
+several managers in the *same* league plus friends in their own leagues), each signing in
+with their own Yahoo account and using Overview, Waiver, and Projection without interfering
+with each other.
+
+### M2 — strangers can sign in
+
+A person you've never met can find the app, evaluate it via demo mode without signing in,
+connect their own Yahoo account, and use it, without their usage degrading anyone else's or
+exhausting the shared Yahoo rate limit.
+
+### M3 — charging
+
+Paid access to the entire authenticated app; demo mode stays free. All-or-nothing gate (no
+free tier yet); the exact split is TBD and out of scope for now.
+
+> **M2 and M3 are deliberately not scoped into tickets.** M2's real content depends on what
+> live M1 usage teaches about the Yahoo rate limit (which is why the rate-limit fixes in
+> `docs/improvements.md` are tagged M2, not M1). M3 needs a Yahoo commercial-terms check
+> before any billing work is scoped. Milestone *tags* on backlog items are fine; M2/M3
+> *tickets* are not, until those gates clear.
+
+### M1 launch steps that are owner actions, not tickets
+
+These close M1 alongside the M1 tickets but cannot be done in an Engineer session — record
+them here so they are not lost:
+
+1. **Register the production Yahoo redirect URI** in the Yahoo developer console. Yahoo
+   requires HTTPS redirect URIs registered out-of-band; the app cannot self-register. Add
+   `https://<prod-host>/auth/callback` in the console and set `YAHOO_REDIRECT_URI` to match
+   in the Fly secrets. **Owner action, not a ticket.**
+2. **Provision the Fly volume and deploy.** After ticket 039 lands `fly.toml`, run
+   `fly volumes create data --size 1 --region iad`, set the Yahoo secrets via
+   `fly secrets set`, then `fly deploy`. The `fly.toml` is the ticket; running the deploy is
+   an owner action (needs a Fly account and auth).
+3. **Decommission Streamlit Community Cloud** once the Fly app is live and validated —
+   disconnect the app in the SC dashboard. See the backlog entry "Streamlit Community Cloud
+   decommissioning" (tagged m1). Mostly a dashboard action; a redirect is only worth setting
+   up if external links to the SC URL exist. **Owner action, not a ticket.**
+
+---
+
 ## Next up
 
-1. **Waiver wire multi-position filter** — scoped into ticket **032** (2026-07-02).
-   Convert the waiver page's single-select position pills to a multi-select so managers
-   can find dual-eligible players (e.g. C + LW). UI-layer only: the per-position player
-   pool cache is already keyed by position, so this is a route + template change (loop
-   the fetch over selected positions, union the pools). Demo parity included.
-2. **Week Projection roster-breakdown readability** — scoped into ticket **034**
-   (2026-07-03). Presentation-only cleanup of the `_matchup.html` roster breakdown:
-   separate goalie stats from skater stats, abbreviate column headers (Yahoo
-   `abbreviation`) and player names to reduce horizontal scroll. Depends on 031 (demo
-   parity) so the change lands consistently on both the authenticated and demo renders.
-3. **Projection matchup param convergence** — scoped into ticket **035** (2026-07-03,
-   `Process: light`, from audit 032). Drop the dual `team_key`/`my_team` query-param alias
-   on `/projection/matchup` and `/demo/projection/matchup`, converging on `team_key` (the
-   shell's existing name). Route-only cleanup + test updates.
-4. **Demo-mode navigation** — Tech Lead consult **DONE** (2026-07-03; DECISIONS.md
-   "Nav shell: conditional on auth/demo state via shared shell-context"), mechanism is
-   Option C (shared `shell_context()` helper reusing the resolved user; `base.html` branches
-   and defaults to the auth nav). Scoped into **two `ready` tickets** — **036a** (foundation:
-   `common.py` helper + conditional `base.html` + `home.py` adoption; ships the logged-out-home
-   nav fix and closes the "Nav header shows auth links to unauthenticated visitors"
-   improvements item) and **036b** (adopt the helper in `overview.py`/`waiver.py`/`projection.py`;
-   ships the demo nav fix across all three demo pages). 036b depends on 036a. The "Try the
-   demo" home entry point remains a separate follow-up ticket (deliberately not bundled).
-5. **Demo mode snapshot tooling** — `data/demo.py` snapshot generation script and fixture
-   data refresh. The current demo dataset is static; this ticket produces tooling to regenerate
-   it from a live season so the public demo URL serves current-looking numbers.
+1. **M1 cache write-hardening** — scoped into ticket **037** (2026-07-25). Atomic
+   temp-file + `os.replace()` on every `data/cache.py` write (including `last_updated.json`),
+   plus a module-level per-`league_key` `threading.Lock` guarding `append()`,
+   `upsert_lastmonth_cache()`, and `_write_meta()`, plus the ~5-line `CACHE_DIR/_shared/`
+   path affordance (no call site adopts it at M1). M1-blocking: without it, concurrent
+   requests (two managers in one league, or one manager rapid-firing HTMX filters) can
+   corrupt parquet/metadata files that then fail every subsequent read until deleted by hand.
+   Covered by the Tech Lead consult 2026-07-23 (DECISIONS "Cache: stays league-keyed…" and
+   "Cache: league-independent data gets a shared tier at M2").
+2. **M1 matchups parquet-bloat fix** — scoped into ticket **038** (2026-07-25, depends on
+   037). Fixes the `data/matchups.py` re-fetch loop that appends `prev_week`/`current_week`
+   rows to the parquet on every page load for the rest of the day. Resolves the
+   `docs/improvements.md` bug "matchups.py re-fetch loop causes parquet bloat". Kept separate
+   from 037 (different file, different concern — see the report / ticket 038 Notes for the
+   fold-vs-separate call).
+3. **M1 deployment config** — scoped into ticket **039** (2026-07-25). Commit `fly.toml`
+   (single pinned machine in `iad`, `min_machines_running = 1`, no autoscaling, 1 GB volume
+   at `/data` shared by `app.db` and `cache/`) and a `.dockerignore` (the current
+   `COPY . .` Dockerfile would otherwise bake `.env` secrets, `app.db` OAuth tokens, and
+   `.cache/` into the production image). Covered by the Tech Lead consult 2026-07-23
+   (DECISIONS "Deployment: M1 shape — single pinned machine, 1 GB volume, fly.toml in repo").
+4. **Nav shell foundation** — scoped into ticket **036a** (tagged **m1**). Shared
+   `shell_context()` helper in `common.py` + conditional `base.html` + home adoption; fixes
+   the logged-out-home nav (the first screen an M1 friend sees before signing in) and closes
+   the "Nav header shows auth links to unauthenticated visitors" improvements item. Tech Lead
+   consult DONE (DECISIONS 2026-07-03 "Nav shell: conditional on auth/demo state via shared
+   shell-context").
+5. **Demo nav adoption** — scoped into ticket **036b** (tagged **m2**, depends on 036a).
+   Adopt the helper in `overview.py`/`waiver.py`/`projection.py` so the demo pages get a
+   coherent nav. Tagged m2 because demo mode is the stranger-evaluation path (M2), not M1's
+   authenticated journey; see the report for the veto note. The "Try the demo" home entry
+   point remains a separate follow-up (improvements item, m2-leaning).
+6. **Demo mode snapshot tooling** — `data/demo.py` snapshot generation script and fixture
+   data refresh. The current demo dataset is static; this ticket produces tooling to
+   regenerate it from a live season so the public demo URL serves current-looking numbers.
+   Not M1 (M1 friends sign in; demo freshness is an M2 concern), and unblocks fixture-based
+   QA for several deferred waiver ideas — see backlog.
 
 ## Watching (maybe, not soon)
 
@@ -48,26 +110,36 @@ and become a wishlist — prune.
   **deferred to `docs/backlog.md`**: the named parse/cache/orchestration paths are already
   covered by the existing synthetic-fixture suites, and the only net-new value (real-shape
   fixtures) is gated on a manual owner capture. Revive from the backlog entry when the owner
-  next has live authenticated access, or fold into item 5 below.
-- **Per-user cache storage migration** — required before any shared deployment; see the
-  `docs/backlog.md` entry for full context.
-- **Deployment configuration** — blocked on feature pages being migrated first; see the
-  `docs/backlog.md` entry for full context.
-- **`matchups.py` parquet bloat** — tracked as a `Type: bug` entry in
-  `docs/improvements.md`; cosmetic, not urgent.
+  next has live authenticated access, or fold into item 6 above.
+- **Per-user cache storage migration** — **DROPPED** (Tech Lead consult 2026-07-23;
+  DECISIONS.md "Cache: stays league-keyed; write safety comes from atomic rename +
+  in-process locking, not per-user keying"). The cache holds no user-private data, and
+  per-user keys would multiply API calls and storage without fixing the concurrency
+  defect they were assumed to address. Do not scope this. The real work is cache
+  write-hardening — now scoped as ticket **037** (Next up item 1).
+- **Yahoo rate-limit hardening** — **M2**, not M1. Two `docs/improvements.md` items cut
+  steady-state Yahoo call volume: caching `/league/{key}/settings` (2 calls per authenticated
+  render today) and the shared `ww_lastmonth` / NHL-schedule tier (DECISIONS 2026-07-23
+  "Cache: league-independent data gets a shared tier at M2"). Both matter when strangers
+  multiply leagues and the shared rate budget tightens — the M2 gate. At M1's ~6 leagues the
+  budget is generous, so these are deliberately out of M1 scope. The settings-cache item also
+  touches `data/client.py` (an architectural surface needing its own Tech Lead consult) — do
+  not fold it into the M1 cache work.
 
 ---
 
-_Last updated: 2026-07-03 (item 4 demo-mode nav: Tech Lead consult done, split into ready
+_Last updated: 2026-07-25 (added the approved Launch milestones section [M1/M2/M3 +
+owner-action launch steps]; scoped the M1 ticket set — 037 cache write-hardening, 038
+matchups parquet-bloat fix, 039 deployment fly.toml/.dockerignore; tagged 036a m1 / 036b m2;
+pruned shipped 032/034/035 from Next up; recorded Yahoo rate-limit work as M2).
+Prior: 2026-07-03 (item 4 demo-mode nav: Tech Lead consult done, split into ready
 tickets 036a [foundation] + 036b [feature-page adoption]; old single 036 retired).
 Prior: 2026-07-03 (spike 033 resolved: recorded the no-runtime-override decision and
 deferred the optional fixture-capture + tests follow-up to backlog — parse/cache paths
 already covered).
 Prior: 2026-07-03 (audit 032 follow-up: removed shipped Week Projection migration
 028–031; scoped param convergence into ticket 035 and demo-mode navigation into ticket 036
-[blocked on Tech Lead consult]).
-Prior: 2026-07-03 (scoped Week Projection roster-breakdown readability into ticket 034;
-added off-season past-week dev/test spike 033 to Watching). 2026-07-02 (Waiver
-multi-position filter scoped into ticket 032; week projection migration scoped into tickets
-028–031; shipped 025/027 removed). The PM maintains this file during scoping and product
+[blocked on Tech Lead consult]). The PM maintains this file during scoping and product
 reviews._
+</content>
+</invoke>

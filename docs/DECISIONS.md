@@ -7,6 +7,86 @@ context on *why* something was done a particular way.
 
 ---
 
+### Cache: stays league-keyed; write safety comes from atomic rename + in-process locking, not per-user keying (2026-07-23)
+
+Supersedes the "Cache: parquet cache stays on local disk (`/data/cache/`) (2026-04-10)" entry, whose `Revisit if` clause anticipated a per-user keying migration. That migration is now ruled out on the merits; the local-disk decision itself is reaffirmed and carried forward here.
+
+**Question / context:** The M1 launch milestone puts up to ~8 authenticated users, including several managers from the *same* league, on one deployment. `data/cache.py` keys parquet paths on `{league_key}` alone, and the route handlers are sync `def`, so FastAPI runs them in the threadpool and two requests genuinely interleave. Two questions followed: is this a corruption risk, and does the `docs/backlog.md` "per-user cache storage" item belong in M1?
+
+An audit of every cache call site settles the second question first. Only three data types are cached, and all three are league-scoped, not user-scoped: `matchups` (every team's weekly stats — visible to any league member), the `ww_season__{pos}__{stat}` available-player pools (the league-wide waiver pool), and `ww_lastmonth` (player stats). Rosters, projections, and team-specific data are fetched live and never written to the cache. There is no user-private data on the volume, so per-user keying buys no privacy or correctness benefit — and it would multiply both Yahoo API calls and disk usage by the number of managers per league, which is precisely backwards for M2, when strangers arrive and the shared rate-limit budget starts to matter.
+
+The corruption risk, however, is real and is not what per-user keying would fix. Three concrete failure modes exist today:
+- `write()` calls `df.to_parquet(path)` directly against the live path. There is no temp-file-and-rename, so a concurrent reader can observe a truncated file and raise `ArrowInvalid`.
+- `append()` and `upsert_lastmonth_cache()` are read-modify-write sequences with no mutual exclusion — two interleaved calls lose one side's rows.
+- `_write_meta()` re-reads, mutates, and rewrites `last_updated.json` with a plain `open(..., "w")`, which truncates immediately; a torn read raises `JSONDecodeError`.
+
+Two properties make this worse than its low per-request probability suggests. A corrupted parquet or metadata file **persists on the volume** and fails every subsequent read for that league until someone deletes it by hand — it does not self-heal. And it does not require two users: a single manager rapid-firing HTMX filter changes at `/api/waiver/players` produces concurrent writes to the same pool files on their own.
+
+**Options considered:**
+- **A — Per-user cache keys (`{user}/{league_key}/`):** Removes cross-user collisions by construction; requires no locking primitive. But it does not fix same-user concurrent HTMX writes, multiplies API calls and storage per league member, and discards the cache's main benefit precisely where it is most valuable (several managers in one league sharing one warm cache).
+- **B — Atomic write-and-rename + in-process locking (chosen):** Write to a temp file in the same directory and `os.replace()` onto the target, which is atomic on POSIX within a filesystem; guard the read-modify-write paths with a per-league `threading.Lock`. Fixes all three failure modes for both the multi-user and single-user cases. Roughly 20 lines, entirely inside `data/cache.py`, with no call-site or on-disk-layout changes.
+- **C — File locking (`fcntl` / `filelock`):** Correct across processes too, but buys nothing we need under a single worker and adds a dependency plus a lock-file lifecycle to reason about.
+
+**Decision:** Option B. `data/cache.py` keeps its `{league_key}/{data_type}.parquet` layout. Every write becomes temp-file-plus-`os.replace()`, including `last_updated.json`. `append()`, `upsert_lastmonth_cache()`, and `_write_meta()` are serialised by a module-level `dict[str, threading.Lock]` keyed on `league_key`. Per-user cache storage is dropped from the roadmap and the backlog, not deferred.
+
+**Why:** An in-process `threading.Lock` is sufficient *because* of the single-uvicorn-worker decision (2026-04-10) — the two decisions are load-bearing for each other, and that coupling is now explicit. Option B fixes the actual defect, is contained in one stable module, and preserves the shared-cache property that makes several managers in one league cheap rather than expensive.
+
+**Revisit if:** The deployment moves to multiple workers, multiple Fly machines, or any second process touching `/data/cache/` — the `threading.Lock` silently stops providing mutual exclusion at that moment, and the fix becomes `fcntl` locking or an external store. This is the same trigger as the single-worker entry's revisit clause; treat them as one decision. Also revisit if a future feature caches genuinely user-private data (a personal roster, a saved add/drop list), which would reintroduce the per-user keying question on privacy grounds rather than concurrency grounds.
+
+### Cache: league-independent data gets a shared tier at M2; M1 only preserves the affordance (2026-07-23)
+
+Qualifies the 2026-07-23 "Cache: stays league-keyed" entry above. That entry ruled out splitting the cache *finer* (per user); this one addresses the opposite direction — data that is coarser than a league and currently duplicated across leagues.
+
+**Question / context:** Some cached data is not league-scoped at all. Auditing each cached type against whether its source URL carries a `league_key` separates them cleanly:
+
+| Cached data | Source scoped to league? | Shareable |
+|---|---|---|
+| `ww_lastmonth` | No — `/players;player_keys=…/stats;type=lastmonth` | Yes, and we don't |
+| NHL schedule (`schedule.get_remaining_games`) | No — public `api-web.nhle.com` | Yes, and it isn't cached at all |
+| `ww_season__{pos}__{stat}` pools | Yes — `/leagues;league_keys={k}/players;status=A` | No |
+| `matchups` | Yes | No |
+
+Last-30-day player stats are pure NHL facts — Yahoo player keys are game-scoped (`465.p.1234`) and identical in every league that season, which is why the endpoint needs no league. We nonetheless fetch and store them once per league. The NHL schedule is fully league-independent and not cached at all, so every "Last 30 days" render makes 1–2 live third-party calls in the hot path.
+
+The season pools are *not* a gap despite containing NHL stat values: `status=A` means "available in this league", so pool membership is genuinely league-specific, and the stat values arrive free in the same call via `out=stats`. Sharing them would save disk and zero API calls.
+
+The structural limitation this exposes is that `_parquet_path(league_key, data_type)` has nowhere to put league-independent data — every path helper assumes a league.
+
+**Options considered:**
+- **A — Build the shared tier now (M1):** Removes the duplication immediately. But at M1 (~6 leagues, heavily overlapping top-25 pools) it saves on the order of 2–3 Yahoo calls per league per day, which does not justify a ticket, a cache migration, or the schema work below.
+- **B — Defer wholesale to M2:** Zero cost now, but the M1 cache-hardening work touches exactly these path helpers, so deferring entirely means refactoring them twice.
+- **C — Defer the tier to M2, add the path affordance in M1 (chosen).**
+
+**Decision:** No shared cache tier at M1. During the M1 cache write-hardening work, `_parquet_path` (and its callers) accept a `None`/absent league and resolve to `CACHE_DIR/_shared/{data_type}.parquet`, so a later shared tier is additive. No call sites adopt it yet.
+
+**Why:** The savings are real but small until stranger leagues multiply at M2, and the affordance is roughly five lines in a module already being opened. This buys the option without paying for the feature.
+
+**Known hazard for whoever builds the tier:** `_parse_stats` filters lastmonth columns through the league's enabled stat categories, so today's `ww_lastmonth` frames are league-*shaped* even though the underlying facts are not. A shared tier must store raw `stat_id`-keyed values and project to league stat names at read time; merging the current league-filtered frames directly will produce inconsistent schemas.
+
+**Revisit if:** M2 lands and distinct leagues outnumber roughly 10, or Yahoo rate-limit responses (HTTP 999/429) start appearing — at which point the shared `ww_lastmonth` tier and NHL-schedule caching become the two highest-value fixes. Note that caching `/league/{key}/settings` (tracked in `docs/improvements.md`) is a larger win than either and should be taken first.
+
+### Deployment: M1 shape — single pinned machine, 1 GB volume, fly.toml in repo (2026-07-23)
+
+Extends (does not supersede) the 2026-04-10 "Runtime: single uvicorn worker", "Storage: SQLite for session/nonce storage", and "Deployment: Fly.io with persistent volume" entries. Those decisions hold unchanged at M1 scale; this entry adds the deployment constraints they did not anticipate.
+
+**Question / context:** M1 requires the app deployed at a stable HTTPS URL for ~8 authenticated users across 4–6 leagues. A `Dockerfile` exists; there is no `fly.toml` and no CI. The question was whether the 2026-04-10 runtime commitments survive M1 and how large the shared volume should be.
+
+They survive comfortably. Eight users generate no meaningful concurrency pressure on one uvicorn worker, and SQLite in WAL mode handles the session read/write pattern at this scale without contention.
+
+The constraint the original entries did not capture is that **a Fly volume is bound to a single machine.** If the app ever scales past one machine, each machine gets its own volume: sessions split (a user's cookie resolves on one machine and not the other) and the parquet cache forks into divergent copies. Worse, the `threading.Lock` in the 2026-07-23 cache entry silently stops providing mutual exclusion. The M1 `fly.toml` must therefore pin the app to exactly one machine, and that pin is a correctness requirement, not a cost optimisation.
+
+**Options considered:**
+- **A — Pin to one machine (chosen):** `min_machines_running = 1`, no autoscaling, single region `iad`. Preserves every assumption the current architecture rests on. Ceiling is one machine's capacity, which is far above M1 and M2 needs.
+- **B — Leave scaling unpinned:** Costs nothing today and would absorb an unexpected traffic spike, but the first scale-out event silently corrupts sessions and cache with no error surfaced to anyone.
+
+**Decision:** Pin to a single machine in `iad`. Provision a **1 GB** volume at `/data`, shared by `app.db` and `cache/`. `fly.toml` is committed to the repo. CI is not an M1 requirement.
+
+**Why on the volume size:** Measured from the cache layout, the footprint is small. Season pools are 25-row parquets (~10 KB each); a league with every position/stat combination warmed lands well under 1 MB. `ww_lastmonth` and `matchups` are the only files that grow, and `matchups` growth is bounded once the parquet-bloat bug is fixed. SQLite with a handful of sessions is under 1 MB. Six leagues sit comfortably inside 100 MB for a full season, so 1 GB is roughly 10× headroom. Fly volumes can be extended later but never shrunk, which argues against over-provisioning now.
+
+**Revisit if:** Sustained traffic approaches one machine's capacity (the trigger to re-open the single-worker/SQLite pair together, per their shared revisit clause), or volume utilisation passes ~50%. Add CI when the test suite stops being run reliably by hand, or at M2 when strangers make a bad deploy publicly visible.
+
+---
+
 ### Nav shell: conditional on auth/demo state via shared shell-context; no second auth-derivation path (2026-07-03)
 
 Extends (does not supersede) the 2026-04-19 "Nav shell: minimal league label + logout in base.html; feature links added per ticket" entry, and applies the 2026-05-30 `optional_user` decision to template context.
@@ -303,20 +383,6 @@ Per scoping brief `013` Decision 4. Ticket 014 adds a minimal header to `web/tem
 **Why:** Container-based one-command deploys; the persistent volume solves cache ephemerality without adding an object-storage SDK; North American single-region is sufficient for the audience.
 
 **Revisit if:** Fly.io pricing/free-tier changes materially, or the audience grows to need multi-region.
-
-### Cache: parquet cache stays on local disk (`/data/cache/`) (2026-04-10)
-
-**Question / context:** Whether the prototype's parquet cache layer needs a new storage backend for the deployed app.
-
-**Options considered:**
-- **S3 / Cloudflare R2:** Would require modifying `cache.py` and adding an SDK dependency.
-- **Local disk on the persistent volume (chosen).**
-
-**Decision:** `data/cache.py` unchanged; `CACHE_DIR` env var points at `/data/cache/` on the Fly.io volume.
-
-**Why:** Zero code changes to a stable module; the persistent volume makes disk storage durable across deploys.
-
-**Revisit if:** Per-user cache storage is scoped for shared deployment (already on the roadmap) — the keying scheme changes then, and object storage should be re-evaluated at the same time.
 
 ### Auth: server-side session — tokens in DB, session_id in cookie (2026-04-10)
 

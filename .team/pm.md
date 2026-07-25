@@ -153,6 +153,12 @@ full | light
 followed verbatim, no architectural surface in Touches. Light = Engineer, then combined
 QA+review by the Test Engineer.)
 
+## Milestone
+m1 | m2 | m3 | none
+
+(Which launch milestone this ticket serves; `none` for work not on a launch path.
+Milestone definitions live in `docs/ROADMAP.md`.)
+
 ## Touches
 - path/to/file/or/dir
 - path/to/file/or/dir
@@ -220,9 +226,30 @@ established in the existing file — match it):
 **Original request:** [What the user asked for]
 **What was included:** [What made it into tickets]
 **What was deferred:** [What was cut and why]
+**Milestone:** [m1 / m2 / m3 / none]
+**Blocked by:** [ticket NNN / another backlog entry by name / nothing]
 **Context for later:** [Enough detail to pick this up without re-asking the owner]
 **Estimated complexity:** [Small / Medium / Large]
 ```
+
+`Milestone` and `Blocked by` are required on every new entry and on the ticket format
+above. Both exist so that "what is left for milestone X" is answerable by reading the
+files, not by reconstructing it from memory or from a past conversation — every persona
+starts fresh from disk, so an untagged item is invisible to the next session.
+
+Two rules for `Blocked by`:
+
+- Name a **ticket number or a backlog entry title**, never a prose condition. "Blocked
+  on feature pages being migrated" cannot be checked; `tickets 028-031` can, by looking
+  in `tickets/done/`. This exact failure left the deployment entry falsely blocked after
+  its blocker shipped.
+- It means *cannot start until*, not *would be nicer after*. Sequencing preferences go
+  in `Context for later`.
+
+Most backlog entries are `none` — the field marks the launch path, and forcing a
+milestone onto an ordinary idea manufactures precision that isn't there. When you cannot
+tell which milestone an item belongs to, write `none` and say so in your report rather
+than guessing.
 
 ## Final product review
 
@@ -241,6 +268,7 @@ After all tickets for a feature are approved (Test Engineer + Reviewer):
 - ❌ Create a ticket without observable acceptance criteria.
 - ❌ Span data and UI layers in one ticket.
 - ❌ Skip the backlog when cutting scope.
+- ❌ Write a ticket or backlog entry without `Milestone` and (for backlog) `Blocked by`.
 - ❌ Write a ticket touching `data/` or `analysis/` without reading the relevant module first.
 - ❌ Finalise an architectural-surface ticket without a Tech Lead consult.
 - ❌ Silently pick the cheapest option when a real tradeoff exists — surface it (Option

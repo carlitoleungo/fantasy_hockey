@@ -9,6 +9,24 @@
 
 ---
 
+### Cache: parquet cache stays on local disk (`/data/cache/`) (2026-04-10)
+
+*Superseded 2026-07-23 by "Cache: stays league-keyed; write safety comes from atomic rename + in-process locking, not per-user keying" in `DECISIONS.md`. The local-disk choice below was reaffirmed, but its `Revisit if` clause anticipated a per-user keying migration that has since been ruled out on the merits — the cache holds no user-private data, and per-user keys would multiply API calls and storage without fixing the concurrency defect they were assumed to address.*
+
+**Question / context:** Whether the prototype's parquet cache layer needs a new storage backend for the deployed app.
+
+**Options considered:**
+- **S3 / Cloudflare R2:** Would require modifying `cache.py` and adding an SDK dependency.
+- **Local disk on the persistent volume (chosen).**
+
+**Decision:** `data/cache.py` unchanged; `CACHE_DIR` env var points at `/data/cache/` on the Fly.io volume.
+
+**Why:** Zero code changes to a stable module; the persistent volume makes disk storage durable across deploys.
+
+**Revisit if:** Per-user cache storage is scoped for shared deployment (already on the roadmap) — the keying scheme changes then, and object storage should be re-evaluated at the same time.
+
+---
+
 ### Feature pages: HTMX fragment pattern with shell + fragment template split (2026-04-19)
 
 *Superseded 2026-05-30 by the entry of the same title in `DECISIONS.md` (a factual error was corrected — "015 (head-to-head)" should read 015 leaderboard / 016 head-to-head — and a `Revisit if` clause was added).*

@@ -23,7 +23,7 @@ Auth flow and API patterns are established in `auth/oauth.py` and `data/client.p
 The parquet cache layer (`data/cache.py`) is the primary defence against Yahoo rate limits. Storage tiers and refresh strategies are documented in `docs/ARCHITECTURE.md` § Storage tiers; delta-fetch behaviour is documented in `docs/DECISIONS.md` (see the matchups.py entries).
 
 - Cache location is the `CACHE_DIR` env var: defaults to `.cache/` locally, `/data/cache/` in production. Both are gitignored — cache files can always be regenerated from the API.
-- Available (waiver) players are never cached — always fetched live.
+- Available (waiver) players **are** cached, with a 24 h TTL: season pools per `(league_key, position, stat)` as `ww_season__{pos}__{stat}.parquet`, plus a cumulative `ww_lastmonth.parquet` per league. See `data/cache.py` § "Player pool cache" and the call sites in `web/routes/waiver.py`. Only rosters, projections, and league settings/stat categories are fetched live on every request.
 
 ## Secrets & Auth
 - Yahoo OAuth 2.0, redirect-based flow, implemented directly with `requests` in `auth/oauth.py` (the `yahoo_oauth` library is incompatible — see `docs/DECISIONS.md` 2026-03-03).
