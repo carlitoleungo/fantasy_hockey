@@ -7,6 +7,31 @@ context on *why* something was done a particular way.
 
 ---
 
+### Nav shell: render sites that cannot resolve a user declare the state unknown and render nav-free; exception handlers never derive auth (2026-07-25)
+
+Answers the `Revisit if` clause of the 2026-07-03 "Nav shell: conditional on auth/demo state via shared shell-context" entry below. That entry is **extended, not superseded**: its core rule (one auth-derivation path, reuse the user the route already resolved) is reaffirmed and now covers the case it anticipated.
+
+**Question / context:** `web/templates/error.html` extends `base.html` and passes no shell context, so it lands on the "flags absent ⇒ authenticated nav" default that 036a added deliberately (036a AC3) and shows Overview / Waiver / Projection / Logout to logged-out and demo visitors, every link of which bounces them to `/auth/login`. This is the same defect 036a fixed on the home page, and it cannot be fixed the way 036a fixed it: both render sites are FastAPI exception handlers (`web/main.py` lines 48-65, `requests.HTTPError` → 502 and the 500 handler), and exception handlers receive only the `Request`. FastAPI does not run dependency injection for them, so there is no resolved `CurrentUser` to hand to `shell_context()`. Passing `None` is strictly worse than today: it would show the logged-out nav to authenticated users hitting a mid-session Yahoo error, which is the more common of the two audiences.
+
+The framing that resolves this is that the 2026-07-03 `Revisit if` clause assumed a request-only derivation would become "unavoidable". It is not. The error page does not need to know who the visitor is; it needs to stop claiming to know. Note also that auth here is a `Depends` (`require_user`/`optional_user`), **not** a Starlette middleware, so `request.state` carries nothing today: any "read it off the request" option has to put it there first.
+
+**Options considered:**
+- **A — Resolve the user inside the handler.** Two sub-shapes, both rejected. Re-deriving from the `session_id` cookie + DB inside the handler is verbatim the Option B anti-pattern the 2026-07-03 and 2026-05-30 entries both rejected (a second copy of security-critical session-lookup and token-refresh logic). Having the dependencies stash the resolved user on `request.state` avoids the duplication but adds a second channel for the same value in security-critical code, for the sake of a nav header, and still leaves the state unset for every render this actually has to serve: demo routes and other public routes take no user dependency at all, and errors raised before or during dependency resolution never reach a route. A fallback branch is therefore required no matter what, which makes A purely additive on top of C.
+- **B — Give `error.html` its own nav-free layout that does not extend `base.html`.** Needs no auth state, but duplicates the `<head>` (viewport, title block, three CDN script tags) into a second file, so the next CDN version bump or CSP change has to be made twice. That is the exact drift the shared-shell decision exists to prevent.
+- **C — An explicit "auth state unknown" shell state that `base.html` renders nav-free (chosen).** One new key, no auth logic anywhere, one `base.html` branch, and `error.html` keeps inheriting the shared `<head>`.
+
+**Decision:** Option C. `web/routes/common.py` gains a small sibling to `shell_context()` returning `{"auth_state_unknown": True}`; both exception handlers spread it into their `error.html` context; `base.html` branches on that key **first** and renders the header with the "Fantasy Hockey" brand link only, no feature links, no Logout, no login prompt. The key is named for its cause (auth state cannot be resolved), not its effect (hide the nav), so it cannot be repurposed as a styling switch by a page that does know its visitor.
+
+The recovery path stays intact for both audiences without any derivation, because `/` is public and uses `optional_user`: the brand link already renders the right nav for whoever follows it. The ticket should additionally put an explicit "Back to home" link in `error.html`'s body, since authenticated users do lose a working nav they have today.
+
+**Why:** Declining to guess is cheaper and more honest than either derivation shape, and it holds the line that there is exactly one place in this codebase that decides whether a request is authenticated. A nav header is not worth a second path through session and token-refresh logic.
+
+**Forward commitment (sequenced after 036b, not part of this fix):** `base.html`'s "flags absent ⇒ authenticated nav" default was a staged-migration affordance, and this bug is what that default costs. Once 036b migrates the last three route files, the default has no remaining beneficiary and should flip to fail-safe: absent flags render the nav-free header, so a future page that forgets `shell_context()` degrades visibly instead of lying. That flip is blocked on 036b (today only `home.py` passes shell context, so flipping now would strip the nav from Overview / Waiver / Projection). Keeping the explicit key means the error-page fix does not wait for it, and adding a leading branch to `base.html` does not collide with 036b's demo/auth branches in either landing order.
+
+**Revisit if:** A future render site genuinely needs correct auth-conditional nav without a resolvable user, which would reopen option A's `request.state` shape (and at that point the honest move is converting auth from a `Depends` to a middleware, not stashing a second copy). Or the shell-context keys grow past three or four, at which point the dict should become a small dataclass with a named "unknown" constructor, per the 2026-07-03 entry's own revisit note.
+
+---
+
 ### Cache: stays league-keyed; write safety comes from atomic rename + in-process locking, not per-user keying (2026-07-23)
 
 Supersedes the "Cache: parquet cache stays on local disk (`/data/cache/`) (2026-04-10)" entry, whose `Revisit if` clause anticipated a per-user keying migration. That migration is now ruled out on the merits; the local-disk decision itself is reaffirmed and carried forward here.
