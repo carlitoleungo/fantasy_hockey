@@ -89,11 +89,14 @@ them here so they are not lost:
    the "Nav header shows auth links to unauthenticated visitors" improvements item. Tech Lead
    consult DONE (DECISIONS 2026-07-03 "Nav shell: conditional on auth/demo state via shared
    shell-context").
-5. **Demo nav adoption** — scoped into ticket **036b** (tagged **m2**, depends on 036a).
-   Adopt the helper in `overview.py`/`waiver.py`/`projection.py` so the demo pages get a
-   coherent nav. Tagged m2 because demo mode is the stranger-evaluation path (M2), not M1's
-   authenticated journey; see the report for the veto note. The "Try the demo" home entry
-   point remains a separate follow-up (improvements item, m2-leaning).
+5. **Nav shell test hardening** — scoped into ticket **040** (2026-07-25). Ticket 036a
+   (nav shell foundation, m1) and **036b** (demo nav adoption, m2) both **SHIPPED** — the
+   demo pages now render a coherent demo nav and the logged-out home nav is fixed. 040
+   closes the regression-guard gap the 036b review found: nav assertions cover 7 of the 12
+   migrated `shell_context()` branches, and the 5 uncovered ones (all in `overview.py`
+   empty-state and head-to-head branches) fail silently if a future edit drops the spread.
+   Test-only, no milestone. Resolves two `docs/improvements.md` items. The "Try the demo"
+   home entry point remains a separate follow-up (improvements item, m2-leaning).
 6. **Demo mode snapshot tooling** — `data/demo.py` snapshot generation script and fixture
    data refresh. The current demo dataset is static; this ticket produces tooling to
    regenerate it from a live season so the public demo URL serves current-looking numbers.
@@ -128,7 +131,10 @@ them here so they are not lost:
 
 ---
 
-_Last updated: 2026-07-25 (added the approved Launch milestones section [M1/M2/M3 +
+_Last updated: 2026-07-25 (036a and 036b shipped; scoped ticket 040 nav-shell test
+hardening from the 036b review's two should-fix findings; noted the audit cadence sits at
+4.5/5 weighted, so the ticket after 040 completes is an audit).
+Prior: 2026-07-25 (added the approved Launch milestones section [M1/M2/M3 +
 owner-action launch steps]; scoped the M1 ticket set — 037 cache write-hardening, 038
 matchups parquet-bloat fix, 039 deployment fly.toml/.dockerignore; tagged 036a m1 / 036b m2;
 pruned shipped 032/034/035 from Next up; recorded Yahoo rate-limit work as M2).

@@ -54,6 +54,18 @@ Data modules import helpers by name (`from data.client import _get`), which bind
 name in the importing module. Patching `data.client._get` has no effect on them — patch
 `data.players._get`, `data.leagues._get`, etc. (See DECISIONS.md 2026-03-03 entry.)
 
+**Exception — the demo route handlers, which import lazily.** The `/demo/*` handlers in
+`web/routes/overview.py` do `from data import demo as demo_module` *inside the function
+body*, then call `demo_module.get_matchups()`. The name is resolved on the `data.demo`
+module object at call time, not bound into the route module at import time, so the rule
+above inverts: patch `data.demo.get_matchups`, **not**
+`web.routes.overview.get_matchups`. Patching the route module for a demo handler fails
+silently — the handler still gets the real snapshot, so a test meant to exercise an
+empty-state branch quietly runs against the populated one and passes while guarding
+nothing. Check whether the import is module-level or in-body before choosing a target.
+(Discovered scoping ticket 040; the working pattern is in
+`tests/test_demo_overview_routes.py` lines 11-12.)
+
 ### Off-season → no live data; week-keyed feature pages only show empty states
 
 We develop during the NHL off-season, so live Yahoo data for week-keyed features is
