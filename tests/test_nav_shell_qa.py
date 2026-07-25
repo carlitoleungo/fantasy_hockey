@@ -15,6 +15,11 @@ Covers gaps found during QA:
     that keeps every not-yet-migrated page rendering as before.
   - The demo branch of the nav shipped in 036a but is dormant (no route sets
     demo_mode until 036b), so it is exercised by direct template render.
+
+Ticket 036b appended the demo/authenticated feature-page nav assertions at the
+bottom of this file, reusing the <nav>- and <header>-scoped helpers above, and
+removed 036a's `test_demo_pages_still_render_default_authenticated_nav`
+tripwire (the before-state 036b flips).
 """
 
 from __future__ import annotations
@@ -22,8 +27,10 @@ from __future__ import annotations
 import re
 import sqlite3
 import time
+from contextlib import ExitStack
 from unittest.mock import MagicMock, patch
 
+import pandas as pd
 import pytest
 
 from fastapi.testclient import TestClient
@@ -226,14 +233,135 @@ def test_authenticated_home_without_selected_league_has_no_label(ctx):
 
 
 # ---------------------------------------------------------------------------
-# AC3 — not-yet-migrated pages keep the authenticated nav (036b migrates these)
+# Ticket 036b — demo and authenticated feature pages adopt shell_context().
+#
+# These replace 036a's `test_demo_pages_still_render_default_authenticated_nav`
+# tripwire, which locked in the before-state that 036b deliberately flips.
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("path", ["/demo/overview", "/demo/waiver", "/demo/projection"])
-def test_demo_pages_still_render_default_authenticated_nav(ctx, path):
-    """Pre-036b behaviour, asserted so 036b has an explicit before-state to flip."""
+DEMO_PAGES = [
+    "/demo/overview",
+    "/demo/waiver",
+    "/demo/projection",
+    "/demo/overview/head-to-head",
+]
+
+
+def _authenticated_feature_get(client, path):
+    """GET an authenticated feature page with every Yahoo call mocked out.
+
+    Each route module binds its data helpers by name at import time, so the
+    patch target is the route module's namespace (docs/LEARNINGS.md "Tests must
+    patch the importing module's namespace").
+    """
+    df = pd.DataFrame([
+        {"team_key": "t1", "team_name": "Alpha", "week": 1, "games_played": 7,
+         "Goals": 10.0, "Assists": 5.0},
+        {"team_key": "t2", "team_name": "Beta", "week": 1, "games_played": 7,
+         "Goals": 7.0, "Assists": 9.0},
+    ])
+    module = {
+        "/overview": "overview",
+        "/waiver": "waiver",
+        "/projection": "projection",
+    }[path]
+
+    with ExitStack() as stack:
+        stack.enter_context(
+            patch(f"web.routes.{module}.make_session", return_value=MagicMock())
+        )
+        stack.enter_context(
+            patch(f"web.routes.{module}.get_user_hockey_leagues", return_value=[LEAGUE_A])
+        )
+        if module in ("overview", "waiver"):
+            stack.enter_context(patch(f"web.routes.{module}.get_matchups", return_value=df))
+        if module == "waiver":
+            stack.enter_context(
+                patch("web.routes.waiver.get_stat_categories", return_value=[])
+            )
+        if module == "projection":
+            stack.enter_context(patch("web.routes.projection.get_teams", return_value=[]))
+        return client.get(path, cookies={"session_id": "sid-test"})
+
+
+# AC1/AC2 — demo pages render the demo nav, with no Logout link
+
+@pytest.mark.parametrize("path", DEMO_PAGES)
+def test_demo_pages_render_demo_nav(ctx, path):
     _, client = ctx
     response = client.get(path)
 
     assert response.status_code == 200
+    assert _nav_links(response.text) == DEMO_NAV
+    # No session to end, and no auth-gated feature link anywhere on the page.
+    for href in ('href="/auth/logout"', 'href="/overview"', 'href="/waiver"',
+                 'href="/projection"'):
+        assert href not in response.text
+
+
+# AC1 — every demo nav feature link stays inside demo mode (200, not 302 to login)
+
+@pytest.mark.parametrize("source", DEMO_PAGES)
+def test_demo_nav_links_stay_in_demo_mode(ctx, source):
+    _, client = ctx
+    links = [href for href, _ in _nav_links(client.get(source).text)]
+
+    for href in links:
+        if href == "/auth/login":
+            continue  # the deliberate exit affordance, not a demo page
+        target = client.get(href)
+        assert target.status_code == 200, f"{source} -> {href} returned {target.status_code}"
+
+
+# Guards the `**shell_context(...)` ordering trap: spreading the helper after an
+# explicit selected_league_name key silently blanks the header label.
+
+@pytest.mark.parametrize("path", DEMO_PAGES)
+def test_demo_pages_header_keeps_demo_league_label(ctx, path):
+    _, client = ctx
+    response = client.get(path)
+
+    assert "Demo League" in _header_left(response.text)
+
+
+# AC3 — authenticated feature pages are unchanged
+
+@pytest.mark.parametrize("path", ["/overview", "/waiver", "/projection"])
+def test_authenticated_feature_pages_render_authenticated_nav(ctx, path):
+    conn, client = ctx
+    _insert_session(conn, league_key="419.l.11111")
+
+    response = _authenticated_feature_get(client, path)
+
+    assert response.status_code == 200
     assert _nav_links(response.text) == AUTHENTICATED_NAV
+    assert "Alpha League" in _header_left(response.text)
+
+
+@pytest.mark.parametrize("path", ["/overview", "/waiver", "/projection"])
+def test_authenticated_nav_links_return_200(ctx, path):
+    conn, client = ctx
+    _insert_session(conn, league_key="419.l.11111")
+
+    for href in ("/overview", "/waiver", "/projection"):
+        assert _authenticated_feature_get(client, href).status_code == 200
+
+
+# AC4 — the demo nav and the authenticated nav differ
+
+def test_demo_nav_differs_from_authenticated_nav(ctx):
+    conn, client = ctx
+
+    demo_body = client.get("/demo/overview").text
+
+    _insert_session(conn, league_key="419.l.11111")
+    authenticated_body = _authenticated_feature_get(client, "/overview").text
+
+    assert 'href="/demo/waiver"' in demo_body
+    assert 'href="/waiver"' not in demo_body
+    assert 'href="/auth/logout"' not in demo_body
+    assert "Log in with Yahoo" in demo_body
+
+    assert 'href="/waiver"' in authenticated_body
+    assert 'href="/demo/waiver"' not in authenticated_body
+    assert 'href="/auth/logout"' in authenticated_body

@@ -17,7 +17,7 @@ from data.schedule import get_remaining_games
 from data.scoreboard import get_current_matchup
 from db.connection import db_dep
 from web.middleware.session import CurrentUser, require_user
-from web.routes.common import _get_league_key
+from web.routes.common import _get_league_key, shell_context
 from web.templates import templates
 
 PAGE_SIZE = 25
@@ -82,8 +82,8 @@ def waiver_shell(
         {
             "stat_cols": stat_cols,
             "stat_abbrev": stat_abbrev,
-            "selected_league_name": selected_league_name,
             "form_action": "/api/waiver/players",
+            **shell_context(current_user, league_name=selected_league_name),
         },
     )
 
@@ -105,8 +105,8 @@ def demo_waiver_shell(request: Request):
         {
             "stat_cols": stat_cols,
             "stat_abbrev": stat_abbrev,
-            "selected_league_name": "Demo League",
             "form_action": "/demo/api/waiver/players",
+            **shell_context(None, demo=True, league_name="Demo League"),
         },
     )
 

@@ -1,7 +1,7 @@
 # 036b — Demo nav: adopt shell_context in overview/waiver/projection
 
 ## Status
-ready
+done
 
 ## Type
 feature

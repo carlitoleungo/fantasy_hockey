@@ -233,6 +233,33 @@ The condition fires on **every** page load for the rest of the day, because each
 
 ---
 
+### `test_authenticated_nav_links_return_200` is parametrised over an unused argument and adds no coverage
+
+**Type:** quality
+**Source:** Code review 036b (first raised by QA 036b)
+**File:** `tests/test_nav_shell_qa.py` lines 341-347
+**Detail:** The test is parametrised over `["/overview", "/waiver", "/projection"]` but its body ignores `path` and loops over all three hrefs regardless, so the three cases do identical work — 9 mocked route renders where 3 would do. Worse, it is fully subsumed by `test_authenticated_feature_pages_render_authenticated_nav` directly above it, which parametrises the same three paths through the same `_authenticated_feature_get()` helper and already asserts `status_code == 200` plus the nav link set and the header label. Fix: delete `test_authenticated_nav_links_return_200`, or drop its parametrisation and keep it as a single non-parametrised walk if the "every nav href resolves" intent is worth stating separately from the per-page assertions. Behaviourally harmless either way; it just costs runtime and makes a failure report under three IDs for one defect.
+
+---
+
+### Nav/header assertions cover 7 of the 12 `shell_context()` branches in the feature routes
+
+**Type:** quality
+**Source:** Code review 036b (coverage gap noted by QA 036b, extended here)
+**File:** `tests/test_nav_shell_qa.py` (DEMO_PAGES / authenticated params), `tests/test_head_to_head_routes.py`
+**Detail:** Ticket 036b migrated 12 full-page branches across `overview.py`, `waiver.py`, and `projection.py`. Nav and header-label assertions exercise 7 of them: the populated branch of `/overview`, `/waiver`, `/projection` and of all four demo pages. Uncovered: authenticated `/overview/head-to-head` (both branches — `tests/test_head_to_head_routes.py` contains no nav or header assertion at all, only 200s), and the four empty-state branches (`df is None or df.empty` on overview, `len(teams) < 2` on head-to-head, auth and demo each). All 12 were verified correct by reading the diff, so this is a regression-guard gap rather than a live defect — but the empty-state branches are precisely the ones a future edit is most likely to drop the spread from, and they fail silently (the page still renders, just with the wrong nav). Fix: add the authenticated head-to-head path to the existing parametrisation, and add empty-state cases by mocking `get_matchups` to return an empty frame.
+
+---
+
+### Post-036b stale comments about pages "not yet" passing `shell_context()`
+
+**Type:** quality
+**Source:** Code review 036b (flagged by both the Engineer and QA)
+**File:** `tests/test_overview_routes.py` (`test_overview_renders_authenticated_nav_by_default`), `web/templates/base.html` lines 21-22
+**Detail:** Two comments describe a migration state that no longer exists. The overview test's comment says "/overview has not adopted shell_context yet, so base.html must fall back to the authenticated nav" — since 036b, `/overview` does adopt it, so the test now proves the explicit `is_authenticated=True` branch, not the default branch. Its assertions remain correct and valuable; only the comment (and arguably the test name) is wrong. `base.html`'s comment ("pages that do not yet pass `shell_context()` render exactly as before") has one remaining beneficiary, `error.html`, which is the defect tracked in "Error pages show the authenticated nav to logged-out visitors" above. Fix the test comment in whichever ticket next touches that file; the `base.html` comment should be resolved by the DECISIONS 2026-07-25 default-flip follow-up rather than edited on its own.
+
+---
+
 ## Closed
 
 Resolved items are archived in [`docs/archive/improvements-closed.md`](archive/improvements-closed.md)

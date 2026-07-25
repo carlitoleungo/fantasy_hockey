@@ -20,7 +20,7 @@ from data.client import (
 from data.leagues import get_user_hockey_leagues
 from db.connection import db_dep
 from web.middleware.session import CurrentUser, require_user
-from web.routes.common import _get_league_key
+from web.routes.common import _get_league_key, shell_context
 from web.templates import templates
 
 router = APIRouter()
@@ -48,8 +48,8 @@ def projection_shell(
         "projection/index.html",
         {
             "teams": teams,
-            "selected_league_name": selected_league_name,
             "matchup_url": "/projection/matchup",
+            **shell_context(current_user, league_name=selected_league_name),
         },
     )
 
@@ -294,8 +294,8 @@ def demo_projection_shell(request: Request):
         "projection/index.html",
         {
             "teams": ctx.get("teams", []),
-            "selected_league_name": "Demo League",
             "matchup_url": "/demo/projection/matchup",
+            **shell_context(None, demo=True, league_name="Demo League"),
         },
     )
 

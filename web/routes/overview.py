@@ -9,7 +9,7 @@ from data.leagues import get_user_hockey_leagues
 from data.matchups import get_matchups
 from db.connection import db_dep
 from web.middleware.session import CurrentUser, require_user
-from web.routes.common import _get_league_key
+from web.routes.common import _get_league_key, shell_context
 from web.templates import templates
 
 router = APIRouter()
@@ -51,9 +51,9 @@ def overview(
                 "selected_week": None,
                 "ranked": None,
                 "stat_cols": [],
-                "selected_league_name": selected_league_name,
                 "table_url": "/overview/table",
                 "head_to_head_url": "/overview/head-to-head",
+                **shell_context(current_user, league_name=selected_league_name),
             },
         )
 
@@ -72,9 +72,9 @@ def overview(
             "cell_ranks": cell_ranks,
             "stat_cols": cols,
             "team_count": len(ranked),
-            "selected_league_name": selected_league_name,
             "table_url": "/overview/table",
             "head_to_head_url": "/overview/head-to-head",
+            **shell_context(current_user, league_name=selected_league_name),
         },
     )
 
@@ -141,9 +141,9 @@ def head_to_head(
                 "teams": [],
                 "weeks": [],
                 "not_enough_data": True,
-                "selected_league_name": selected_league_name,
                 "table_url": "/overview/head-to-head/table",
                 "overview_url": "/overview",
+                **shell_context(current_user, league_name=selected_league_name),
             },
         )
 
@@ -169,9 +169,9 @@ def head_to_head(
             "sim": sim,
             "tally": tally_result,
             "not_enough_data": False,
-            "selected_league_name": selected_league_name,
             "table_url": "/overview/head-to-head/table",
             "overview_url": "/overview",
+            **shell_context(current_user, league_name=selected_league_name),
         },
     )
 
@@ -236,9 +236,9 @@ def demo_overview(request: Request):
                 "selected_week": None,
                 "ranked": None,
                 "stat_cols": [],
-                "selected_league_name": "Demo League",
                 "table_url": "/demo/overview/table",
                 "head_to_head_url": "/demo/overview/head-to-head",
+                **shell_context(None, demo=True, league_name="Demo League"),
             },
         )
 
@@ -257,9 +257,9 @@ def demo_overview(request: Request):
             "cell_ranks": cell_ranks,
             "stat_cols": cols,
             "team_count": len(ranked),
-            "selected_league_name": "Demo League",
             "table_url": "/demo/overview/table",
             "head_to_head_url": "/demo/overview/head-to-head",
+            **shell_context(None, demo=True, league_name="Demo League"),
         },
     )
 
@@ -306,9 +306,9 @@ def demo_head_to_head(request: Request):
                 "teams": [],
                 "weeks": [],
                 "not_enough_data": True,
-                "selected_league_name": "Demo League",
                 "table_url": "/demo/overview/head-to-head/table",
                 "overview_url": "/demo/overview",
+                **shell_context(None, demo=True, league_name="Demo League"),
             },
         )
 
@@ -334,9 +334,9 @@ def demo_head_to_head(request: Request):
             "sim": sim,
             "tally": tally_result,
             "not_enough_data": False,
-            "selected_league_name": "Demo League",
             "table_url": "/demo/overview/head-to-head/table",
             "overview_url": "/demo/overview",
+            **shell_context(None, demo=True, league_name="Demo League"),
         },
     )
 
