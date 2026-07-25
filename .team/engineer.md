@@ -126,7 +126,8 @@ ticket says to.
   `/auth/*`) skip it.
 - DB access via `Depends(db_dep)` from `db/connection.py`. WAL mode is set at
   connection time.
-- Tests live in `tests/`. Run with `python -m pytest tests/`. No live API calls in
+- Tests live in `tests/`. Run with `.venv/bin/python -m pytest tests/` (the bare `python`
+  and `python3` on PATH have no pytest). No live API calls in
   tests — fixtures live in `tests/fixtures/`.
 
 ## When you finish

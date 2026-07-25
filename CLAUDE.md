@@ -48,7 +48,8 @@ All recurring gotchas (Yahoo API quirks, xmltodict behaviour, test patch targets
 - Unit test all `data/` and `analysis/` functions against fixtures — no framework dependency, straightforward to test.
 - Test `cache.py` read/write/append/delta logic explicitly with known dataframes.
 - Do not make live API calls in tests.
-- Run with `python -m pytest tests/`.
+- Run with `.venv/bin/python -m pytest tests/` (the bare `python` and `python3` on PATH have
+  no pytest installed).
 
 ## Running Locally
 

@@ -13,7 +13,8 @@ Streamlit): **`docs/ARCHITECTURE.md`**.
 
 - **Run command:** `uvicorn web.main:app --reload` (FastAPI app). The legacy Streamlit
   prototype `streamlit run app.py` still exists but is being torn down view-by-view.
-- **Test command:** `python -m pytest tests/`
+- **Test command:** `.venv/bin/python -m pytest tests/` (the bare `python` and `python3` on
+  PATH have no pytest — always use the venv interpreter)
 
 ## Layout (concrete paths)
 
@@ -51,7 +52,7 @@ steps you missed.
 
 ### Step 2 — run automated tests
 
-Run `python -m pytest tests/`. Record:
+Run `.venv/bin/python -m pytest tests/`. Record:
 
 - Exact command
 - Number of tests run, passed, failed (paste the summary line)
@@ -131,7 +132,7 @@ Save as `tickets/NNN-qa.md`:
 | 2 | ... | ... | ... |
 
 ### Automated tests
-- Command: `python -m pytest tests/`
+- Command: `.venv/bin/python -m pytest tests/`
 - Tests run: NNN — passed: NNN, failed: NNN
 - New tests added: [list files, or "none needed"]
 

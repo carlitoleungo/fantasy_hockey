@@ -35,7 +35,7 @@ route files so the demo pages render demo-mode nav and the authenticated pages s
 - [ ] On each demo page (`GET /demo/overview`, `/demo/waiver`, `/demo/projection`), the header nav links point at the demo counterparts (`/demo/overview`, `/demo/waiver`, `/demo/projection`), and clicking any of them stays within demo mode — returns 200, never 302→`/auth/login`.
 - [ ] On a `/demo/*` page the nav shows no "Logout" link (there is no session to end); it presents an "Exit demo" / "Log in with Yahoo" affordance instead.
 - [ ] On the authenticated feature pages (`GET /overview`, `/waiver`, `/projection`), the nav is unchanged — Overview, Waiver, Projection, Logout in roadmap order, all pointing at the authenticated routes and returning 200.
-- [ ] `python3 -m pytest tests/` is green, including an assertion of the demo-vs-authenticated nav difference (a `/demo/overview` response body contains a `/demo/waiver` nav link and no bare `/waiver` nav link; an authenticated `/overview` response body contains `/waiver`).
+- [ ] `.venv/bin/python -m pytest tests/` is green, including an assertion of the demo-vs-authenticated nav difference (a `/demo/overview` response body contains a `/demo/waiver` nav link and no bare `/waiver` nav link; an authenticated `/overview` response body contains `/waiver`).
 
 ## Out of scope
 - The `shell_context()` helper itself and `base.html` — both landed in 036a. This ticket
@@ -93,9 +93,10 @@ route files so the demo pages render demo-mode nav and the authenticated pages s
   affordance is present.
 - Manual auth walk: logged in, header nav on `/overview`, `/waiver`, `/projection` is
   unchanged and all links 200.
-- `python3 -m pytest tests/` green, including the demo-vs-authenticated nav-difference
+- `.venv/bin/python -m pytest tests/` green, including the demo-vs-authenticated nav-difference
   assertions.
 
 ## Dependencies
 - **036a must complete first** — it provides `shell_context()` and the conditional
-  `base.html` this ticket depends on.
+  `base.html` this ticket depends on. RESOLVED 2026-07-25: 036a is `done`
+  (`tickets/done/036a-nav-shell-foundation.md`); this ticket is unblocked.

@@ -105,7 +105,7 @@ they need from disk.
 
 4. Test Engineer session
    → writes their own test plan before reading the Engineer's verification
-   → runs `python -m pytest tests/`
+   → runs `.venv/bin/python -m pytest tests/`
    → starts uvicorn, walks each acceptance criterion in a browser
    → verifies demo mode if the ticket touched data/
    → writes tickets/NNN-qa.md (verdict: APPROVED or NEEDS FIXES)
