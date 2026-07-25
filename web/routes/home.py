@@ -5,6 +5,7 @@ from auth.oauth import make_session
 from data.leagues import get_user_hockey_leagues
 from db.connection import db_dep
 from web.middleware.session import CurrentUser, optional_user, require_user
+from web.routes.common import shell_context
 from web.templates import templates
 
 router = APIRouter()
@@ -20,7 +21,7 @@ def home(
         return templates.TemplateResponse(
             request,
             "home.html",
-            {"leagues": None},
+            {"leagues": None, **shell_context(None)},
         )
 
     session = make_session(current_user.access_token)
@@ -48,7 +49,7 @@ def home(
         {
             "leagues": leagues,
             "selected_key": row["league_key"] if row else None,
-            "selected_league_name": selected_league_name,
+            **shell_context(current_user, league_name=selected_league_name),
         },
     )
 

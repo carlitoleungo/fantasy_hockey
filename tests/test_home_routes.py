@@ -405,3 +405,68 @@ def test_home_authenticated_shows_league_list_not_cta(ctx):
     assert "Beta League" in body
     # Login CTA must not appear when the user is authenticated
     assert "Log in with Yahoo" not in body
+
+
+# ---------------------------------------------------------------------------
+# TC17 — GET / unauthenticated: header nav has no auth-gated link (036a)
+# ---------------------------------------------------------------------------
+
+def test_home_unauthenticated_nav_has_no_auth_gated_links(ctx):
+    _, client = ctx
+    response = client.get("/")
+
+    assert response.status_code == 200
+    body = response.text
+    for href in ('href="/overview"', 'href="/waiver"', 'href="/projection"',
+                 'href="/auth/logout"'):
+        assert href not in body
+    assert 'href="/auth/login"' in body
+    assert "Log in with Yahoo" in body
+
+
+# ---------------------------------------------------------------------------
+# TC18 — GET / authenticated: full nav in roadmap order + league label (036a)
+# ---------------------------------------------------------------------------
+
+def test_home_authenticated_nav_has_feature_links_in_roadmap_order(ctx):
+    conn, client = ctx
+    _insert_session(conn, league_key="419.l.11111")
+
+    with (
+        patch("web.routes.home.make_session", return_value=MagicMock()),
+        patch(
+            "web.routes.home.get_user_hockey_leagues",
+            return_value=[LEAGUE_2025_A, LEAGUE_2025_B],
+        ),
+    ):
+        response = client.get("/", cookies={"session_id": "sid-test"})
+
+    assert response.status_code == 200
+    body = response.text
+    positions = [body.index(f'href="/{p}"') for p in ("overview", "waiver", "projection")]
+    assert positions == sorted(positions)
+    assert 'href="/auth/logout"' in body
+    assert 'href="/auth/login"' not in body
+    # selected_league_name is now threaded via shell_context on this branch
+    assert "Alpha League" in body
+
+
+# ---------------------------------------------------------------------------
+# TC19 — logged-out home nav differs from authenticated home nav (036a AC4)
+# ---------------------------------------------------------------------------
+
+def test_home_nav_differs_between_logged_out_and_authenticated(ctx):
+    conn, client = ctx
+
+    logged_out_body = client.get("/").text
+
+    _insert_session(conn, league_key="419.l.11111")
+    with (
+        patch("web.routes.home.make_session", return_value=MagicMock()),
+        patch("web.routes.home.get_user_hockey_leagues", return_value=[LEAGUE_2025_A]),
+    ):
+        authenticated_body = client.get("/", cookies={"session_id": "sid-test"}).text
+
+    assert 'href="/waiver"' not in logged_out_body
+    assert "Log in with Yahoo" in logged_out_body
+    assert 'href="/waiver"' in authenticated_body

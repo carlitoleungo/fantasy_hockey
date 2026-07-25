@@ -68,6 +68,24 @@ route files so the demo pages render demo-mode nav and the authenticated pages s
   2026-04-19 must be preserved in both nav variants.
 - Fragment handlers (waiver `_table`, projection `_matchup`, overview `_table`) render
   fragments that do **not** extend `base.html` — do not add shell context to them.
+- **Do not spread `shell_context()` after an explicit `selected_league_name` key.** Twelve
+  places across the three files currently pass that key directly (`overview.py` ×8,
+  `waiver.py` ×2, `projection.py` ×2; the demo handlers use the literal `"Demo League"`).
+  In a dict literal the later `**` wins, so
+  `{"selected_league_name": "Demo League", **shell_context(None, demo=True)}` silently
+  overwrites the label with `None` and the league name disappears from the header. Delete
+  the explicit key and pass the value into the helper instead:
+  `**shell_context(None, demo=True, league_name="Demo League")` for demo handlers,
+  `**shell_context(current_user, league_name=selected_league_name)` for authenticated ones.
+  This fails silently — no exception, and a test asserting the league name appears anywhere
+  in the body still passes because the content area repeats it. Scope any label assertion to
+  the `<header>` element (see `test_home_header_shows_selected_league_name` in
+  `tests/test_home_routes.py` for the pattern).
+- **Delete `tests/test_nav_shell_qa.py::test_demo_pages_still_render_default_authenticated_nav`
+  as part of this ticket.** QA added it in 036a as a deliberate tripwire locking in that
+  unmigrated pages keep the authenticated nav. This ticket migrates the demo pages, so that
+  test is designed to fail here. Removing it is correct and expected; it is not a regression
+  to debug.
 
 ## Verification
 - Manual demo walk: from `/demo/overview`, click each header nav link → lands on the

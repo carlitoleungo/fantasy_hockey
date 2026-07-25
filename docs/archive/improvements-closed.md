@@ -11,6 +11,13 @@
 
 ## Closed
 
+### Nav header shows auth links to unauthenticated visitors
+
+**Type:** quality
+**Source:** Audit 024 (noted in ticket 023 done note)
+**File:** `web/templates/base.html` line 22–24
+**Resolved:** Ticket 036a — added `shell_context()` to `web/routes/common.py` (returns `is_authenticated` / `demo_mode` / `selected_league_name` from the user already resolved by `require_user`/`optional_user`) and made the `base.html` nav conditional on those flags, defaulting to the authenticated nav when both are absent. `web/routes/home.py` adopts the helper on both branches, so the logged-out home nav now renders a single "Log in with Yahoo" link instead of Overview / Waiver / Projection / Logout. Adoption in the overview/waiver/projection demo shells follows in ticket 036b.
+
 ### Converge Week Projection matchup route on a single team query-param name
 
 **Type:** quality

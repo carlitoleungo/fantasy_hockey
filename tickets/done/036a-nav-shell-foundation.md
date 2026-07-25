@@ -1,10 +1,17 @@
 # 036a — Nav shell foundation: shell_context helper + conditional base.html + home adoption
 
 ## Status
-ready
+done
 
 ## Type
 feature
+
+## Milestone
+m1
+
+(On the M1 path: this fixes the logged-out home nav — the first screen an M1 friend sees
+before signing in — and is the foundation 036b builds on. Judgment call, owner may veto to
+m2/none; see the PM scoping report.)
 
 ## Touches
 - web/routes/common.py

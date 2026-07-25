@@ -100,15 +100,6 @@ The condition fires on **every** page load for the rest of the day, because each
 
 ---
 
-### Nav header shows auth links to unauthenticated visitors
-
-**Type:** quality
-**Source:** Audit 024 (noted in ticket 023 done note)
-**File:** `web/templates/base.html` line 22–24
-**Detail:** `base.html` renders "Overview", "Waiver", and "Logout" in the nav unconditionally. After ticket 023 landed optional auth on `GET /`, unauthenticated visitors on the home page see a "Log in with Yahoo" CTA in the content area but also see three nav links that all route to auth-gated pages or a no-op logout. Fix: pass an `is_authenticated` boolean (or equivalent) from each route context so the base template can render "Login" instead of "Overview / Waiver / Logout" for unauthenticated visitors. The home route already has `current_user is None` to derive this from.
-
----
-
 ### Add demo mode entry point on home page
 
 **Type:** quality
@@ -218,6 +209,27 @@ The condition fires on **every** page load for the rest of the day, because each
 **Source:** Code review 034
 **File:** `tests/test_projection_matchup_route.py`, `tests/test_projection_matchup_qa.py`, `tests/test_projection_breakdown_qa.py`
 **Detail:** All three files carry their own verbatim copy of `_make_db()`, the `user_sessions` / `oauth_states` schema, the `TestClient` + `dependency_overrides` fixture, and the `TEAMS` / `SETTINGS` / `SCOREBOARD` / `LIVE_STATS` constants. There is no `tests/conftest.py`. Pre-existing duplication (two copies) that ticket 034 grew to three. Fix: add `tests/conftest.py` with a shared in-memory-session-DB fixture and a `client` fixture, and let the projection test modules keep only their own scenario data. Worth doing next time any of the three is substantially reworked.
+**Update (code review 036a):** the same `_make_db()` / `_insert_session()` / `ctx` scaffolding also sits in `tests/test_home_routes.py` and `tests/test_overview_routes.py`, and ticket 036a added a fifth copy in `tests/test_nav_shell_qa.py`. The `tests/conftest.py` fix should cover all five, not just the projection trio.
+
+---
+
+### Error pages show the authenticated nav to logged-out visitors
+
+**Type:** quality
+**Source:** Code review 036a (raised by QA 036a)
+**File:** `web/templates/error.html` line 1; render sites `web/main.py` lines 48-65
+**Detail:** `error.html` extends `base.html` and passes no shell context, so the authenticated-nav default applies: an unauthenticated or demo visitor who hits a 500/502 error page sees Overview / Waiver / Projection / Logout, every one of which bounces them to `/auth/login` — the same defect ticket 036a just fixed for the home page. Pre-existing, and preserved deliberately by 036a's `base.html` default (that default is 036a AC3), so this is not a regression.
+**Not a drive-by fix — needs a Tech Lead ruling first.** Both render sites are FastAPI exception handlers, which have no resolved `CurrentUser` in scope, so `shell_context()` cannot be called there; passing `None` would show authenticated users the logged-out nav instead. This is the case named in the `Revisit if` clause of DECISIONS 2026-07-03 ("a page family that needs nav state but has no user dependency in scope, making a request-only derivation unavoidable"). Cheapest option is probably a neutral error-page nav (app-name link only, no feature links), which needs no auth state at all. Suggested sequencing: once 036b lands, the PM scopes one sweep ticket covering every remaining `base.html` consumer, with the Tech Lead ruling on the mechanism as its dependency.
+**Tech Lead ruling DONE (2026-07-25)** — `docs/DECISIONS.md` "Nav shell: render sites that cannot resolve a user declare the state unknown and render nav-free". Mechanism: an explicit `auth_state_unknown` key from a sibling helper in `web/routes/common.py`, spread into both handlers' contexts; `base.html` branches on it first and renders the brand link only; plus a "Back to home" link in `error.html`'s body. No auth derivation in the handlers, and **no dependency on 036b** — this can be scoped and landed standalone at M1. The related `base.html` default flip (absent flags ⇒ nav-free instead of authenticated nav) is a separate follow-up that *is* blocked on 036b; see the ruling's "Forward commitment" paragraph.
+
+---
+
+### TC18's league-label assertion in `test_home_routes.py` does not discriminate
+
+**Type:** quality
+**Source:** Code review 036a (proved by QA 036a mutation probe)
+**File:** `tests/test_home_routes.py` lines 450-451
+**Detail:** `test_home_authenticated_nav_has_feature_links_in_roadmap_order` (TC18) ends with `assert "Alpha League" in body`, above a comment claiming `selected_league_name` "is now threaded via shell_context on this branch". The assertion cannot prove that: the league list in the content area contains the same string, so a render that drops the header label still passes. QA confirmed this with a mutation probe. AC2 is properly guarded elsewhere — pre-existing TC9 (`test_home_header_shows_selected_league_name`) scopes the match to `<header>…</header>` and does fail under that mutation, as does `tests/test_nav_shell_qa.py::test_authenticated_home_nav_and_league_label` — so this is redundancy, not a coverage gap. Fix: delete the assertion and its comment; TC18's job is nav ordering. The comment is the riskier half, since it could lead someone to delete TC9 as a duplicate.
 
 ---
 

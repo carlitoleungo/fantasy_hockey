@@ -282,3 +282,28 @@ def test_head_to_head_back_link_targets_authenticated_route(ctx):
     )
     assert back_link in body
     assert demo_back_link not in body
+
+
+# ---------------------------------------------------------------------------
+# TC9 — Ticket 036a: /overview has not adopted shell_context yet, so base.html
+# must fall back to the authenticated nav (no regression before 036b)
+# ---------------------------------------------------------------------------
+
+def test_overview_renders_authenticated_nav_by_default(ctx):
+    conn, client = ctx
+    _insert_session(conn, league_key="419.l.11111")
+    df = _make_matchups_df()
+
+    with (
+        patch("web.routes.overview.make_session", return_value=MagicMock()),
+        patch("web.routes.overview.get_user_hockey_leagues", return_value=[LEAGUE_A]),
+        patch("web.routes.overview.get_matchups", return_value=df),
+    ):
+        response = client.get("/overview", cookies={"session_id": "sid-test"})
+
+    assert response.status_code == 200
+    nav = response.text.split("<nav", 1)[1].split("</nav>", 1)[0]
+    positions = [nav.index(f'href="/{p}"') for p in ("overview", "waiver", "projection")]
+    assert positions == sorted(positions)
+    assert 'href="/auth/logout"' in nav
+    assert 'href="/auth/login"' not in nav
