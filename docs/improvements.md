@@ -124,6 +124,7 @@ The condition fires on **every** page load for the rest of the day, because each
 **Source:** Audit 001 (surfaced during credential rotation)
 **File:** `auth/oauth.py` lines 151, 158, and the `_redirect_uri` equivalent
 **Detail:** `_client_id()`, `_client_secret()`, and `_redirect_uri()` check the env var first, then fall back to `st.secrets["yahoo"][...]`. The Streamlit fallback is dead code — the app runs on FastAPI and `streamlit` is not in `requirements-web.txt`. If the env var is missing, the fallback silently attempts to `import streamlit` and fails at runtime with a confusing `ModuleNotFoundError` rather than a clear "YAHOO_CLIENT_ID not set" error. Remove the `st.secrets` fallback and replace with `raise RuntimeError("YAHOO_CLIENT_ID environment variable not set")` so misconfigured environments fail fast with a useful message.
+**Update (audit 041) — take this before or with ticket 039.** Open since audit 001, but the M1 deploy changes its risk profile: on the production container a missing credential env var is the single most likely misconfiguration, and this fallback converts it into the least legible possible failure. Audit 041 also found that the same file carries four functions used only by the Streamlit prototype (`validate_and_consume_state`, `try_restore_session`, `get_session`, `clear_session` — imported by `app.py`, `pages/`, and `utils/common.py`, never by `web/`), roughly 45 of its 201 lines. Worth archiving them in the same pass, since their presence is what makes `auth/oauth.py`'s 0.3:1 test ratio look alarming when the FastAPI-live half of the file is in fact well covered.
 
 ---
 
@@ -210,6 +211,7 @@ The condition fires on **every** page load for the rest of the day, because each
 **File:** `tests/test_projection_matchup_route.py`, `tests/test_projection_matchup_qa.py`, `tests/test_projection_breakdown_qa.py`
 **Detail:** All three files carry their own verbatim copy of `_make_db()`, the `user_sessions` / `oauth_states` schema, the `TestClient` + `dependency_overrides` fixture, and the `TEAMS` / `SETTINGS` / `SCOREBOARD` / `LIVE_STATS` constants. There is no `tests/conftest.py`. Pre-existing duplication (two copies) that ticket 034 grew to three. Fix: add `tests/conftest.py` with a shared in-memory-session-DB fixture and a `client` fixture, and let the projection test modules keep only their own scenario data. Worth doing next time any of the three is substantially reworked.
 **Update (code review 036a):** the same `_make_db()` / `_insert_session()` / `ctx` scaffolding also sits in `tests/test_home_routes.py` and `tests/test_overview_routes.py`, and ticket 036a added a fifth copy in `tests/test_nav_shell_qa.py`. The `tests/conftest.py` fix should cover all five, not just the projection trio.
+**Update (audit 041) — the count is thirteen, not five, and this is the largest safe reduction available in the suite.** Files carrying their own `_make_db()` / `user_sessions` schema copy: `test_auth_routes.py`, `test_head_to_head_routes.py`, `test_home_routes.py`, `test_nav_shell_qa.py`, `test_overview_routes.py`, `test_overview_routes_qa.py`, `test_projection_breakdown_qa.py`, `test_projection_matchup_qa.py`, `test_projection_matchup_route.py`, `test_projection_routes.py`, `test_session_middleware.py`, `test_waiver.py`, `test_waiver_routes.py`. Measured across the 14 web route test files: **1,489 of 4,592 lines (32%) sit before the first `def test_`**, and the extreme case is `tests/test_projection_matchup_qa.py` at 124 lines of preamble supporting 2 tests. Expected saving from a shared `conftest.py` is 800–1,100 lines with no coverage change. Audit 041 recommends this as its own ticket, paired with the `*_qa.py` file renames, and explicitly **not** paired with dropping rendered-HTML assertions (those are the only guard against a template edit silently breaking a page, which is the failure mode ticket 040 exists to catch).
 
 ---
 
@@ -257,6 +259,92 @@ The condition fires on **every** page load for the rest of the day, because each
 **Source:** Code review 036b (flagged by both the Engineer and QA)
 **File:** `tests/test_overview_routes.py` (`test_overview_renders_authenticated_nav_by_default`), `web/templates/base.html` lines 21-22
 **Detail:** Two comments describe a migration state that no longer exists. The overview test's comment says "/overview has not adopted shell_context yet, so base.html must fall back to the authenticated nav" — since 036b, `/overview` does adopt it, so the test now proves the explicit `is_authenticated=True` branch, not the default branch. Its assertions remain correct and valuable; only the comment (and arguably the test name) is wrong. `base.html`'s comment ("pages that do not yet pass `shell_context()` render exactly as before") has one remaining beneficiary, `error.html`, which is the defect tracked in "Error pages show the authenticated nav to logged-out visitors" above. Fix the test comment in whichever ticket next touches that file; the `base.html` comment should be resolved by the DECISIONS 2026-07-25 default-flip follow-up rather than edited on its own.
+
+---
+
+### Atomic cache write is crash-safe against concurrent readers but not against machine restart
+
+**Type:** quality
+**Source:** Code review 037
+**File:** `data/cache.py` `_atomic_write()` line 85
+**Detail:** `_atomic_write()` writes a temp file and `os.replace()`s it onto the target, which is exactly what DECISIONS 2026-07-23 specifies and fully satisfies ticket 037's acceptance criteria — a concurrent *reader* can never observe a partial file. It does not protect against the machine going away mid-write. There is no `fsync()` on the temp file before the rename and no `fsync()` on the containing directory after it, so a Fly machine restart, migration, or power loss can leave the rename durable while the data blocks are not, producing a zero-length or truncated parquet on the volume. That is precisely the "corrupted file persists on the volume and does not self-heal" failure the DECISIONS entry is written to prevent, arriving through a different door. Related and smaller: a hard kill (SIGKILL, OOM) between `mkstemp()` and `os.replace()` leaves a `.{name}.XXXXXX.tmp` file behind, since cleanup lives in an `except` handler. Nothing globs the cache directory so this is dead weight rather than a correctness bug, but it accumulates on a 1 GB volume. Fix: flush and `os.fsync()` the temp file's descriptor before the rename, `os.fsync()` the directory descriptor after it, and sweep stale `.*.tmp` files from each league directory at startup. Deliberately out of scope for 037 — the ticket and the decision both scope the hardening to reader atomicity — so take it whenever `data/cache.py` is next opened, or sooner if the deployment ever reports an unreadable cache file after a restart.
+
+---
+
+### `optional_user` has no direct test coverage, including its session-deleting refresh branch
+
+**Type:** quality
+**Source:** Audit 041 (Theme B, auth coverage question)
+**File:** `web/middleware/session.py` lines 102-158; tests would belong in `tests/test_session_middleware.py`
+**Detail:** `optional_user` is referenced by no test file. It is not a thin wrapper around
+`require_user`: lines 129-152 are a near-verbatim 24-line copy of `require_user`'s
+refresh-update-or-delete block, differing only in returning `None` where the other raises
+`RequiresLogin`. `require_user`'s copy is covered six ways (valid token, expiring token, Yahoo
+rejecting the refresh, network error, a parametrised 59s/61s expiry boundary, sequential healthy
+requests); `optional_user`'s is exercised only indirectly by the home-route tests, and only on the
+happy paths where no refresh occurs. The untested branch includes `DELETE FROM user_sessions` on
+refresh failure. Both copies are correct as read, so this is a missing regression guard rather than
+a live defect, but it is the only security-relevant coverage gap in the 032-037 batch and it gets
+worse once the app is public. Fix: mirror the six `require_user` cases against a route using
+`optional_user` (`GET /` is the only one today), patching `auth.oauth.requests.post` as the existing
+tests do. Note the name-scan that raised this also produced a false negative on `_try_refresh` —
+that function *is* well covered, through the transport patch rather than by name.
+
+---
+
+### Stale `position` form field in 14 `tests/test_waiver.py` call sites
+
+**Type:** quality
+**Source:** Audit 041
+**File:** `tests/test_waiver.py` lines 168, 198, 214, 236, 271, 313, 345, 400, 464, 497, 529, 565, 601, 635
+**Detail:** Each of these POSTs `data={..., "position": "All", ...}`. Ticket 032 renamed the form
+field to `positions: list[str]` on both handlers, so `position` is no longer declared anywhere in
+`web/routes/waiver.py`. FastAPI silently ignores unknown form fields, so the tests pass and the
+behaviour is correct. The cost is legibility: the tests read as though they exercise a position
+filter and do not. Ticket 032 fixed the one test its rename broke (`test_waiver_post_position_no_matching_rows`)
+and did not sweep the rest; neither QA nor the code review caught it. Fix: delete the key, or change
+it to `"positions": ["All"]` where the intent really is "no position filter". Worth folding into the
+`tests/conftest.py` consolidation ticket, which will be in this file anyway.
+
+---
+
+### `data/cache.py` module docstring still describes the Streamlit caching layer
+
+**Type:** quality
+**Source:** Audit 041
+**File:** `data/cache.py` lines 4-6
+**Detail:** The docstring opens "Two-layer caching model: ... `@st.cache_data` handles the
+in-session memory layer (applied in `pages/` as needed)". The FastAPI app has no such layer, and
+`CLAUDE.md` records `@st.cache_data` as a legacy Streamlit-prototype note that does not apply. Ticket
+037 edited this docstring (it added the Concurrency paragraph at the bottom) and left the stale claim
+at the top, so a reader now meets a false statement before the accurate one. Fix: drop the two-layer
+framing and describe the disk layer only. Small, but it sits in the file the M1 cache work keeps
+reopening — take it with the `fsync` item below.
+
+---
+
+### `audit_due.py` silently ignores a `Tickets reviewed` section that is not a bullet list
+
+**Type:** bug
+**Symptom:** A completed audit does not register. `scripts/audit_due.py` keeps reporting
+`AUDIT DUE` with the same ticket list after `.team/audits/NNN-audit.md` has been written and the
+audit ticket moved to `tickets/done/`, so the next architectural-surface ticket stays blocked for no
+reason.
+**Root cause:** `scripts/audit_due.py:77` matches covered ticket IDs with
+`re.match(r"\s*-\s+\**([A-Za-z0-9][\w-]*)", line)` over the `## Tickets reviewed` section. Only
+bullet lines match. A markdown table renders correctly to a human and yields zero covered IDs, which
+also leaves `high_water` at its previous value, so every ticket since the last audit stays uncovered.
+There is no warning: an audit file that parses to zero tickets is indistinguishable from no audit at
+all. Hit during audit 041, where the section was first written as a table.
+**Fix (not yet implemented):** Either make the parser accept table rows (`| **032** | ...`) alongside
+bullets, or have it print a warning when an audit file is found whose `Tickets reviewed` section
+parses to zero IDs — the second is smaller and catches every future format drift, not just tables.
+Separately, `.team/reviewer.md`'s audit-output template shows bullets but does not say they are
+load-bearing; one sentence there would prevent the mistake at the source. It fails in the safe
+direction (over-reporting audits as due, never under-reporting), so this is a friction bug rather
+than a correctness risk.
+**Affected files:** `scripts/audit_due.py`, `.team/reviewer.md`
+**Discovered:** 2026-07-26 (Audit 041)
 
 ---
 
