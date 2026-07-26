@@ -1,7 +1,7 @@
 # 038 — Fix matchups.py re-fetch loop that bloats the parquet on every page load
 
 ## Status
-ready
+done
 
 ## Type
 bug

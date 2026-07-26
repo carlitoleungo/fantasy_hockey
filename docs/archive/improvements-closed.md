@@ -11,6 +11,14 @@
 
 ## Closed
 
+### `matchups.py` re-fetch loop causes parquet bloat and unnecessary API calls
+
+**Type:** bug
+**Symptom:** On every page load for the rest of a given day, `prev_week` stats were re-fetched from Yahoo and appended to the parquet file, and `current_week` was appended on every `get_matchups()` call (DECISIONS.md 2026-05-31). The data stayed correct in memory (duplicate rows dropped on read) but the parquet grew by up to two rows-per-team per session.
+**Affected files:** `data/matchups.py`, `data/cache.py`
+**Discovered:** 2026-03-30
+**Resolved:** Ticket 038 — `data/matchups.py` now merges the fetched rows into the cached frame (existing rows first, fetched rows appended), drops duplicates on `(team_key, week)` with `keep="last"`, and `cache.write()`s the result instead of `cache.append()`ing the raw rows. The parquet is bounded to the distinct `(team_key, week)` pairs no matter how often the re-fetch runs, and a parquet already bloated by the old behaviour self-heals on the next write. Took the improvements entry's Option 2 (dedup-then-overwrite), not the per-week staleness check: it also absorbs the intended `current_week` re-fetch, so neither the always-re-fetch behaviour (DECISIONS 2026-05-31) nor the `max(week)` delta-fetch rule (DECISIONS 2026-03-03) changed. `data/cache.py` was not modified.
+
 ### Nav header shows auth links to unauthenticated visitors
 
 **Type:** quality

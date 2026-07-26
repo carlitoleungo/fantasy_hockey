@@ -81,25 +81,6 @@ projected at read time.
 
 ---
 
-### `matchups.py` re-fetch loop causes parquet bloat and unnecessary API calls
-
-**Type:** bug
-**Symptom:** On every page load for the rest of a given day, `prev_week` stats are re-fetched from Yahoo and appended to the parquet file. Additionally, since the `bug-week23-all-zeroes` fix, `current_week` is appended on **every** `get_matchups()` call (always, not just once per day — see DECISIONS.md 2026-05-31). The data stays correct in memory (duplicate rows are dropped on read) but the parquet grows by up to two rows-per-team per session and adds latency on every load.
-**Root cause:** The intent of `matchups.py` lines 50–54 is to re-fetch `prev_week` once per day in case its stats were updated after an earlier fetch:
-```python
-lu = cache.last_updated(league_key, "matchups")
-if lu is not None and lu.astimezone().date() == _date.today():
-    weeks_to_fetch = [prev_week] + weeks_to_fetch
-```
-The condition fires on **every** page load for the rest of the day, because each successful fetch updates `last_updated` to now (today). This appends `prev_week` rows to the parquet on every load. The unconditional `current_week` append (intended behaviour per DECISIONS.md 2026-05-31) compounds the growth. `drop_duplicates(keep="last")` in `get_matchups()` keeps the data correct in memory, but the parquet bloats over time.
-**Fix (not yet implemented):**
-- Replace the `last_updated == today` condition with a per-week staleness check, or track a separate `prev_week_refreshed_date` value in `last_updated.json`.
-- Alternatively, use `cache.write()` (overwrite) instead of `cache.append()` after deduplication, so the parquet stays clean regardless of how many times re-fetch runs. This also absorbs the `current_week` growth without touching the (correct) always-re-fetch behaviour.
-**Affected files:** `data/matchups.py`, `data/cache.py`
-**Discovered:** 2026-03-30
-
----
-
 ### Add demo mode entry point on home page
 
 **Type:** quality
@@ -345,6 +326,76 @@ direction (over-reporting audits as due, never under-reporting), so this is a fr
 than a correctness risk.
 **Affected files:** `scripts/audit_due.py`, `.team/reviewer.md`
 **Discovered:** 2026-07-26 (Audit 041)
+
+---
+
+### `_merge_into_cache` read-modify-write sits outside the per-league cache lock
+
+**Type:** bug
+**Symptom:** Two concurrent `get_matchups()` calls for the same league can lose one caller's
+freshly fetched week. Reproduced by QA on ticket 038 by stalling one thread between its read
+and its write: pre-038 `cache.append` left weeks `[1, 2, 3]` on disk, post-038
+`_merge_into_cache` left `[1, 2]`. The loss is transient — the next `get_matchups()` call
+re-derives `_last_cached_week`, re-fetches the missing week, and the file returns to `[1, 2, 3]`
+with 0 duplicates. No bloat, no duplicate rows, no corrupted file, no permanent data loss; the
+cost is one extra Yahoo call on the following request.
+**Root cause:** `data/matchups.py:99-105` calls `cache.read()` and then `cache.write()`.
+`cache.write()` takes the per-league `threading.Lock` (ticket 037 / DECISIONS 2026-07-23), but
+the read that produced the merged frame happened before the lock was acquired, so two callers
+can build their merged frames from the same pre-merge snapshot. `cache.append()`, which this
+replaced, held the lock across both halves. Ticket 038 forbade touching `data/cache.py`, so the
+Engineer correctly flagged this rather than widening scope.
+**Fix (not yet implemented):** Add a `cache.merge_on(league_key, data_type, df, subset)`
+primitive to `data/cache.py` that acquires the league lock once and performs read, concat,
+`drop_duplicates(subset=..., keep="last")`, and `_write_unlocked` inside it, then have
+`data/matchups.py` call it instead of the private `_merge_into_cache`. This also settles the
+open question of whether cache-state merges belong in the cache layer at all (see the
+Tech Lead finding in `tickets/done/038-review.md`) — `append` and `upsert_lastmonth_cache` are
+both cache-layer primitives, and `_merge_into_cache` is the first merge to live outside it.
+Note `data/cache.py` is an architectural surface: this needs a Tech Lead ruling before it is
+scoped, not just an Engineer ticket.
+**Affected files:** `data/matchups.py`, `data/cache.py`
+**Discovered:** 2026-07-26 (QA + Review 038)
+
+---
+
+### `cache.append()` has no production callers left
+
+**Type:** quality
+**Source:** QA 038 finding, confirmed in Review 038
+**File:** `data/cache.py:172`
+**Detail:** Ticket 038 replaced the last non-test call site (`data/matchups.py`). `grep` over
+`data/`, `web/`, `analysis/`, `auth/`, and `scripts/` finds no remaining caller; only
+`tests/test_cache.py` exercises it. Decide deliberately: either delete it (and its tests) as
+dead code, or keep it as intentional API surface — in which case the `cache.merge_on` bug entry
+above is the natural place to reshape it, since `merge_on` is `append` plus a dedup subset.
+Do not delete it in isolation before that ruling; 037's headline acceptance criterion is
+written against `append`, so removing it silently drops that regression test.
+
+---
+
+### `docs/DECISIONS.md` cites `data/matchups.py` line numbers that have drifted
+
+**Type:** quality
+**Source:** QA 038 finding
+**File:** `docs/DECISIONS.md:248`
+**Detail:** The 2026-05-31 "current_week always re-fetched" entry points at "`data/matchups.py`
+lines 44–46". Ticket 038 added a line to the module docstring, so that block is now at lines
+45–47. `docs/DECISIONS.md` was not in 038's `Touches`, so the Engineer was right to leave it.
+The durable fix is to cite the symbol rather than the line range (e.g. "the unconditional
+`current_week` append in `get_matchups()`") — line numbers in a decisions log rot on every
+adjacent edit. Tech Lead owns this file.
+
+---
+
+### `tests/test_matchups.py` module docstring still describes the append write path
+
+**Type:** quality
+**Source:** Review 038
+**File:** `tests/test_matchups.py:1-9`
+**Detail:** The docstring says tests cover "that new rows are appended correctly". Since 038 the
+write path merges and overwrites rather than appends, and the file gained a parquet-hygiene
+section the docstring does not mention. One-line wording fix when the file is next touched.
 
 ---
 

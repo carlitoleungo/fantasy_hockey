@@ -5,7 +5,8 @@ Delta fetch pattern:
 1. Find the highest week already in the cache
 2. Fetch stat categories once (they rarely change mid-season)
 3. For each missing week, fetch ALL teams' stats in a single API call
-4. Append new rows to the cache
+4. Merge new rows into the cached frame, keeping one row per (team_key, week),
+   and overwrite the parquet with the result
 5. Return the full dataset from the cache
 
 Uses the bulk endpoint (/league/{key}/teams/stats;type=week;week={w}) which
@@ -64,13 +65,14 @@ def get_matchups(session, league_key: str) -> pd.DataFrame | None:
             rows.extend(week_rows)
 
         if rows:
-            cache.append(league_key, "matchups", pd.DataFrame(rows))
+            _merge_into_cache(league_key, pd.DataFrame(rows))
 
     result = cache.read(league_key, "matchups")
     if result is not None:
-        # Deduplicate: earlier cache corruption (e.g. repeated appends during
-        # development) can leave duplicate rows. Keep the last entry per
-        # team/week pair so the most recent fetch wins.
+        # Defence in depth: the write path above keeps the parquet free of
+        # duplicates, but a file bloated by the pre-038 append behaviour may
+        # still be on disk. Keep the last entry per team/week pair so the most
+        # recent fetch wins; the file self-heals on the next write.
         result = result.drop_duplicates(
             subset=["team_key", "week"], keep="last"
         ).reset_index(drop=True)
@@ -81,6 +83,26 @@ def get_current_week(session, league_key: str) -> int:
     """Return the current in-progress week number from Yahoo league settings."""
     settings = client.get_league_settings(session, league_key)
     return settings["current_week"]
+
+
+def _merge_into_cache(league_key: str, fetched: pd.DataFrame) -> None:
+    """
+    Overwrite the matchups parquet with the cached rows plus the fetched ones,
+    keeping a single row per (team_key, week).
+
+    Appending would grow the file on every call: current_week is re-fetched
+    unconditionally and prev_week is re-fetched all day once the cache has been
+    written today. Concatenating existing-first and dropping duplicates with
+    keep="last" lets the fresh fetch win while keeping the file bounded to the
+    distinct (team_key, week) pairs.
+    """
+    existing = cache.read(league_key, "matchups")
+    if existing is not None and not existing.empty:
+        fetched = pd.concat([existing, fetched], ignore_index=True)
+    merged = fetched.drop_duplicates(
+        subset=["team_key", "week"], keep="last"
+    ).reset_index(drop=True)
+    cache.write(league_key, "matchups", merged)
 
 
 def _last_cached_week(league_key: str) -> int | None:

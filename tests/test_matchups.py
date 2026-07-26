@@ -295,3 +295,108 @@ def test_prev_week_not_refetched_when_cache_updated_yesterday(monkeypatch):
 
     assert 4 not in fetched_weeks  # prev_week not re-fetched — cache was written yesterday
     assert 5 in fetched_weeks      # new current week still fetched
+
+
+# ---------------------------------------------------------------------------
+# Parquet stays clean across repeated same-day calls (ticket 038)
+# ---------------------------------------------------------------------------
+
+def read_parquet_from_disk(tmp_path) -> pd.DataFrame:
+    """Read the matchups parquet straight off disk, bypassing get_matchups()."""
+    return pd.read_parquet(tmp_path / LEAGUE_KEY / "matchups.parquet")
+
+
+def test_repeated_same_day_calls_do_not_grow_parquet(tmp_path, monkeypatch):
+    """
+    The real same-day loop: after the first call the cache's last_updated is
+    today, so every later call re-fetches prev_week and current_week. The
+    on-disk row count must stay at the number of distinct (team_key, week)
+    pairs instead of growing by the re-fetched rows each time.
+    """
+    monkeypatch.setattr(client, "get_league_settings", lambda s, k: make_settings(current_week=5))
+    monkeypatch.setattr(client, "get_stat_categories", lambda s, k: STAT_CATEGORIES)
+    monkeypatch.setattr(client, "get_all_teams_week_stats", fake_all_teams_week_stats)
+
+    matchups.get_matchups(None, LEAGUE_KEY)
+    # 5 weeks × 2 teams
+    assert len(read_parquet_from_disk(tmp_path)) == 10
+
+    for _ in range(4):
+        result = matchups.get_matchups(None, LEAGUE_KEY)
+        on_disk = read_parquet_from_disk(tmp_path)
+        assert len(on_disk) == 10
+        assert len(result) == 10
+
+
+def test_no_duplicate_rows_on_disk_after_repeated_calls(tmp_path, monkeypatch):
+    """AC4: assert the file itself is clean, not merely the deduped read."""
+    monkeypatch.setattr(client, "get_league_settings", lambda s, k: make_settings(current_week=5))
+    monkeypatch.setattr(client, "get_stat_categories", lambda s, k: STAT_CATEGORIES)
+    monkeypatch.setattr(client, "get_all_teams_week_stats", fake_all_teams_week_stats)
+
+    for _ in range(3):
+        matchups.get_matchups(None, LEAGUE_KEY)
+
+    on_disk = read_parquet_from_disk(tmp_path)
+    assert not on_disk.duplicated(subset=["team_key", "week"]).any()
+    assert sorted(on_disk["week"].unique()) == [1, 2, 3, 4, 5]
+
+
+def test_current_week_updates_are_reflected_and_overwrite_cached_rows(tmp_path, monkeypatch):
+    """
+    AC2: current_week is still re-fetched every call (DECISIONS 2026-05-31) and
+    the newer values win — in the returned frame and on disk.
+    """
+    goals = {"value": 1.0}
+
+    def changing_stats(session, league_key, week, stat_categories):
+        return [
+            {
+                "team_key": t["team_key"],
+                "team_name": t["team_name"],
+                "week": week,
+                "games_played": week,
+                "Goals": goals["value"],
+                "Assists": 0.0,
+            }
+            for t in TEAMS
+        ]
+
+    monkeypatch.setattr(client, "get_league_settings", lambda s, k: make_settings(current_week=2))
+    monkeypatch.setattr(client, "get_stat_categories", lambda s, k: STAT_CATEGORIES)
+    monkeypatch.setattr(client, "get_all_teams_week_stats", changing_stats)
+
+    first = matchups.get_matchups(None, LEAGUE_KEY)
+    assert set(first[first["week"] == 2]["Goals"]) == {1.0}
+
+    goals["value"] = 7.0
+    second = matchups.get_matchups(None, LEAGUE_KEY)
+
+    assert set(second[second["week"] == 2]["Goals"]) == {7.0}
+
+    on_disk = read_parquet_from_disk(tmp_path)
+    assert len(on_disk) == 4                                    # 2 weeks × 2 teams
+    assert set(on_disk[on_disk["week"] == 2]["Goals"]) == {7.0}
+
+
+def test_pre_existing_bloated_parquet_self_heals_on_next_write(tmp_path, monkeypatch):
+    """A parquet already bloated by the pre-038 append behaviour is cleaned up."""
+    bloated = pd.concat([
+        pd.DataFrame([
+            {"team_key": "nhl.l.99999.t.1", "team_name": "Team Alpha", "week": 1, "Goals": 2.0, "Assists": 3.0},
+            {"team_key": "nhl.l.99999.t.2", "team_name": "Team Beta",  "week": 1, "Goals": 4.0, "Assists": 6.0},
+        ])
+    ] * 5, ignore_index=True)
+    cache.write(LEAGUE_KEY, "matchups", bloated)
+    assert len(read_parquet_from_disk(tmp_path)) == 10
+
+    monkeypatch.setattr(client, "get_league_settings", lambda s, k: make_settings(current_week=2))
+    monkeypatch.setattr(client, "get_stat_categories", lambda s, k: STAT_CATEGORIES)
+    monkeypatch.setattr(client, "get_all_teams_week_stats", fake_all_teams_week_stats)
+
+    result = matchups.get_matchups(None, LEAGUE_KEY)
+
+    on_disk = read_parquet_from_disk(tmp_path)
+    assert not on_disk.duplicated(subset=["team_key", "week"]).any()
+    assert len(on_disk) == 4    # weeks 1 and 2 × 2 teams
+    assert len(result) == 4
