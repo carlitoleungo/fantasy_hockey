@@ -20,7 +20,8 @@ authenticated nav and the m2 demo nav equally, so tagging it to either milestone
 overstate it.)
 
 ## Touches
-- tests/test_nav_shell_qa.py
+- tests/test_nav_shell_qa.py (renamed to `tests/test_nav_shell.py` — see AC1)
+- tests/test_nav_shell.py
 - docs/improvements.md
 - docs/archive/improvements-closed.md
 
@@ -39,7 +40,8 @@ no coverage" and "Nav/header assertions cover 7 of the 12 `shell_context()` bran
 feature routes".
 
 ## Acceptance criteria
-- [ ] `test_authenticated_nav_links_return_200` no longer exists in `tests/test_nav_shell_qa.py`, and no test in that file is parametrised over an argument its body never reads.
+- [ ] `tests/test_nav_shell_qa.py` no longer exists; its content lives at `tests/test_nav_shell.py`, moved with `git mv` so history is preserved, and no file in `tests/` carries a `_qa` suffix that this ticket introduced. Do this **first**, before writing any new test.
+- [ ] `test_authenticated_nav_links_return_200` no longer exists in `tests/test_nav_shell.py`, and no test in that file is parametrised over an argument its body never reads.
 - [ ] Each of the five branches in the table below has a test asserting both the exact nav link set (via `_nav_links`, equal to `AUTHENTICATED_NAV` or `DEMO_NAV`) and the header label (via `_header_left`), so all 12 migrated branches are covered.
 - [ ] For each of the five new branch tests, deleting the `**shell_context(...)` spread from that branch in `web/routes/overview.py` makes that test fail — verified by mutation probe and reverted, with the observed failing test IDs reported in the handoff.
 - [ ] `.venv/bin/python -m pytest tests/` is green, with a net test-count change reported in the handoff.
@@ -50,7 +52,9 @@ feature routes".
 - The third improvements item from the same review, "Post-036b stale comments about pages 'not yet' passing `shell_context()`". Its two halves belong elsewhere: the `tests/test_overview_routes.py` comment goes to whichever ticket next touches that file (not this one), and the `base.html` comment is owned by the DECISIONS 2026-07-25 default-flip follow-up. Leave both alone.
 - Consolidating or de-duplicating the `_make_db` / `ctx` fixture scaffolding that is copied across the route test files. It is a real open improvements item, but it touches every route test file and is its own ticket.
 - Fragment-handler tests. Fragments do not extend `base.html` and must not gain shell context.
-- Adding nav assertions to `tests/test_head_to_head_routes.py` or the other route test files. Keep every nav/header assertion consolidated in `tests/test_nav_shell_qa.py` so the nav contract lives in one file.
+- Adding nav assertions to `tests/test_head_to_head_routes.py` or the other route test files. Keep every nav/header assertion consolidated in `tests/test_nav_shell.py` so the nav contract lives in one file.
+- **The other three `*_qa.py` files.** `docs/DECISIONS.md` 2026-07-26 "Tests: one module per feature surface" retires the suffix repo-wide, but assigns only `test_nav_shell_qa.py` to this ticket. `test_projection_matchup_qa.py` and `test_overview_routes_qa.py` merge into their siblings, and `test_projection_breakdown_qa.py` renames, all in the consolidation ticket **after** `tests/conftest.py` exists. Do not touch them here.
+- **Creating `tests/conftest.py` or moving any fixture into one.** Ratified by `docs/DECISIONS.md` 2026-07-26 "Tests: `tests/conftest.py` is the canonical home…", but it is the consolidation ticket's job across all thirteen files. Your renamed module keeps its own harness for now. See the Notes below.
 
 ## Notes for the Engineer
 
@@ -85,7 +89,7 @@ test that guards nothing. This is documented in `tests/test_demo_overview_routes
 - Branch 1: no patching subtlety — the existing `_authenticated_feature_get` df already has two teams (`Alpha`, `Beta`), so `len(teams) < 2` is false and it lands on the populated branch.
 
 **`_authenticated_feature_get` needs extending for branch 1.** Its `module` lookup
-(`tests/test_nav_shell_qa.py` line 263) is a dict keyed on `/overview`, `/waiver`,
+(line 263, in the renamed `tests/test_nav_shell.py`) is a dict keyed on `/overview`, `/waiver`,
 `/projection` and will `KeyError` on `/overview/head-to-head`. Map that path to the
 `overview` module rather than adding a second helper.
 
@@ -119,14 +123,25 @@ Leave the third (stale-comments) entry open and untouched.
 - *Do NOT sweep, despite it naming a file in your `Touches`:* **"Projection route test
   scaffolding duplicated across three test files"** (`Type: quality`). Its audit-041 update
   names `tests/test_nav_shell_qa.py` as one of **thirteen** files carrying a duplicated
-  `_make_db()` / `user_sessions` scaffold, and prescribes a shared `tests/conftest.py`
-  adopted across all thirteen. Your input #6 obliges you to sweep `Type: quality` items on
-  files you are modifying, and read literally that would pull a 13-file, 800–1,100-line
-  refactor into this ticket. **That is a separate ticket the PM is scoping from audit 041
-  action 4.** Twelve of the thirteen files are not in your `Touches`, so attempting it would
-  also escape scope and halt the run. Leave the item open, change no scaffolding, and do not
-  extract a `conftest.py`. If you find the duplication genuinely obstructs writing the five
-  branch tests, stop and say so rather than refactoring around it.
+  `_make_db()` / `user_sessions` scaffold, and `docs/DECISIONS.md` 2026-07-26 now ratifies a
+  shared `tests/conftest.py` as the fix across all thirteen. Your input #6 obliges you to
+  sweep `Type: quality` items on files you are modifying, and read literally that would pull
+  a 13-file, 800–1,100-line refactor into this ticket. **That is a separate ticket the PM is
+  scoping from audit 041 action 4.** Twelve of the thirteen files are not in your `Touches`,
+  so attempting it would also escape scope and halt the run. Leave the item open, change no
+  scaffolding, and do not extract a `conftest.py`. If you find the duplication genuinely
+  obstructs writing the five branch tests, stop and say so rather than refactoring around it.
+
+**The rename (AC1) — do it first, and keep it a pure move.** `docs/DECISIONS.md` 2026-07-26
+"Tests: one module per feature surface, named for the surface, never for the author" retires
+the `*_qa.py` suffix and assigns this one file to this ticket, because the ticket is opening
+it anyway and the ruling notes the misnomer would otherwise become load-bearing. Use
+`git mv tests/test_nav_shell_qa.py tests/test_nav_shell.py` so history follows the file, run
+the suite to confirm it is still collected and green, and only then start on the deletions
+and the five branch tests. Do not combine the move with content edits in one step — a pure
+rename plus a separate content diff is what lets the Reviewer see what actually changed.
+Update the module docstring if it describes the file as QA-supplementary; the module is the
+canonical home of the nav contract, which is what the ruling establishes.
 
 ## Verification
 - `.venv/bin/python -m pytest tests/` green; report the observed pass count and the net change in test count.
