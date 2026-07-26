@@ -7,6 +7,72 @@ context on *why* something was done a particular way.
 
 ---
 
+### Tests: one module per feature surface, named for the surface, never for the author (2026-07-26)
+
+Extends (does not supersede) the 2026-05-31 "Team process: Engineer owns automated test coverage; QA does not fill gaps" entry below. That entry governs *when* QA may write a test and is reaffirmed unchanged; this one says where the test lands.
+
+**Question / context:** Four files carry a `*_qa.py` suffix — `tests/test_nav_shell_qa.py`, `tests/test_overview_routes_qa.py`, `tests/test_projection_breakdown_qa.py`, `tests/test_projection_matchup_qa.py` — holding 30 tests over 1,011 lines. The suffix accreted to mean "supplementary edge cases QA added on top of the Engineer's acceptance-criteria coverage", which the 2026-05-31 entry permits. It was never ratified, and it has since inverted. Audit 041 established that ticket 036b's *Engineer* deliberately put the primary acceptance coverage for the demo nav (19 parametrised cases) into `test_nav_shell_qa.py` to avoid a sixth copy of the test harness, and that ticket 040 then wrote that placement into its Out of scope ("Keep every nav/header assertion consolidated in `tests/test_nav_shell_qa.py` so the nav contract lives in one file"). A suffix meaning "written by QA, supplementary" now labels the canonical, Engineer-authored home of a feature's acceptance tests, and the process is directing more work into it. The content is not in question: audit 041 read all four files and found genuine edge cases (a mononym player name, a goalie-only roster, a `C,G` multi-token position, a league with no goaltending categories, an opponent-column highlight, a no-highlight tie, row ordering, two negative colour assertions), every one permitted by 2026-05-31.
+
+**Options considered:**
+- **A (ratify the suffix as-is):** No churn, and the four files stay put. *Rejected.* It ratifies a name that is now false on at least one file, and the cost is discoverability: an engineer looking for the nav contract has no reason to open a file called `_qa`. The suffix also encodes authorship, which `git` already records more accurately and keeps current as files are edited by both roles.
+- **B (keep the suffix but redefine it as "supplementary tests, any author"):** Preserves the split-file structure while fixing the false claim. *Rejected.* "Supplementary" is not a durable property of a test — 036b's demo-nav cases were supplementary when written and are primary acceptance coverage now. A file boundary that depends on a test's status at the moment of writing will keep drifting, and it still leaves one surface's coverage in two files whose relationship is implicit.
+- **C (name modules for the feature surface; one module per surface, both AC and edge-case tests, any author) — chosen:** Coverage for a surface is findable from its name alone, and no file boundary has to be defended. Costs a `git mv` per file and two merges, and two files grow to ~440-470 lines.
+
+**Decision:** Option C. A test module is named for the **feature surface** it covers and holds that surface's acceptance-criteria tests and its edge-case tests together, regardless of who wrote them. The `*_qa.py` suffix is **not ratified** and is retired. Authorship stays a `git` question. The 2026-05-31 entry continues to govern when QA may add a test and needs no filename to enforce it: QA adding a test to the Engineer's module is the expected shape, not a violation.
+
+Concrete disposition of the four files, and the sequencing that follows from it:
+
+| File | Disposition | Where |
+|---|---|---|
+| `test_nav_shell_qa.py` | Rename to `tests/test_nav_shell.py`. No sibling exists; it is already the single home of the nav contract across three route modules, which is correct. | **Ticket 040**, as a `git mv` before its five branch tests land |
+| `test_projection_matchup_qa.py` | Merge into `tests/test_projection_matchup_route.py` (2 tests behind 124 lines of preamble; nothing justifies a file) | Consolidation ticket, after `conftest.py` exists |
+| `test_overview_routes_qa.py` | Merge into `tests/test_overview_routes.py` (both cover `/overview`; ~470 lines combined once the shared preamble is gone) | Consolidation ticket, after `conftest.py` exists |
+| `test_projection_breakdown_qa.py` | Rename to `tests/test_projection_breakdown.py`, standalone | Consolidation ticket (pure `git mv`, order-independent) |
+
+Two notes on that table. The merges are sequenced *after* the shared `conftest.py` of the entry below, because merging two files that each carry their own verbatim harness otherwise means reconciling two preambles by hand — the work `conftest.py` makes free. And this differs from audit 041's recommendation on `test_overview_routes_qa.py`, which proposed a rename: there is no surface name available for it, because `test_overview_routes.py` covers the same surface and already holds it. Two modules for `/overview` is precisely the split this rule forbids, so it merges. `test_projection_breakdown_qa.py` stays standalone because the roster-breakdown partition (skater/goalie classification, whole-token `is_goalie` matching, name abbreviation) is a distinct sub-surface with its own logic, and folding it in would produce a ~570-line projection file that a later reader would want to split apart again.
+
+**What a future QA session does when it wants to add a supplementary test:** add it to the existing module for that surface, next to the Engineer's tests, reusing that module's helpers and the shared `conftest.py` fixtures. Do not create a new file. Say in the QA report which tests you added and why, which is what makes the addition auditable — the filename never did that job. Create a new module only when the tests cover a genuinely new feature surface that has no module yet, and name it for the surface.
+
+**Why:** A test file's job is to be found by the next person looking for a surface's guarantees, and a suffix describing who typed it serves no reader. The suffix's failure was not cosmetic — it produced a file whose name says "supplementary" while ticket 040's Out of scope says it is canonical, and one more ticket of that would have made the misnomer load-bearing. Ratifying content over authorship also removes the only structural pressure pushing QA toward a sixth copy of the harness, which is the same duplication the entry below addresses.
+
+**Revisit if:** A single surface's module grows past roughly 800 lines (`tests/test_waiver.py` is the current ceiling at 807), at which point split it by sub-surface with both halves named for their sub-surface, never by author; or the project adopts a coverage tool or CI report that needs test provenance encoded in a path, which would be a reason to reopen how authorship is recorded but not a reason to restore this suffix.
+
+---
+
+### Tests: tests/conftest.py is the canonical home for the session-DB and client harness (2026-07-26)
+
+Applies the reasoning of the 2026-05-30 "Shared route helpers: `web/routes/common.py` is the canonical home" entry below one layer down, to the test suite.
+
+**Question / context:** `tests/conftest.py` does not exist. Audit 041 measured the consequence: **thirteen** test files each carry their own verbatim copy of the in-memory SQLite `user_sessions` / `oauth_states` schema, a `_make_db()`, a `TestClient` + `dependency_overrides` fixture, and an `_insert_session()` helper. Across the 14 web-route test files, **1,489 of 4,592 lines (32%) sit before the first `def test_`**. The extreme case is `tests/test_projection_matchup_qa.py`: 124 lines of preamble supporting 2 tests, 35 lines of which are assertions. Nobody chose this — it accreted, and the tracker entry recording it said five files until audit 041 corrected the count to thirteen. The suite is green (453 passed, 1.6s) and the duplication has caused no defect, so this is a maintainability question, not a correctness one.
+
+**Options considered:**
+- **A (status quo — each module carries its own harness):** No implicit imports; every file is readable start to finish with no indirection, which suits a solo developer newer to pytest. *Rejected.* Thirteen copies of a security-relevant schema means a change to the session table is a thirteen-file edit, and the copies can silently diverge — the next reader cannot tell whether a difference between two files is meaningful or accidental. The 32% preamble figure is the cost being paid for that readability, per file, forever.
+- **B (a shared `tests/helpers.py` imported explicitly):** Same de-duplication with an explicit `from tests.helpers import make_db` at each call site, so nothing is magic. Viable, and the honest runner-up. *Rejected* because it forgoes pytest's fixture lifecycle: `conftest.py` fixtures get per-test setup and teardown, and request-scoped cleanup, without each module remembering to call it. Reimplementing that by hand on top of plain helpers is the more surprising outcome of the two.
+- **C (`tests/conftest.py`) — chosen:** pytest's own sanctioned mechanism, zero-import, per-test lifecycle handled by the framework. Its one real cost is that fixtures arrive without a visible import.
+
+**Decision:** Option C — `tests/conftest.py` is the canonical home for test fixtures shared across more than one test module. A single flat `conftest.py` at `tests/`; **no nested `conftest.py` files.** Its cost is mitigated by requiring a module docstring in `conftest.py` that names every fixture it provides and what each yields, so one file read tells a reader what is in scope everywhere.
+
+What belongs in it:
+
+- The in-memory session-DB fixture: the `user_sessions` / `oauth_states` schema and the `_make_db()` construction, as one fixture.
+- The `client` fixture: `TestClient` plus the `dependency_overrides` wiring.
+- The `_insert_session()` helper for seeding an authenticated session row.
+- Scenario data **only** where it is byte-identical across three or more modules today (`TEAMS`, `SETTINGS`, `SCOREBOARD` are the candidates), and only exposed as a **factory function or fixture returning a fresh object per test** — never a shared mutable module-level constant. A shared constant that one module mutates, or that gets widened to serve a second module's needs, changes another module's inputs invisibly; that failure is harder to diagnose than the duplication it removes.
+
+What stays local to a module:
+
+- All scenario data specific to that surface: pagination sets, lastmonth fallback fixtures, multi-position pools, empty-state frames, and any variant of a shared constant.
+- Assertion helpers scoped to one surface, including `test_nav_shell.py`'s `_nav_links` and `_header_left`. These are the pattern worth copying, not centralising: element-scoped assertions are what make a rendered-HTML check discriminate.
+- Patch targets. They differ per module in ways that matter (`web.routes.overview.get_matchups` for authenticated handlers versus `data.demo.get_matchups` for the demo ones, per `docs/LEARNINGS.md`), and hiding that behind a fixture would bury a trap the suite has already been bitten by.
+
+**Not in scope of the resulting consolidation:** dropping rendered-HTML assertions. Those assertions are the only thing standing between a template edit and a silently wrong page, which is the failure mode ticket 040 exists to guard. The brittleness complaint about them is answered by scoping each assertion to an element, not by removing it.
+
+**Why:** The same argument that carried for `web/routes/common.py` in May carries here and is stronger: thirteen copies rather than one cross-module import, and the duplicated thing is the session schema, the most security-relevant structure in the app. Choosing pytest's native mechanism over a hand-rolled helpers module keeps the beginner-friendliness default intact — `conftest.py` is what a reader of any pytest documentation expects to find, whereas a bespoke lifecycle on top of plain functions is the novel thing to learn. Expected saving is 800-1,100 lines with no change in coverage.
+
+**Revisit if:** `conftest.py` itself passes roughly 150 lines or starts holding fixtures only one module uses, both signs that surface-specific setup has leaked in and should move back to its module; or the suite grows a second class of test with an incompatible harness (an end-to-end or live-API tier), which would justify a subdirectory with its own `conftest.py` and would supersede the no-nesting rule here.
+
+---
+
 ### Nav shell: render sites that cannot resolve a user declare the state unknown and render nav-free; exception handlers never derive auth (2026-07-25)
 
 Answers the `Revisit if` clause of the 2026-07-03 "Nav shell: conditional on auth/demo state via shared shell-context" entry below. That entry is **extended, not superseded**: its core rule (one auth-derivation path, reuse the user the route already resolved) is reaffirmed and now covers the case it anticipated.
