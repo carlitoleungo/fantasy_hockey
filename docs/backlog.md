@@ -481,4 +481,114 @@ span the analysis and UI layers.
 
 ---
 
+## Historical player-performance store for analysis / ML — FILED 2026-07-26
+
+**Original request (owner's words):** "I want to start caching requests and storing some
+historical player data so I can start building my own database of player performance for
+analysis / ML."
+
+**What was included:** Nothing yet. Filed as a capability, not scoped. **Do not write
+tickets for this without a Tech Lead consult first** — it lands squarely on the parquet
+cache layer / `CACHE_DIR` on-disk layout, which is on `WORKFLOW.md`'s architectural-surface
+escalation list. `scripts/audit_due.py` also reported **AUDIT DUE (5.5 / 5)** on 2026-07-26,
+which independently blocks architectural-surface scoping until the audit runs.
+
+**What was deferred:** The whole idea. It is at least three separable pieces, and bundling
+them would violate the "never bundle *set up X* and *make X useful*" rule:
+1. **A durable store** — an append-only, timestamped player-observation table that survives
+   the TTL/overwrite cycle.
+2. **Capture** — writing observations into it (a side effect of normal request caching, or a
+   separate scheduled job — see the open questions).
+3. **An analysis surface** — querying/exporting it for notebooks, modelling, or backfill.
+Scaffold first, populate second, consume third.
+
+**Milestone:** none. This serves no launch milestone — M1 is "my league + close friends can
+use the app", M2 is strangers, M3 is charging, and a personal research dataset is on none of
+those paths. It is **post-M1** in ordering terms: it should not compete with tickets 038/039
+or the due audit, all of which gate the live deployment.
+
+**Blocked by:** nothing (no ticket blocks it). Two process gates apply before scoping, per
+the note above: the due audit, and a Tech Lead consult.
+
+**Conflict to resolve first (owner decision, not a PM one):** `CLAUDE.md` currently lists
+**"Multi-season historical data"** under *Out of Scope (for now)*. This idea reverses that.
+The PM does not edit `CLAUDE.md`; the owner should update that line if the reversal is
+intended, otherwise this entry stays parked.
+
+**Context for later:**
+
+*Why this is net-new work rather than "just keep what we already fetch".* Every layer of the
+current cache actively destroys history by design, so there is no accidental archive to
+harvest:
+- `cache.write()` overwrites the whole parquet (`data/cache.py:166`). Season pools carry a
+  24 h TTL (`is_player_pool_stale`), so yesterday's numbers are gone.
+- `upsert_lastmonth_cache()` (`data/cache.py:240`) *replaces* rows for a `player_key` rather
+  than versioning them — the previous 30-day window is discarded on every refresh.
+- `matchups` is the only appending type, and ticket **038** exists to *stop* it accumulating
+  rows (that growth is a bug, not a feature).
+The current cache answers "what is true now, cheaply". A historical store answers "what was
+true on date D". Those are different stores with different write rules, and the second should
+be additive rather than a change in the first's semantics.
+
+*Sampling bias the ML ambition has to survive.* Today's richest player data is the waiver
+pools — `ww_season__{pos}__{stat}` parquets, each the **top 25 available players** sorted by
+one stat (`fetch_season_pool`, `data/players.py:126`, `count=25`). That is a doubly biased
+sample: rostered players never appear at all, and only the head of each stat distribution is
+captured. A model trained on it would learn about waiver-wire leftovers, not about NHL
+players. If the goal is genuine performance modelling, the capture design probably needs a
+different source (full-league player collection, or per-week team stats which are already
+fetched in bulk for Overview) rather than a recording of what the waiver page happened to
+render.
+
+*Two known schema hazards, both already documented:*
+- **League-shaped lastmonth frames.** `_parse_stats` filters lastmonth columns through the
+  league's *enabled* stat categories, so today's `ww_lastmonth` frames differ in shape per
+  league even though the underlying facts are league-independent. A historical store must
+  keep raw `stat_id`-keyed values and project to names at read time. This is the "Known
+  hazard" recorded in `docs/DECISIONS.md` **"Cache: league-independent data gets a shared
+  tier at M2; M1 only preserves the affordance" (2026-07-23)** — the same trap, and the
+  `CACHE_DIR/_shared/` affordance that entry preserved (now live, `data/cache.py:39`) is
+  plausibly where league-independent history belongs.
+- **Season-scoped player keys.** Yahoo player keys embed the game ID (`465.p.1234`), so they
+  are stable within a season and not across them. Multi-season joins need a stable identity
+  mapping, which is exactly the "multi-season" problem `CLAUDE.md` currently defers.
+
+*Constraints any design must respect:*
+- **Write discipline.** Ticket **037** (completed 2026-07-25) made every cache write atomic
+  (temp file + `os.replace()`) and serialised the read-modify-write paths behind a per-league
+  `threading.Lock`. Any new writer under `CACHE_DIR` must go through the same primitives, and
+  inherits the same coupling to the single-uvicorn-worker decision (`docs/DECISIONS.md`
+  2026-04-10 / 2026-07-23).
+- **Storage budget.** The M1 Fly volume is **1 GB at `/data`, shared by `app.db` and
+  `cache/`** (`docs/DECISIONS.md` "Deployment: M1 shape", 2026-07-23). An append-only store
+  grows without bound by construction, so a growth estimate and a retention rule are part of
+  the design, not a follow-up.
+- **Layer rules.** `data/` is framework-free pure Python (`docs/ARCHITECTURE.md` Key patterns
+  #6). The store lives there; nothing in it may import FastAPI.
+- **Not a revival of per-user caching.** See "Migration: Per-user cache storage — DROPPED
+  2026-07-23" above. History is a *time* dimension, not a *user* dimension; do not let this
+  reintroduce per-user keys.
+
+*Open questions for the Tech Lead consult (this is the consult brief, not the answers):*
+1. **Grain and entity** — per-player per-week? per-player per-day snapshot? per-team per-week
+   (the bulk `/league/{key}/teams/stats;type=week` call already fetched for Overview is the
+   cheapest genuine time series available today)?
+2. **Source** — piggyback on whatever requests already happen (free, but biased and gappy on
+   days nobody opens the app), or a scheduled capture job (complete and unbiased, but new
+   infrastructure and its own Yahoo call budget)?
+3. **Store** — parquet partitioned by date under `CACHE_DIR`, SQLite alongside `app.db`, or
+   something outside the Fly volume entirely? Note the volume is bound to a single machine.
+4. **Scope key** — league-scoped or global/shared tier? Most of this data is NHL fact, not
+   league fact, which points at `_shared/`.
+5. **Retention and growth** — what is the per-season size estimate against 1 GB, and what
+   gets pruned?
+6. **Access** — is the consumer a notebook reading files off the volume, an export endpoint,
+   or a local sync? This determines whether any web-layer work exists at all.
+
+**Estimated complexity:** Large. Realistically a Tech Lead consult, then a store/schema
+ticket, then a capture ticket, then an access ticket — with the capture design depending on
+the answers to (1) and (2) above. Nothing here is a single session.
+
+---
+
 [PM populates this file as features are scoped down during active development]

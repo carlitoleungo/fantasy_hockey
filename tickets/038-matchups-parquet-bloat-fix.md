@@ -77,6 +77,18 @@ re-fetch loop causes parquet bloat and unnecessary API calls"** (discovered 2026
 - **DoD:** this ticket resolves the `docs/improvements.md` item "matchups.py re-fetch loop
   causes parquet bloat and unnecessary API calls". On handoff, move that entry to the closed
   archive `docs/archive/improvements-closed.md` with a resolution note citing ticket 038.
+- **Open `docs/improvements.md` items on files in `Touches`** (checked 2026-07-26):
+  - *Scoped-from, in scope:* "`matchups.py` re-fetch loop causes parquet bloat and
+    unnecessary API calls" (`Type: bug`) — the item above; close it per the DoD.
+  - *`Type: quality` items on these files:* **none.** There is nothing for your input #6
+    sweep to pick up here, so the diff should be the fix and its tests only.
+  - *Out of scope, do not fix:* "League settings and stat categories re-fetched from Yahoo
+    on every request" (`Type: bug`) names `data/matchups.py:36` as a call site, but its fix
+    lives in `data/client.py` — an architectural surface needing its own Tech Lead consult —
+    and it is M2, not M1. "Leaderboard: all-zero rows when a week has no player activity"
+    (`Type: bug`) lists `data/matchups.py` among its affected files, but the fix is in
+    `web/routes/overview.py`, which is not in `Touches`. Mention either in your handoff if
+    you touch adjacent code; do not fix them.
 
 ## Verification
 - `.venv/bin/python -m pytest tests/test_matchups.py` green, including the new on-disk

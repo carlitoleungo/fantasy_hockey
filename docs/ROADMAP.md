@@ -62,15 +62,17 @@ them here so they are not lost:
 
 ## Next up
 
-1. **M1 cache write-hardening** — scoped into ticket **037** (2026-07-25). Atomic
-   temp-file + `os.replace()` on every `data/cache.py` write (including `last_updated.json`),
-   plus a module-level per-`league_key` `threading.Lock` guarding `append()`,
-   `upsert_lastmonth_cache()`, and `_write_meta()`, plus the ~5-line `CACHE_DIR/_shared/`
-   path affordance (no call site adopts it at M1). M1-blocking: without it, concurrent
-   requests (two managers in one league, or one manager rapid-firing HTMX filters) can
-   corrupt parquet/metadata files that then fail every subsequent read until deleted by hand.
-   Covered by the Tech Lead consult 2026-07-23 (DECISIONS "Cache: stays league-keyed…" and
-   "Cache: league-independent data gets a shared tier at M2").
+1. **AUDIT** — scoped into ticket **041** (2026-07-26). `scripts/audit_due.py` reports
+   **AUDIT DUE at 5.5 / 5** (032, 034, 035, 036a, 036b, 037 completed since the last audit at
+   031). Two themes: (A) cache + nav-shell conventions, the two surfaces that saw significant
+   work; (B) **test-suite health**, added at the owner's request — the suite is 433 tests /
+   8,520 lines against 3,496 lines of source, and the standard checklist has no check for
+   redundancy or staleness. Theme B asks three questions: route-test bulk (`web/routes/` runs
+   3.8:1), whether `auth/oauth.py` coverage is real or only apparent, and whether the four
+   unratified `*_qa.py` files hold real edge cases. **This blocks architectural-surface
+   scoping only** — ticket 039 (`fly.toml`) is architectural and waits on it; tickets 038 (bug
+   fix) and 040 (test-only) may proceed in parallel. Run by the Reviewer directly, not the
+   Orchestrator (audits are refused in orchestrator pre-flight).
 2. **M1 matchups parquet-bloat fix** — scoped into ticket **038** (2026-07-25, depends on
    037). Fixes the `data/matchups.py` re-fetch loop that appends `prev_week`/`current_week`
    rows to the parquet on every page load for the rest of the day. Resolves the
@@ -83,13 +85,7 @@ them here so they are not lost:
    `COPY . .` Dockerfile would otherwise bake `.env` secrets, `app.db` OAuth tokens, and
    `.cache/` into the production image). Covered by the Tech Lead consult 2026-07-23
    (DECISIONS "Deployment: M1 shape — single pinned machine, 1 GB volume, fly.toml in repo").
-4. **Nav shell foundation** — scoped into ticket **036a** (tagged **m1**). Shared
-   `shell_context()` helper in `common.py` + conditional `base.html` + home adoption; fixes
-   the logged-out-home nav (the first screen an M1 friend sees before signing in) and closes
-   the "Nav header shows auth links to unauthenticated visitors" improvements item. Tech Lead
-   consult DONE (DECISIONS 2026-07-03 "Nav shell: conditional on auth/demo state via shared
-   shell-context").
-5. **Nav shell test hardening** — scoped into ticket **040** (2026-07-25). Ticket 036a
+4. **Nav shell test hardening** — scoped into ticket **040** (2026-07-25). Ticket 036a
    (nav shell foundation, m1) and **036b** (demo nav adoption, m2) both **SHIPPED** — the
    demo pages now render a coherent demo nav and the logged-out home nav is fixed. 040
    closes the regression-guard gap the 036b review found: nav assertions cover 7 of the 12
@@ -97,7 +93,7 @@ them here so they are not lost:
    empty-state and head-to-head branches) fail silently if a future edit drops the spread.
    Test-only, no milestone. Resolves two `docs/improvements.md` items. The "Try the demo"
    home entry point remains a separate follow-up (improvements item, m2-leaning).
-6. **Demo mode snapshot tooling** — `data/demo.py` snapshot generation script and fixture
+5. **Demo mode snapshot tooling** — `data/demo.py` snapshot generation script and fixture
    data refresh. The current demo dataset is static; this ticket produces tooling to
    regenerate it from a live season so the public demo URL serves current-looking numbers.
    Not M1 (M1 friends sign in; demo freshness is an M2 concern), and unblocks fixture-based
@@ -120,6 +116,15 @@ them here so they are not lost:
   per-user keys would multiply API calls and storage without fixing the concurrency
   defect they were assumed to address. Do not scope this. The real work is cache
   write-hardening — now scoped as ticket **037** (Next up item 1).
+- **Historical player-performance store for analysis / ML** — owner intent recorded
+  2026-07-26; filed in `docs/backlog.md` as "Historical player-performance store for analysis
+  / ML". The owner wants fetched player data to accumulate into a durable dataset for their
+  own analysis and modelling, rather than being overwritten by the TTL cache. **Not scoped,
+  and not scopeable yet:** it lands on the cache/on-disk-layout architectural surface (needs a
+  Tech Lead consult), it is gated behind the due audit, and it reverses the `CLAUDE.md`
+  "Multi-season historical data — out of scope" line, which is an owner decision. Post-M1;
+  it serves no launch milestone. The backlog entry carries the consult brief, the sampling-bias
+  problem (today's pool data is top-25-available-only), and the two schema hazards.
 - **Yahoo rate-limit hardening** — **M2**, not M1. Two `docs/improvements.md` items cut
   steady-state Yahoo call volume: caching `/league/{key}/settings` (2 calls per authenticated
   render today) and the shared `ww_lastmonth` / NHL-schedule tier (DECISIONS 2026-07-23
@@ -131,7 +136,12 @@ them here so they are not lost:
 
 ---
 
-_Last updated: 2026-07-25 (036a and 036b shipped; scoped ticket 040 nav-shell test
+_Last updated: 2026-07-26 (scoped the due audit as ticket **041**, with a second
+owner-requested theme on test-suite health; ticket **037 cache write-hardening SHIPPED** —
+removed from Next up; pruned the stale duplicate 036a entry [036a/036b shipping is already
+recorded under the 040 item]; added the owner's historical player-data / ML idea to Watching
+and to `docs/backlog.md`).
+Prior: 2026-07-25 (036a and 036b shipped; scoped ticket 040 nav-shell test
 hardening from the 036b review's two should-fix findings; noted the audit cadence sits at
 4.5/5 weighted, so the ticket after 040 completes is an audit).
 Prior: 2026-07-25 (added the approved Launch milestones section [M1/M2/M3 +

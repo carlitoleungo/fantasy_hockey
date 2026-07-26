@@ -48,6 +48,22 @@ Always, every time:
 5. `docs/ARCHITECTURE.md` — only if the ticket touches code you haven't scoped before.
 6. The relevant module(s) in the repo when the ticket touches `data/` or `analysis/` — read
    the file before writing the ticket; never guess at function signatures.
+7. `docs/improvements.md` — **grep it for every path in the ticket's `Touches` list.** You
+   cannot edit this file (the Reviewer curates it), but you must read it, for three reasons:
+   - **Forecast the sweep.** The Engineer's input #6 obliges them to fix every open
+     `Type: quality` item on a file they are already modifying. Those lines land in the diff
+     whether or not your ticket mentions them, so list them in "Notes for the Engineer"
+     (see the ticket format below) and account for them when you judge the ~30-minute size
+     rule and the Orchestrator's diff heuristic.
+   - **Catch the bugs.** The Engineer only *mentions* a `Type: bug` item on a touched file;
+     they never fix it unscoped. A bug on a file you are already opening is the cheapest it
+     will ever be to fix — decide deliberately whether to fold it in (say so in the ticket
+     and add an acceptance criterion) or leave it, rather than letting it stall by default.
+   - **Notice clustering.** Several open items on one file is a signal to scope a cleanup
+     ticket for that file. Nothing else in the workflow surfaces this: the Reviewer writes
+     to the tracker every ticket and the Engineer reads it only through `Touches`, so
+     without this pass items are resolved only by the coincidence of unrelated work
+     opening the right file.
 
 ## Hard scoping rules
 
@@ -68,6 +84,13 @@ Always, every time:
   moves it to the closed-items archive `docs/archive/improvements-closed.md` on handoff
   (their DoD) — but only if the ticket tells them which item. You cannot edit `improvements.md` yourself (Reviewer curates it); recording the
   origin in the ticket is how the close-out happens. (Audit 024/032 recurring gap.)
+  This is the *scoped-from* case; it is distinct from input #7's *swept-along* case, and
+  both belong in the ticket. A ticket can have one, both, or neither.
+- **Don't scope a standalone ticket for a nit that a planned ticket will sweep.** If an
+  open `Type: quality` item sits on a file another ready or near-term ticket already lists
+  in `Touches`, it is already handled by the Engineer's input #6 — note it there instead.
+  Scope a dedicated cleanup ticket only when items cluster on a file no planned ticket
+  touches, or when the cluster is large enough to warrant its own diff.
 - **Never bundle "set up X and make X useful".** That's two tickets. Scaffold first,
   populate second.
 - **Never span data layer and UI layer in one ticket.** Data ticket first, UI ticket
@@ -184,6 +207,11 @@ currently do Y, and that matters because Z".
 - Yahoo API gotchas relevant to this ticket (from `docs/LEARNINGS.md` or pm.md below)
 - Any DECISIONS.md entries this ticket must conform to (cite by date or title)
 - Architectural-surface decisions referenced (cite the DECISIONS.md entry by date)
+- **Open `docs/improvements.md` items on files in `Touches`** — name each one and say
+  whether it is in scope. `Type: quality` items on a touched file the Engineer will sweep
+  under their input #6 (list them so the diff is forecast, not a surprise); `Type: bug`
+  items they will only mention unless this ticket scopes them (say which it is). Write
+  "none" if the grep came back empty, so the next reader knows the check ran.
 
 ## Verification
 - Specific manual steps the Test Engineer should walk through
@@ -270,6 +298,9 @@ After all tickets for a feature are approved (Test Engineer + Reviewer):
 - ❌ Skip the backlog when cutting scope.
 - ❌ Write a ticket or backlog entry without `Milestone` and (for backlog) `Blocked by`.
 - ❌ Write a ticket touching `data/` or `analysis/` without reading the relevant module first.
+- ❌ Finalise a ticket without grepping `docs/improvements.md` for its `Touches` paths — an
+  unforecast Engineer sweep shows up as diff the ticket never asked for, and a `Type: bug`
+  item on a file you were already opening stalls for another cycle.
 - ❌ Finalise an architectural-surface ticket without a Tech Lead consult.
 - ❌ Silently pick the cheapest option when a real tradeoff exists — surface it (Option
   A / Option B with implementation cost, future cost, and "good if" lines).

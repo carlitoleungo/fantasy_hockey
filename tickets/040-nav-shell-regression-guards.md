@@ -111,6 +111,23 @@ under test) and 2026-04-19 for the Overview → Waiver → Projection link order
 entries to `docs/archive/improvements-closed.md` with a resolution note citing ticket 040.
 Leave the third (stale-comments) entry open and untouched.
 
+**Open `docs/improvements.md` items on files in `Touches`** (checked 2026-07-26):
+- *Scoped-from, in scope:* the two items named in Why —
+  "`test_authenticated_nav_links_return_200` is parametrised over an unused argument and adds
+  no coverage" and "Nav/header assertions cover 7 of the 12 `shell_context()` branches in the
+  feature routes". Close both per the DoD.
+- *Do NOT sweep, despite it naming a file in your `Touches`:* **"Projection route test
+  scaffolding duplicated across three test files"** (`Type: quality`). Its audit-041 update
+  names `tests/test_nav_shell_qa.py` as one of **thirteen** files carrying a duplicated
+  `_make_db()` / `user_sessions` scaffold, and prescribes a shared `tests/conftest.py`
+  adopted across all thirteen. Your input #6 obliges you to sweep `Type: quality` items on
+  files you are modifying, and read literally that would pull a 13-file, 800–1,100-line
+  refactor into this ticket. **That is a separate ticket the PM is scoping from audit 041
+  action 4.** Twelve of the thirteen files are not in your `Touches`, so attempting it would
+  also escape scope and halt the run. Leave the item open, change no scaffolding, and do not
+  extract a `conftest.py`. If you find the duplication genuinely obstructs writing the five
+  branch tests, stop and say so rather than refactoring around it.
+
 ## Verification
 - `.venv/bin/python -m pytest tests/` green; report the observed pass count and the net change in test count.
 - Mutation probe, the core of this ticket: for each of the five branches, delete that branch's `**shell_context(...)` spread from `web/routes/overview.py`, confirm the corresponding new test fails, then revert. Report the failing test ID observed for each. A branch whose test still passes with the spread removed is not guarded and the ticket is not done.
