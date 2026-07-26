@@ -1,25 +1,31 @@
 """
-QA-targeted tests for ticket 036a — supplementary to the engineer's TC17-TC19.
+The nav shell contract — the canonical home for every nav/header assertion.
 
-Covers gaps found during QA:
-  - TC18 asserts nav ordering over the whole response body; these scope the
-    assertions to the <nav> element itself.
-  - TC18's `"Alpha League" in body` does not discriminate (the league list in
-    the content area contains the same string). QA verified the existing TC9
-    header-scoped assertion does catch a dropped `selected_league_name`; this
-    file adds the same guard alongside the nav-order check so the AC2 pair
-    lives in one test.
-  - The `base.html` default path (neither `is_authenticated` nor `demo_mode`
-    in context) is asserted directly against the template, independent of any
-    route, since that default is the DECISIONS.md 2026-07-03 safety constraint
-    that keeps every not-yet-migrated page rendering as before.
-  - The demo branch of the nav shipped in 036a but is dormant (no route sets
-    demo_mode until 036b), so it is exercised by direct template render.
+`base.html` renders the nav conditionally on the `is_authenticated` /
+`demo_mode` / `selected_league_name` keys that `shell_context()` supplies
+(DECISIONS.md 2026-07-03). This module owns that contract across all three
+feature route modules, so a change to the nav has one place to fail.
 
-Ticket 036b appended the demo/authenticated feature-page nav assertions at the
-bottom of this file, reusing the <nav>- and <header>-scoped helpers above, and
-removed 036a's `test_demo_pages_still_render_default_authenticated_nav`
-tripwire (the before-state 036b flips).
+What is asserted here, and why in this shape:
+  - Nav assertions are scoped to the <nav> element via `_nav_links`, not to the
+    whole response body, so link ordering (Overview -> Waiver -> Projection,
+    DECISIONS.md 2026-04-19) is actually proved.
+  - League-label assertions are scoped to the header-left region via
+    `_header_left`. A whole-body `"Alpha League" in response.text` does not
+    discriminate — the league list in the content area repeats the string, so a
+    render that blanks the header label still passes.
+  - The `base.html` default path (neither flag in context) is asserted directly
+    against the template, independent of any route, since that default is the
+    DECISIONS.md 2026-07-03 safety constraint that keeps a page which does not
+    pass `shell_context()` rendering as before.
+  - Every full-page branch that spreads `**shell_context(...)` has a case here,
+    including the empty-state branches. Those fail silently when the spread is
+    dropped: the page still returns 200 and still renders, it just serves the
+    wrong nav.
+
+Ticket 036a established the helpers; 036b added the demo and authenticated
+feature-page cases; 040 renamed the module off its `_qa` suffix (DECISIONS.md
+2026-07-26) and closed the five uncovered `web/routes/overview.py` branches.
 """
 
 from __future__ import annotations
@@ -262,6 +268,7 @@ def _authenticated_feature_get(client, path):
     ])
     module = {
         "/overview": "overview",
+        "/overview/head-to-head": "overview",
         "/waiver": "waiver",
         "/projection": "projection",
     }[path]
@@ -338,13 +345,68 @@ def test_authenticated_feature_pages_render_authenticated_nav(ctx, path):
     assert "Alpha League" in _header_left(response.text)
 
 
-@pytest.mark.parametrize("path", ["/overview", "/waiver", "/projection"])
-def test_authenticated_nav_links_return_200(ctx, path):
+# ---------------------------------------------------------------------------
+# Ticket 040 — the five `web/routes/overview.py` branches 036b left unguarded.
+#
+# Each of these fails if its branch's `**shell_context(...)` spread is dropped,
+# verified by mutation probe. The empty-state branches are the ones most likely
+# to lose the spread in a future edit and the ones that fail most quietly.
+# ---------------------------------------------------------------------------
+
+# Branch 1 — authenticated /overview/head-to-head, populated (>= 2 teams).
+# The helper's df already has two teams (Alpha, Beta), so `len(teams) < 2` is
+# false and this lands on the populated branch.
+
+def test_authenticated_head_to_head_renders_authenticated_nav(ctx):
     conn, client = ctx
     _insert_session(conn, league_key="419.l.11111")
 
-    for href in ("/overview", "/waiver", "/projection"):
-        assert _authenticated_feature_get(client, href).status_code == 200
+    response = _authenticated_feature_get(client, "/overview/head-to-head")
+
+    assert response.status_code == 200
+    assert _nav_links(response.text) == AUTHENTICATED_NAV
+    assert "Alpha League" in _header_left(response.text)
+
+
+# Branches 2 and 3 — the authenticated empty states: `df is None or df.empty`
+# on /overview, and `len(teams) < 2` on /overview/head-to-head. Both handlers
+# bind `get_matchups` at import time, so the target is the route module.
+
+@pytest.mark.parametrize("path", ["/overview", "/overview/head-to-head"])
+def test_authenticated_empty_state_renders_authenticated_nav(ctx, path):
+    conn, client = ctx
+    _insert_session(conn, league_key="419.l.11111")
+
+    with (
+        patch("web.routes.overview.make_session", return_value=MagicMock()),
+        patch("web.routes.overview.get_user_hockey_leagues", return_value=[LEAGUE_A]),
+        patch("web.routes.overview.get_matchups", return_value=None),
+    ):
+        response = client.get(path, cookies={"session_id": "sid-test"})
+
+    assert response.status_code == 200
+    assert _nav_links(response.text) == AUTHENTICATED_NAV
+    assert "Alpha League" in _header_left(response.text)
+
+
+# Branches 4 and 5 — the demo empty states: `df is None or df.empty` on
+# /demo/overview, and `len(teams) < 2` on /demo/overview/head-to-head.
+# The demo handlers import `data.demo` lazily *inside the function body*, so
+# the patch target inverts: `data.demo.get_matchups`, not the route module
+# (docs/LEARNINGS.md "Tests must patch the importing module's namespace",
+# exception clause). Patching the route module here does nothing and the test
+# would silently run against the populated branch instead.
+
+@pytest.mark.parametrize("path", ["/demo/overview", "/demo/overview/head-to-head"])
+def test_demo_empty_state_renders_demo_nav(ctx, path):
+    _, client = ctx
+
+    with patch("data.demo.get_matchups", return_value=None):
+        response = client.get(path)
+
+    assert response.status_code == 200
+    assert _nav_links(response.text) == DEMO_NAV
+    assert "Demo League" in _header_left(response.text)
 
 
 # AC4 — the demo nav and the authenticated nav differ

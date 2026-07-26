@@ -1,7 +1,7 @@
 # 040 — Nav shell test set: close the 5 uncovered branches, drop the redundant test
 
 ## Status
-ready
+done
 
 ## Type
 refactor

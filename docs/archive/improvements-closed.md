@@ -125,3 +125,21 @@ and `tests/test_auth_routes.py` import it from there. Dead `import sqlite3` remo
 **Source:** QA 035
 **File:** `tests/test_demo_projection_routes.py`
 **Resolved:** Ticket 034 — removed `test_demo_projection_matchup_accepts_team_key_param`, which asserted nothing `test_demo_projection_matchup_returns_fragment` did not already assert once the `my_team` alias was gone. The surviving test keeps the richer fragment assertions.
+
+---
+
+### `test_authenticated_nav_links_return_200` is parametrised over an unused argument and adds no coverage
+
+**Type:** quality
+**Source:** Code review 036b (first raised by QA 036b)
+**File:** `tests/test_nav_shell_qa.py` lines 341-347 (now `tests/test_nav_shell.py`)
+**Resolved:** Ticket 040 — deleted outright, the entry's first option. `test_authenticated_feature_pages_render_authenticated_nav` directly above it parametrises the same three paths through the same `_authenticated_feature_get()` helper and already asserts `status_code == 200` alongside the nav link set and the header label, so the "every nav href resolves" intent is stated there and nothing was lost. Not replaced with a de-parametrised variant. The same ticket renamed the module off its `_qa` suffix per DECISIONS.md 2026-07-26.
+
+---
+
+### Nav/header assertions cover 7 of the 12 `shell_context()` branches in the feature routes
+
+**Type:** quality
+**Source:** Code review 036b (coverage gap noted by QA 036b, extended here)
+**File:** `tests/test_nav_shell_qa.py` (DEMO_PAGES / authenticated params), `tests/test_head_to_head_routes.py`
+**Resolved:** Ticket 040 — all 12 migrated branches are now covered. Three new tests in `tests/test_nav_shell.py` close the five gaps in `web/routes/overview.py`: populated authenticated `/overview/head-to-head`, the `df is None or df.empty` and `len(teams) < 2` empty states on the authenticated pair, and the same two empty states on the demo pair. Each asserts the exact nav link set via `_nav_links` and the header label via `_header_left`, and each was confirmed by mutation probe to fail when its branch's `**shell_context(...)` spread is deleted. The demo cases patch `data.demo.get_matchups` (lazy in-body import), not the route module — the trap now recorded in `docs/LEARNINGS.md`. Per the ticket's Out of scope, the assertions stayed consolidated in `tests/test_nav_shell.py`; `tests/test_head_to_head_routes.py` was not modified.
