@@ -1,7 +1,7 @@
 # 037 — Cache write-hardening: atomic rename + per-league lock + shared-tier affordance
 
 ## Status
-ready
+done
 
 ## Type
 refactor

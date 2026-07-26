@@ -11,6 +11,7 @@ to a conftest.py so it can be shared.
 
 import importlib
 import json
+import threading
 from datetime import datetime, timedelta, timezone
 
 import pandas as pd
@@ -253,6 +254,248 @@ def test_different_data_types_are_isolated():
     players = cache.read(LEAGUE_KEY, "players")
     assert "team_name" in matchups.columns
     assert "player_name" in players.columns
+
+
+# ---------------------------------------------------------------------------
+# Concurrency (ticket 037 — atomic rename + per-league lock)
+# ---------------------------------------------------------------------------
+
+def run_concurrently(targets, timeout=60):
+    """
+    Run each callable in its own thread, released simultaneously by a Barrier.
+
+    Returns the list of exceptions raised by any thread (empty if all clean).
+    Fails the test if a thread is still alive after `timeout` — that means a
+    deadlock, which is the failure mode a badly-scoped lock would produce.
+    """
+    barrier = threading.Barrier(len(targets))
+    errors = []
+
+    def runner(fn):
+        barrier.wait()
+        try:
+            fn()
+        except BaseException as exc:  # noqa: BLE001 — the test asserts on these
+            errors.append(exc)
+
+    threads = [threading.Thread(target=runner, args=(fn,)) for fn in targets]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout=timeout)
+    assert not any(t.is_alive() for t in threads), "thread did not finish — deadlock?"
+    return errors
+
+
+def test_concurrent_appends_do_not_lose_rows():
+    """N threads appending one row each must leave exactly N rows on disk."""
+    n = 12
+
+    def appender(i):
+        def run():
+            row = pd.DataFrame({"team_name": [f"team_{i}"], "week": [i], "goals": [i], "assists": [i]})
+            cache.append(LEAGUE_KEY, "matchups", row)
+        return run
+
+    errors = run_concurrently([appender(i) for i in range(n)])
+    assert errors == []
+    result = cache.read(LEAGUE_KEY, "matchups")
+    assert len(result) == n
+    assert sorted(result["week"]) == list(range(n))
+
+
+def test_concurrent_appends_onto_seeded_file_preserve_seed_rows():
+    seed = matchups_df()
+    cache.write(LEAGUE_KEY, "matchups", seed)
+    n = 8
+
+    def appender(i):
+        def run():
+            row = pd.DataFrame({"team_name": [f"team_{i}"], "week": [i], "goals": [i], "assists": [i]})
+            cache.append(LEAGUE_KEY, "matchups", row)
+        return run
+
+    errors = run_concurrently([appender(i) for i in range(n)])
+    assert errors == []
+    result = cache.read(LEAGUE_KEY, "matchups")
+    assert len(result) == len(seed) + n
+    assert "Mighty Ducks" in result["team_name"].values
+    assert "Maple Leafs" in result["team_name"].values
+
+
+def test_reads_during_concurrent_writes_never_observe_a_partial_file():
+    """
+    A reader overlapping a writer sees either the old or the new complete frame,
+    never a truncated parquet (which raises ArrowInvalid/OSError).
+    """
+    small = pd.DataFrame({"x": range(500)})
+    big = pd.DataFrame({"x": range(4000)})
+    cache.write(LEAGUE_KEY, "big", small)
+
+    stop = threading.Event()
+    observed = []
+
+    def writer():
+        try:
+            for i in range(40):
+                cache.write(LEAGUE_KEY, "big", big if i % 2 else small)
+        finally:
+            stop.set()
+
+    def reader():
+        while not stop.is_set():
+            observed.append(cache.read(LEAGUE_KEY, "big"))
+
+    errors = run_concurrently([writer, reader, reader, reader])
+    assert errors == []
+    assert observed, "readers never got to run"
+    # Every observation is a complete frame: never None (the file always exists
+    # after the seed write) and never a partial row count.
+    assert all(df is not None for df in observed)
+    assert {len(df) for df in observed} <= {len(small), len(big)}
+
+
+def test_concurrent_write_meta_keeps_every_data_type():
+    """Interleaved metadata writes must not lose keys or produce invalid JSON."""
+    n = 12
+    ts = datetime.now(timezone.utc)
+
+    def writer(i):
+        def run():
+            cache._write_meta(LEAGUE_KEY, f"type_{i}", ts)
+        return run
+
+    errors = run_concurrently([writer(i) for i in range(n)])
+    assert errors == []
+    with open(cache._meta_path(LEAGUE_KEY)) as f:
+        meta = json.load(f)  # raises JSONDecodeError if the file was torn
+    assert sorted(meta) == sorted(f"type_{i}" for i in range(n))
+    for i in range(n):
+        assert cache.last_updated(LEAGUE_KEY, f"type_{i}") is not None
+
+
+def test_concurrent_writes_of_distinct_data_types_keep_all_metadata():
+    """write() serialises its own metadata update through the same league lock."""
+    n = 10
+
+    def writer(i):
+        def run():
+            cache.write(LEAGUE_KEY, f"players_{i}", players_df())
+        return run
+
+    errors = run_concurrently([writer(i) for i in range(n)])
+    assert errors == []
+    meta = cache._read_meta(LEAGUE_KEY)
+    assert sorted(meta) == sorted(f"players_{i}" for i in range(n))
+    for i in range(n):
+        assert cache.read(LEAGUE_KEY, f"players_{i}") is not None
+
+
+def test_concurrent_upsert_lastmonth_keeps_every_player():
+    n = 10
+
+    def upserter(i):
+        def run():
+            cache.upsert_lastmonth_cache(LEAGUE_KEY, pd.DataFrame({"player_key": [f"465.p.{i}"], "goals": [i]}))
+        return run
+
+    errors = run_concurrently([upserter(i) for i in range(n)])
+    assert errors == []
+    result = cache.read_lastmonth_cache(LEAGUE_KEY)
+    assert len(result) == n
+    assert sorted(result["player_key"]) == sorted(f"465.p.{i}" for i in range(n))
+
+
+def test_upsert_lastmonth_still_replaces_rows_for_the_same_player():
+    cache.upsert_lastmonth_cache(LEAGUE_KEY, pd.DataFrame({"player_key": ["465.p.1"], "goals": [3]}))
+    cache.upsert_lastmonth_cache(LEAGUE_KEY, pd.DataFrame({"player_key": ["465.p.1"], "goals": [9]}))
+    result = cache.read_lastmonth_cache(LEAGUE_KEY)
+    assert len(result) == 1
+    assert result["goals"].iloc[0] == 9
+
+
+def test_writes_leave_no_temp_files_behind(tmp_path):
+    cache.write(LEAGUE_KEY, "matchups", matchups_df())
+    cache.append(LEAGUE_KEY, "matchups", matchups_df())
+    names = sorted(p.name for p in (tmp_path / LEAGUE_KEY).iterdir())
+    assert names == ["last_updated.json", "matchups.parquet"]
+
+
+def test_temp_file_is_written_into_the_target_directory(tmp_path, monkeypatch):
+    """
+    os.replace() is only atomic within one filesystem, so the temp file must be
+    created next to its target rather than in the system temp dir.
+    """
+    seen = []
+    real_mkstemp = cache.tempfile.mkstemp
+
+    def spy(*args, **kwargs):
+        seen.append(kwargs.get("dir"))
+        return real_mkstemp(*args, **kwargs)
+
+    monkeypatch.setattr(cache.tempfile, "mkstemp", spy)
+    cache.write(LEAGUE_KEY, "matchups", matchups_df())
+    assert seen  # parquet + metadata
+    assert all(str(d) == str(tmp_path / LEAGUE_KEY) for d in seen)
+
+
+# ---------------------------------------------------------------------------
+# Shared-tier path affordance (ticket 037 — affordance only, no call site uses it)
+# ---------------------------------------------------------------------------
+
+def test_shared_write_round_trips_through_shared_dir(tmp_path):
+    df = players_df()
+    cache.write(None, "some_type", df)
+    assert (tmp_path / "_shared" / "some_type.parquet").exists()
+    pd.testing.assert_frame_equal(cache.read(None, "some_type"), df)
+
+
+def test_shared_read_returns_none_when_missing():
+    assert cache.read(None, "some_type") is None
+
+
+def test_shared_append_round_trips(tmp_path):
+    cache.append(None, "some_type", players_df())
+    cache.append(None, "some_type", players_df())
+    assert (tmp_path / "_shared" / "some_type.parquet").exists()
+    assert len(cache.read(None, "some_type")) == 4
+
+
+def test_shared_metadata_is_tracked(tmp_path):
+    cache.write(None, "some_type", players_df())
+    assert (tmp_path / "_shared" / "last_updated.json").exists()
+    assert cache.last_updated(None, "some_type") is not None
+    assert cache.is_stale(None, "some_type", max_age_hours=24) is False
+    assert cache.is_stale(None, "other_type", max_age_hours=24) is True
+
+
+def test_shared_tier_is_isolated_from_league_keyed_data():
+    shared = pd.DataFrame({"x": [1]})
+    league = pd.DataFrame({"x": [2]})
+    cache.write(None, "matchups", shared)
+    cache.write(LEAGUE_KEY, "matchups", league)
+    assert cache.read(None, "matchups")["x"].iloc[0] == 1
+    assert cache.read(LEAGUE_KEY, "matchups")["x"].iloc[0] == 2
+
+
+def test_league_keyed_paths_are_unchanged(tmp_path):
+    assert cache._parquet_path(LEAGUE_KEY, "matchups") == tmp_path / LEAGUE_KEY / "matchups.parquet"
+    assert cache._meta_path(LEAGUE_KEY) == tmp_path / LEAGUE_KEY / "last_updated.json"
+    assert cache._parquet_path(None, "matchups") == tmp_path / "_shared" / "matchups.parquet"
+    assert cache._meta_path(None) == tmp_path / "_shared" / "last_updated.json"
+
+
+def test_concurrent_shared_appends_do_not_lose_rows():
+    n = 8
+
+    def appender(i):
+        def run():
+            cache.append(None, "some_type", pd.DataFrame({"x": [i]}))
+        return run
+
+    errors = run_concurrently([appender(i) for i in range(n)])
+    assert errors == []
+    assert sorted(cache.read(None, "some_type")["x"]) == list(range(n))
 
 
 # ---------------------------------------------------------------------------
