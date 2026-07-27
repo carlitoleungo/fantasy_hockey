@@ -83,6 +83,9 @@ single pinned machine + 1 GB volume + `.dockerignore`), per the Tech Lead consul
 (DECISIONS "Deployment: M1 shape"). The `Dockerfile` and `.env.example` already exist; CI is
 explicitly not an M1 requirement. What remains here beyond ticket 039 is post-M1 hygiene (CI,
 richer secrets management) — revive that residue at M2.
+**Update (2026-07-26):** Ticket 039 **shipped**. Its review's two should-fix findings became
+ticket **045** (`.dockerignore` `**/` secret globs + `fly.toml` `auto_start_machines = true`).
+The residue above is unchanged and still M2.
 **Context for later:** Current app has no containerisation. The new stack will need at minimum a `Dockerfile`, a `.env.example`, and CI steps for running `pytest tests/`. The chosen deployment platform (from ARCHITECTURE.md) will determine what else is needed.
 **Estimated complexity:** Medium
 
@@ -94,11 +97,14 @@ richer secrets management) — revive that residue at M2.
 **What was included:** Nothing.
 **What was deferred:** The final cutover: stop the SC deployment, update or redirect any existing links, confirm the new Fly.io app is the canonical URL.
 **Milestone:** m1
-**Blocked by:** ticket 039
+**Blocked by:** nothing — ticket 039 shipped 2026-07-26. What remains is the owner-run deploy
+(`docs/ROADMAP.md` M1 launch step 3), which is an owner action rather than a ticket, so there is
+no ticket left to name here.
 **Context for later:** This is an M1 go-live step and an **owner action, not a ticket** (a
 dashboard operation, no code change) — recorded under "M1 launch steps" in `docs/ROADMAP.md`.
-It cannot start until the Fly app is live and validated, which requires ticket 039's `fly.toml`
-plus the owner-run `fly deploy`. SC watches the `main` branch. The simplest decommission is disconnecting the app in the SC dashboard. If there are external links to the SC URL, a redirect (either in `fly.toml` or via DNS) is worth setting up. This is the last step — do it only after the new app is live and validated.
+It cannot start until the Fly app is live and validated. Ticket 039's `fly.toml` is in place;
+the remaining prerequisite is `fly apps create` + `fly volumes create` + `fly deploy` by the
+owner. SC watches the `main` branch. The simplest decommission is disconnecting the app in the SC dashboard. If there are external links to the SC URL, a redirect (either in `fly.toml` or via DNS) is worth setting up. This is the last step — do it only after the new app is live and validated.
 **Estimated complexity:** Small
 
 ---
@@ -206,13 +212,25 @@ manual owner capture.
 **What was included:** Nothing — all pages to date used functional but unstyled or minimally styled markup.
 **What was deferred:** The full polish pass.
 **Context for later:** Scope is intentionally open — owner to specify designs and priority pages when this is picked up. At minimum: apply existing design assets/mockups to the Overview (leaderboard, head-to-head) and Waiver Wire pages. Likely also covers nav improvements, mobile responsiveness, and any interaction-level refinements (loading states, empty states, error states). Recommend scoping one page at a time when this is activated rather than one large ticket across all pages.
-**Milestone:** none
-**Blocked by:** nothing
-**Milestone note (2026-07-25):** deliberately `none`. M1's definition is functional ("using
-Overview, Waiver, and Projection"), not styled, so polish does not block M1; and it is open-ended
-enough that forcing it onto M1 or M2 would manufacture precision. Owner may pull a specific page's
-polish into M2 (strangers judge on presentation) if desired, but scope that as its own tagged
-ticket rather than tagging this open-ended parent.
+**Milestone:** m1
+**Blocked by:** nothing (no ticket blocks it — it is blocked on two owner inputs, see below)
+**Milestone note (2026-07-26, supersedes the 2026-07-25 note):** **m1.** The owner has amended
+M1's definition so the re-design is part of it: M1 now means the app deployed and used on
+re-designed pages, not on the current functional markup. See `docs/ROADMAP.md` § "M1 — my
+league + close friends". This entry is therefore on the launch path and is listed in the M1
+work list there.
+**What is still needed before this can be scoped (owner inputs, not tickets):**
+(1) the design assets/mockups themselves, and (2) the priority order of pages. Until both
+arrive the PM cannot write acceptance criteria — "apply the design" is not observable
+behaviour. The per-page recommendation below stands and is now load-bearing: scope one ticket
+per page, in the owner's stated order, not one cross-page ticket.
+**Superseded milestone note (2026-07-25) — kept for the record:** "deliberately `none`. M1's
+definition is functional ('using Overview, Waiver, and Projection'), not styled, so polish does
+not block M1; and it is open-ended enough that forcing it onto M1 or M2 would manufacture
+precision. Owner may pull a specific page's polish into M2 (strangers judge on presentation) if
+desired, but scope that as its own tagged ticket rather than tagging this open-ended parent."
+That reasoning rested on the functional-only M1 definition, which the owner changed on
+2026-07-26; the conclusion no longer follows from the premise.
 **Estimated complexity:** Medium–Large (depends on scope of designs; split into per-page tickets when activated)
 
 ---
