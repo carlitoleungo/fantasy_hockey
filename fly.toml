@@ -1,0 +1,50 @@
+# Fly.io deployment config.
+#
+# Implements docs/DECISIONS.md "Deployment: M1 shape — single pinned machine, 1 GB volume,
+# fly.toml in repo" (2026-07-23): one machine in iad, no autoscaling, one 1 GB volume at
+# /data shared by app.db and cache/.
+#
+# The single-machine pin is a correctness requirement, not a cost optimisation. A Fly volume
+# is bound to one machine, so a second machine would split sessions (a cookie resolves on one
+# machine and not the other), fork the parquet cache into divergent copies, and silently void
+# the per-league threading.Lock in data/cache.py. It is load-bearing on DECISIONS 2026-04-10
+# "Runtime: single uvicorn worker" — do not add --workers N anywhere, and do not add a second
+# machine or region without re-opening both decisions together.
+#
+# The volume itself is created out-of-band by the owner (its 1 GB size lives in the volume,
+# not here): fly volumes create data --size 1 --region iad
+# Yahoo credentials are secrets, set with `fly secrets set` — never in [env] below.
+
+app = "fantasy-hockey-waiver"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  DB_PATH = "/data/app.db"
+  CACHE_DIR = "/data/cache"
+  HTTPS_ONLY = "true"
+
+[mounts]
+  source = "data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    method = "GET"
+    path = "/health"
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "10s"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory = "1gb"

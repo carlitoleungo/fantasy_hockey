@@ -1,0 +1,48 @@
+# Keeps the Dockerfile's `COPY . .` from baking local secrets and state into the image.
+# Anything listed here must be either a secret, machine-local state that the /data volume
+# owns in production, or not needed at runtime.
+
+# Secrets
+# `**/` prefix is load-bearing here for the same reason as the bytecode patterns below, but
+# a miss costs more: a bare pattern is anchored to the context root, so a nested `.env` or
+# `.pem` would be baked into the image as a live credential rather than merely bloat it.
+# `**/` matches zero or more leading segments, so root-level `.env` is still excluded.
+**/.env*
+.streamlit/secrets.toml
+.streamlit/*token*.json
+.streamlit/oauth_states.json
+
+# Local state the /data volume owns in production
+app.db
+app.db-wal
+app.db-shm
+.cache/
+
+# VCS and build junk
+.git/
+.gitignore
+# `**/` prefix is required: .dockerignore patterns are anchored to the context root, so a
+# bare `__pycache__/` would only match one at the root and miss every nested one.
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/.pytest_cache/
+.venv/
+node_modules/
+.DS_Store
+
+# Local TLS certs
+**/*.pem
+
+# Not needed at runtime
+tests/
+docs/
+tickets/
+.team/
+reference/
+scripts/
+team-generator/
+.devcontainer/
+.claude/
+.claudeignore
+WORKFLOW.md

@@ -1,7 +1,7 @@
 # 039 — Deployment config: fly.toml (single pinned machine, 1 GB volume) + .dockerignore
 
 ## Status
-ready
+done
 
 ## Type
 feature
@@ -85,4 +85,3 @@ a secret-leak and a source of a local DB shadowing the volume-mounted one. Both 
 - Tech Lead consult on the deployment shape — RESOLVED 2026-07-23 (DECISIONS "Deployment:
   M1 shape — single pinned machine, 1 GB volume, fly.toml in repo"). Independent of 037/038;
   can land in parallel. Actual `fly deploy` is an owner action (see ROADMAP M1 launch steps).
-</content>

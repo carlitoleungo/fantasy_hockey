@@ -399,6 +399,74 @@ section the docstring does not mention. One-line wording fix when the file is ne
 
 ---
 
+### `docs/ARCHITECTURE.md` directory listing is stale on the two files ticket 039 landed
+
+**Type:** quality
+**Source:** Review 039
+**File:** `docs/ARCHITECTURE.md:102`
+**Detail:** Line 102 still reads ``fly.toml  # planned, not yet in repo (deployment is a roadmap
+item); port 8000; /data volume mount``. Ticket 039 landed the file, so "planned, not yet in repo"
+is now wrong; the rest of the line (port 8000, `/data` mount) is accurate. While there, the tree
+listing has no `.dockerignore` entry at all, which 039 also added at the repo root. Suggested
+replacement: `fly.toml  # single pinned machine in iad; port 8000; /data volume mount` plus a
+`.dockerignore  # keeps .env, app.db*, .cache/ out of the build context` line beside the
+`Dockerfile` entry. Deliberately not fixed in 039 — `docs/` was outside that ticket's `Touches`
+and outside what the Engineer may edit. **Tech Lead owns this file**; take it in the next
+ARCHITECTURE upkeep pass rather than as its own ticket, since it is a two-line factual
+correction with no code impact.
+
+---
+
+### `fly.toml`'s `auto_stop_machines` boolean form should be re-checked with `flyctl` in hand
+
+**Type:** quality
+**Source:** Review 039 (QA 039 raised the deprecation half)
+**File:** `fly.toml:36`
+**Detail:** One item on `[http_service]`, deliberately left as-shipped because it cannot be
+validated locally (`flyctl` is not installed and ticket 039 forbade `fly` commands, so
+`fly config validate` never ran). Resolve it at the first deploy, when flyctl can confirm the
+answer immediately.
+
+`auto_stop_machines = false` uses the boolean form, which current flyctl treats as deprecated
+in favour of `"off"`/`"stop"`/`"suspend"`. The boolean is still accepted and is the form
+understood by *both* older and newer flyctl, so switching to `"off"` blind would trade a
+deprecation warning for an unvalidated schema risk. If `fly config validate` warns, change it
+to `"off"` then.
+
+**Update — ticket 045 resolved the `auto_start_machines` half of this entry** (numbered item 2
+as originally filed): `auto_start_machines` is now `true`, so Fly Proxy will restart the single
+pinned machine if it stops for a reason other than a process crash. That flip needed no `flyctl`
+and no re-opening of DECISIONS 2026-07-23 — auto-start only starts an existing stopped machine
+and never creates one. Only the deprecation question above remains open.
+
+---
+
+### `min_machines_running = 1` is inert as configured, and DECISIONS 2026-07-23 names it as the pin mechanism
+
+**Type:** quality
+**Source:** Review 045 (inertness first spotted by QA 039, corollary drawn in Review 039)
+**File:** `fly.toml:38`, `docs/DECISIONS.md:170`
+**Detail:** `min_machines_running` applies only when `auto_stop_machines` is `stop`/`suspend`. With
+`auto_stop_machines = false` it has no effect, so `min_machines_running = 1` neither keeps a machine
+running nor contributes to the single-machine pin. The pin comes from the absence of
+`max_machines_running` / `concurrency` / `[processes]` / `[[services]]` / `regions` plus the single
+`[[vm]]` — verified exhaustively in `tickets/done/039-review.md` § "On the single-machine pin".
+Option A of the 2026-07-23 entry describes the chosen shape as "`min_machines_running = 1`, no
+autoscaling, single region `iad`", which reads as though the key is load-bearing on the pin. It is
+not, and the key is a floor rather than a spawner, so nothing is broken today — the cost is that a
+future reader can take `min_machines_running = 1` as a guarantee that one machine is always up,
+which is precisely the false comfort ticket 045's `auto_start_machines` flip existed to correct.
+Filed here because ticket 045 resolved and deleted the improvements entry whose text was the only
+remaining record of it. Fix: reword Option A (and the Decision line) to attribute the pin to the
+absent autoscaling keys and the single `[[vm]]`, mentioning `min_machines_running = 1` as inert
+statement-of-intent. Worth deciding in the same pass whether to keep the key at all — it is
+harmless, and it becomes meaningful the moment `auto_stop_machines` is ever set to `stop`.
+**Tech Lead owns `docs/DECISIONS.md`**; take it with the other DECISIONS/ARCHITECTURE upkeep items
+in this file, and it can also be answered at `fly config validate` time alongside the
+`auto_stop_machines` entry above.
+
+---
+
 ## Closed
 
 Resolved items are archived in [`docs/archive/improvements-closed.md`](archive/improvements-closed.md)

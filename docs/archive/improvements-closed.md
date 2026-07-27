@@ -143,3 +143,12 @@ and `tests/test_auth_routes.py` import it from there. Dead `import sqlite3` remo
 **Source:** Code review 036b (coverage gap noted by QA 036b, extended here)
 **File:** `tests/test_nav_shell_qa.py` (DEMO_PAGES / authenticated params), `tests/test_head_to_head_routes.py`
 **Resolved:** Ticket 040 — all 12 migrated branches are now covered. Three new tests in `tests/test_nav_shell.py` close the five gaps in `web/routes/overview.py`: populated authenticated `/overview/head-to-head`, the `df is None or df.empty` and `len(teams) < 2` empty states on the authenticated pair, and the same two empty states on the demo pair. Each asserts the exact nav link set via `_nav_links` and the header label via `_header_left`, and each was confirmed by mutation probe to fail when its branch's `**shell_context(...)` spread is deleted. The demo cases patch `data.demo.get_matchups` (lazy in-body import), not the route module — the trap now recorded in `docs/LEARNINGS.md`. Per the ticket's Out of scope, the assertions stayed consolidated in `tests/test_nav_shell.py`; `tests/test_head_to_head_routes.py` was not modified.
+
+---
+
+### `.dockerignore` secret patterns are root-anchored while its bytecode patterns are not
+
+**Type:** quality
+**Source:** Review 039
+**File:** `.dockerignore:6-7,32`
+**Resolved:** Ticket 045 — replaced `.env` + `.env.*` with a single `**/.env*` and `*.pem` with `**/*.pem`, so all three secret patterns now match at any depth like the `**/`-prefixed bytecode patterns 039 fixed. A comment in the Secrets block records that the prefix is load-bearing and that a miss here bakes a live credential into the image rather than merely bloating it. Verified empirically over a build context taken from the real repo root (`FROM busybox` + `COPY . /ctx`, Docker 29.6.2) with a negative control: probes at `web/.env`, `web/deep/nest/.env.local` and `web/certs/key.pem` reached the context under the old patterns and were absent under the new ones, while root-level `./.env` and `./.env.example` stayed excluded and the context source tree still equalled the host tree minus bytecode (74 files, the same 19 top-level entries QA 039 recorded). The sibling `.streamlit/` patterns were left root-anchored deliberately — the entry did not ask for them and the Streamlit teardown deletes those files outright.
