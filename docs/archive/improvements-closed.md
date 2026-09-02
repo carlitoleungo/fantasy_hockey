@@ -11,6 +11,13 @@
 
 ## Closed
 
+### Error pages show the authenticated nav to logged-out visitors
+
+**Type:** quality
+**Source:** Code review 036a (raised by QA 036a)
+**File:** `web/templates/error.html` line 1; render sites `web/main.py` lines 48-65
+**Resolved:** Ticket 042 — implemented DECISIONS.md 2026-07-25 "Nav shell: render sites that cannot resolve a user declare the state unknown and render nav-free; exception handlers never derive auth" (Option C) verbatim. `web/routes/common.py` gained `unknown_auth_shell_context()`, a no-argument sibling to `shell_context()` returning `{"auth_state_unknown": True}`; both exception handlers in `web/main.py` (`requests.HTTPError` -> 502 and the 500 handler) spread it into their `error.html` context; `base.html` branches on that key **first**, before `demo_mode`, and renders the header with the "Fantasy Hockey" brand link only, no feature links, no Logout, no login prompt; `error.html`'s body gained an explicit "Back to home" link to `/`, which is public and renders the correct nav for whoever follows it. No auth is derived in the handlers (no cookie read, no DB lookup, no `request.state`), so both pages render byte-identically with and without a valid `session_id` cookie — asserted in `tests/test_nav_shell.py` and confirmed live against a seeded valid session. The `base.html` "flags absent => authenticated nav" default and the stale `base.html` comment at lines 21-22 were deliberately left alone; both belong to the 044 default-flip follow-up tracked under `## Open`.
+
 ### `matchups.py` re-fetch loop causes parquet bloat and unnecessary API calls
 
 **Type:** bug

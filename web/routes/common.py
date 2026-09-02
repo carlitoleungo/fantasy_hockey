@@ -29,6 +29,20 @@ def shell_context(
     }
 
 
+def unknown_auth_shell_context() -> dict:
+    """Nav/shell keys for a render site that cannot resolve a user.
+
+    FastAPI exception handlers get only the Request and no dependency
+    injection, so there is no CurrentUser to hand to shell_context(). Rather
+    than derive one — the second auth path this codebase does not allow — the
+    page declares the state unknown and base.html renders nav-free (see
+    docs/DECISIONS.md 2026-07-25 "Nav shell: render sites that cannot resolve a
+    user declare the state unknown and render nav-free; exception handlers
+    never derive auth").
+    """
+    return {"auth_state_unknown": True}
+
+
 def _get_league_key(db, session_id: str) -> str | None:
     row = db.execute(
         "SELECT league_key FROM user_sessions WHERE session_id = ?",

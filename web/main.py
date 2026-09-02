@@ -11,6 +11,7 @@ from fastapi.responses import RedirectResponse
 from db.connection import get_db, init_db
 from web.middleware.session import RequiresLogin
 from web.routes.auth import router as auth_router
+from web.routes.common import unknown_auth_shell_context
 from web.routes.health import router as health_router
 from web.routes.home import router as home_router
 from web.routes.overview import public_router as overview_public_router
@@ -50,7 +51,10 @@ def http_error_handler(request: Request, exc: requests.HTTPError):
     return templates.TemplateResponse(
         request,
         "error.html",
-        {"detail": "Yahoo API request failed. Please try again."},
+        {
+            "detail": "Yahoo API request failed. Please try again.",
+            **unknown_auth_shell_context(),
+        },
         status_code=502,
     )
 
@@ -60,7 +64,10 @@ def internal_error_handler(request: Request, exc: Exception):
     return templates.TemplateResponse(
         request,
         "error.html",
-        {"detail": "Something went wrong."},
+        {
+            "detail": "Something went wrong.",
+            **unknown_auth_shell_context(),
+        },
         status_code=500,
     )
 

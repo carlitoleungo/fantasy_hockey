@@ -196,17 +196,6 @@ projected at read time.
 
 ---
 
-### Error pages show the authenticated nav to logged-out visitors
-
-**Type:** quality
-**Source:** Code review 036a (raised by QA 036a)
-**File:** `web/templates/error.html` line 1; render sites `web/main.py` lines 48-65
-**Detail:** `error.html` extends `base.html` and passes no shell context, so the authenticated-nav default applies: an unauthenticated or demo visitor who hits a 500/502 error page sees Overview / Waiver / Projection / Logout, every one of which bounces them to `/auth/login` — the same defect ticket 036a just fixed for the home page. Pre-existing, and preserved deliberately by 036a's `base.html` default (that default is 036a AC3), so this is not a regression.
-**Not a drive-by fix — needs a Tech Lead ruling first.** Both render sites are FastAPI exception handlers, which have no resolved `CurrentUser` in scope, so `shell_context()` cannot be called there; passing `None` would show authenticated users the logged-out nav instead. This is the case named in the `Revisit if` clause of DECISIONS 2026-07-03 ("a page family that needs nav state but has no user dependency in scope, making a request-only derivation unavoidable"). Cheapest option is probably a neutral error-page nav (app-name link only, no feature links), which needs no auth state at all. Suggested sequencing: once 036b lands, the PM scopes one sweep ticket covering every remaining `base.html` consumer, with the Tech Lead ruling on the mechanism as its dependency.
-**Tech Lead ruling DONE (2026-07-25)** — `docs/DECISIONS.md` "Nav shell: render sites that cannot resolve a user declare the state unknown and render nav-free". Mechanism: an explicit `auth_state_unknown` key from a sibling helper in `web/routes/common.py`, spread into both handlers' contexts; `base.html` branches on it first and renders the brand link only; plus a "Back to home" link in `error.html`'s body. No auth derivation in the handlers, and **no dependency on 036b** — this can be scoped and landed standalone at M1. The related `base.html` default flip (absent flags ⇒ nav-free instead of authenticated nav) is a separate follow-up that *is* blocked on 036b; see the ruling's "Forward commitment" paragraph.
-
----
-
 ### TC18's league-label assertion in `test_home_routes.py` does not discriminate
 
 **Type:** quality
@@ -464,6 +453,27 @@ harmless, and it becomes meaningful the moment `auto_stop_machines` is ever set 
 **Tech Lead owns `docs/DECISIONS.md`**; take it with the other DECISIONS/ARCHITECTURE upkeep items
 in this file, and it can also be answered at `fly config validate` time alongside the
 `auto_stop_machines` entry above.
+
+---
+
+### Error page "Back to home" link does not read as clickable
+
+**Type:** quality
+**Source:** Code review 042 (raised by QA 042)
+**File:** `web/templates/error.html` line 9
+**Detail:** The recovery link ticket 042 added renders as `text-sm text-gray-600` with no underline
+and no link colour, so in a browser it reads as a third line of body copy rather than a control.
+It satisfies 042's AC3 (visible, anchored to `/`) and the classes are copied verbatim from the
+`base.html` nav links, so it is consistent with the current markup rather than a defect in it —
+but it is now the *only* way off the error page for a visitor who does not think to click the
+brand link, so an affordance nobody recognises has a real cost. Deliberately not fixed in 042:
+that ticket puts restyling the error page explicitly out of scope, and a one-off restyle here
+would diverge from the shared link styling. **Belongs to the M1 UI re-design**
+(`docs/ROADMAP.md` § M1 item 3), which should settle a single link/control style and apply it to
+the nav and this link together. Related observation from QA 042, same owner: at 375 px the error
+body (`max-w-xl mx-auto`, no horizontal padding) clips at the right edge — confirmed pre-existing
+by rendering the pre-042 templates at the same width, and in fact improved by 042, which removed
+four nav links that also overflowed that header.
 
 ---
 

@@ -1,7 +1,7 @@
 # 042 — Error pages declare auth state unknown and render nav-free
 
 ## Status
-ready
+done
 
 ## Type
 bug

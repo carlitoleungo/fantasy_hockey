@@ -21,7 +21,11 @@
     {# Defaults to the authenticated nav when neither flag is set, so pages that
        do not yet pass shell_context() render exactly as before. #}
     <nav class="flex items-center gap-4">
-      {% if demo_mode %}
+      {# auth_state_unknown comes first: the render site could not resolve a
+         user, so the nav claims nothing. The brand link above and error.html's
+         "Back to home" are the recovery path. #}
+      {% if auth_state_unknown %}
+      {% elif demo_mode %}
         <a href="/demo/overview" class="text-sm text-gray-600 hover:text-gray-800">Overview</a>
         <a href="/demo/waiver" class="text-sm text-gray-600 hover:text-gray-800">Waiver</a>
         <a href="/demo/projection" class="text-sm text-gray-600 hover:text-gray-800">Projection</a>
