@@ -81,24 +81,6 @@ projected at read time.
 
 ---
 
-### Add demo mode entry point on home page
-
-**Type:** quality
-**Source:** Owner note post-020
-**File:** `web/templates/home.html`, `web/routes/home.py` (or wherever the home route lives)
-**Detail:** Unauthenticated visitors have no visible way to reach demo mode — `/demo/overview` and `/demo/waiver` exist but are not linked from the home page. Add a "Try the demo" button or link on the home page (logged-out view) so visitors can explore the app without signing in. The home route already distinguishes authenticated vs. unauthenticated state (via `optional_user`), so the demo CTA only needs to appear in the unauthenticated branch.
-
----
-
-### Simplify redundant assertion in TC14 of `test_home_routes.py`
-
-**Type:** quality
-**Source:** Code review 023
-**File:** `tests/test_home_routes.py` line 367
-**Detail:** `test_home_unauthenticated_shows_login_cta` (TC14) contains `assert "<h1" in body and "Your Leagues" not in body.split("</head>", 1)[1]`. The `"<h1" in body` guard is always true (the unauthenticated `home.html` branch contains an `<h1>`), so it adds no signal. The `body.split("</head>", 1)[1]` idiom is unusual and harder to read than a plain `not in body`. Simplify to `assert "Your Leagues" not in body` — the adjacent `assert "Fantasy Hockey Waiver Wire" in body` already confirms the correct heading is present.
-
----
-
 ### Stale Streamlit fallback in `auth/oauth.py` credential helpers
 
 **Type:** quality
@@ -193,15 +175,6 @@ projected at read time.
 **Detail:** All three files carry their own verbatim copy of `_make_db()`, the `user_sessions` / `oauth_states` schema, the `TestClient` + `dependency_overrides` fixture, and the `TEAMS` / `SETTINGS` / `SCOREBOARD` / `LIVE_STATS` constants. There is no `tests/conftest.py`. Pre-existing duplication (two copies) that ticket 034 grew to three. Fix: add `tests/conftest.py` with a shared in-memory-session-DB fixture and a `client` fixture, and let the projection test modules keep only their own scenario data. Worth doing next time any of the three is substantially reworked.
 **Update (code review 036a):** the same `_make_db()` / `_insert_session()` / `ctx` scaffolding also sits in `tests/test_home_routes.py` and `tests/test_overview_routes.py`, and ticket 036a added a fifth copy in `tests/test_nav_shell.py` (named `test_nav_shell_qa.py` at the time; renamed by ticket 040). The `tests/conftest.py` fix should cover all five, not just the projection trio.
 **Update (audit 041) — the count is thirteen, not five, and this is the largest safe reduction available in the suite.** Files carrying their own `_make_db()` / `user_sessions` schema copy: `test_auth_routes.py`, `test_head_to_head_routes.py`, `test_home_routes.py`, `test_nav_shell.py`, `test_overview_routes.py`, `test_overview_routes_qa.py`, `test_projection_breakdown_qa.py`, `test_projection_matchup_qa.py`, `test_projection_matchup_route.py`, `test_projection_routes.py`, `test_session_middleware.py`, `test_waiver.py`, `test_waiver_routes.py`. Measured across the 14 web route test files: **1,489 of 4,592 lines (32%) sit before the first `def test_`**, and the extreme case is `tests/test_projection_matchup_qa.py` at 124 lines of preamble supporting 2 tests. Expected saving from a shared `conftest.py` is 800–1,100 lines with no coverage change. Audit 041 recommends this as its own ticket, paired with the `*_qa.py` file renames, and explicitly **not** paired with dropping rendered-HTML assertions (those are the only guard against a template edit silently breaking a page, which is the failure mode ticket 040 exists to catch).
-
----
-
-### TC18's league-label assertion in `test_home_routes.py` does not discriminate
-
-**Type:** quality
-**Source:** Code review 036a (proved by QA 036a mutation probe)
-**File:** `tests/test_home_routes.py` lines 450-451
-**Detail:** `test_home_authenticated_nav_has_feature_links_in_roadmap_order` (TC18) ends with `assert "Alpha League" in body`, above a comment claiming `selected_league_name` "is now threaded via shell_context on this branch". The assertion cannot prove that: the league list in the content area contains the same string, so a render that drops the header label still passes. QA confirmed this with a mutation probe. AC2 is properly guarded elsewhere — pre-existing TC9 (`test_home_header_shows_selected_league_name`) scopes the match to `<header>…</header>` and does fail under that mutation, as does `tests/test_nav_shell.py::test_authenticated_home_nav_and_league_label` — so this is redundancy, not a coverage gap. Fix: delete the assertion and its comment; TC18's job is nav ordering. The comment is the riskier half, since it could lead someone to delete TC9 as a duplicate.
 
 ---
 

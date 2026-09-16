@@ -362,9 +362,26 @@ def test_home_unauthenticated_shows_login_cta(ctx):
     body = response.text
     assert 'href="/auth/login"' in body
     assert "Log in with Yahoo" in body
-    # The authenticated heading must not appear in the page body
+    # The authenticated heading must not appear in the page body. Scoped past
+    # <body> because home.html's {% block title %} is the fixed string
+    # "Your Leagues" regardless of branch, so a plain `not in body` check
+    # always fails against the <title> tag.
     assert "Fantasy Hockey Waiver Wire" in body
-    assert "<h1" in body and "Your Leagues" not in body.split("</head>", 1)[1]
+    assert "Your Leagues" not in body.split("<body>", 1)[1]
+
+
+# ---------------------------------------------------------------------------
+# TC20 — GET / unauthenticated: secondary "Try the demo" CTA links to
+# /demo/overview alongside the login button (043)
+# ---------------------------------------------------------------------------
+
+def test_home_unauthenticated_shows_demo_cta(ctx):
+    _, client = ctx
+    response = client.get("/")
+    assert response.status_code == 200
+    body = response.text
+    assert 'href="/demo/overview"' in body
+    assert "Try the demo" in body
 
 
 # ---------------------------------------------------------------------------
@@ -408,6 +425,28 @@ def test_home_authenticated_shows_league_list_not_cta(ctx):
 
 
 # ---------------------------------------------------------------------------
+# TC21 — GET / authenticated: no "Try the demo" CTA anywhere on the page (043)
+# ---------------------------------------------------------------------------
+
+def test_home_authenticated_no_demo_cta(ctx):
+    conn, client = ctx
+    _insert_session(conn, league_key="419.l.11111")
+
+    with (
+        patch("web.routes.home.make_session", return_value=MagicMock()),
+        patch(
+            "web.routes.home.get_user_hockey_leagues",
+            return_value=[LEAGUE_2025_A, LEAGUE_2025_B],
+        ),
+    ):
+        response = client.get("/", cookies={"session_id": "sid-test"})
+
+    assert response.status_code == 200
+    body = response.text
+    assert 'href="/demo/' not in body
+
+
+# ---------------------------------------------------------------------------
 # TC17 — GET / unauthenticated: header nav has no auth-gated link (036a)
 # ---------------------------------------------------------------------------
 
@@ -447,8 +486,6 @@ def test_home_authenticated_nav_has_feature_links_in_roadmap_order(ctx):
     assert positions == sorted(positions)
     assert 'href="/auth/logout"' in body
     assert 'href="/auth/login"' not in body
-    # selected_league_name is now threaded via shell_context on this branch
-    assert "Alpha League" in body
 
 
 # ---------------------------------------------------------------------------

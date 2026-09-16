@@ -159,3 +159,30 @@ and `tests/test_auth_routes.py` import it from there. Dead `import sqlite3` remo
 **Source:** Review 039
 **File:** `.dockerignore:6-7,32`
 **Resolved:** Ticket 045 — replaced `.env` + `.env.*` with a single `**/.env*` and `*.pem` with `**/*.pem`, so all three secret patterns now match at any depth like the `**/`-prefixed bytecode patterns 039 fixed. A comment in the Secrets block records that the prefix is load-bearing and that a miss here bakes a live credential into the image rather than merely bloating it. Verified empirically over a build context taken from the real repo root (`FROM busybox` + `COPY . /ctx`, Docker 29.6.2) with a negative control: probes at `web/.env`, `web/deep/nest/.env.local` and `web/certs/key.pem` reached the context under the old patterns and were absent under the new ones, while root-level `./.env` and `./.env.example` stayed excluded and the context source tree still equalled the host tree minus bytecode (74 files, the same 19 top-level entries QA 039 recorded). The sibling `.streamlit/` patterns were left root-anchored deliberately — the entry did not ask for them and the Streamlit teardown deletes those files outright.
+
+---
+
+### Add demo mode entry point on home page
+
+**Type:** quality
+**Source:** Owner note post-020
+**File:** `web/templates/home.html`, `web/routes/home.py` (or wherever the home route lives)
+**Resolved:** Ticket 043 — added a secondary "Try the demo" link (`href="/demo/overview"`) next to the "Log in with Yahoo" button in `home.html`'s unauthenticated branch only. No route change was needed; `web/routes/home.py` was out of scope for this ticket. Covered by new tests `test_home_unauthenticated_shows_demo_cta` and `test_home_authenticated_no_demo_cta` in `tests/test_home_routes.py`.
+
+---
+
+### Simplify redundant assertion in TC14 of `test_home_routes.py`
+
+**Type:** quality
+**Source:** Code review 023
+**File:** `tests/test_home_routes.py` line 367
+**Resolved:** Ticket 043 — dropped the always-true `"<h1" in body` clause. Could not adopt the exact suggested replacement (`assert "Your Leagues" not in body`) verbatim: `home.html`'s `{% block title %}` is the fixed string "Your Leagues" regardless of branch, so that plain check always fails against the `<title>` tag. Scoped the check to content after `<body>` instead (`body.split("<body>", 1)[1]`), which keeps the simplification's intent (no more `</head>`-split idiom hidden behind a redundant guard) while staying correct. Verified green under `.venv/bin/python -m pytest tests/`.
+
+---
+
+### TC18's league-label assertion in `test_home_routes.py` does not discriminate
+
+**Type:** quality
+**Source:** Code review 036a (proved by QA 036a mutation probe)
+**File:** `tests/test_home_routes.py` lines 450-451
+**Resolved:** Ticket 043 — deleted the trailing `assert "Alpha League" in body` and its comment from `test_home_authenticated_nav_has_feature_links_in_roadmap_order` (TC18). TC9 (`test_home_header_shows_selected_league_name`) and `tests/test_nav_shell.py::test_authenticated_home_nav_and_league_label` remain as the tests that actually scope the assertion to `<header>…</header>`.

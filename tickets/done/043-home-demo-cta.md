@@ -1,7 +1,7 @@
 # 043 — "Try the demo" CTA on the logged-out home page
 
 ## Status
-ready
+done
 
 ## Type
 feature
