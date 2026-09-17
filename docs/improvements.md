@@ -81,13 +81,14 @@ projected at read time.
 
 ---
 
-### Stale Streamlit fallback in `auth/oauth.py` credential helpers
+### Streamlit-only functions remaining in `auth/oauth.py`
 
 **Type:** quality
-**Source:** Audit 001 (surfaced during credential rotation)
-**File:** `auth/oauth.py` lines 151, 158, and the `_redirect_uri` equivalent
-**Detail:** `_client_id()`, `_client_secret()`, and `_redirect_uri()` check the env var first, then fall back to `st.secrets["yahoo"][...]`. The Streamlit fallback is dead code — the app runs on FastAPI and `streamlit` is not in `requirements-web.txt`. If the env var is missing, the fallback silently attempts to `import streamlit` and fails at runtime with a confusing `ModuleNotFoundError` rather than a clear "YAHOO_CLIENT_ID not set" error. Remove the `st.secrets` fallback and replace with `raise RuntimeError("YAHOO_CLIENT_ID environment variable not set")` so misconfigured environments fail fast with a useful message.
-**Update (audit 041) — take this before or with ticket 039.** Open since audit 001, but the M1 deploy changes its risk profile: on the production container a missing credential env var is the single most likely misconfiguration, and this fallback converts it into the least legible possible failure. Audit 041 also found that the same file carries four functions used only by the Streamlit prototype (`validate_and_consume_state`, `try_restore_session`, `get_session`, `clear_session` — imported by `app.py`, `pages/`, and `utils/common.py`, never by `web/`), roughly 45 of its 201 lines. Worth archiving them in the same pass, since their presence is what makes `auth/oauth.py`'s 0.3:1 test ratio look alarming when the FastAPI-live half of the file is in fact well covered.
+**Source:** Audit 001 (surfaced during credential rotation); credential-helper half closed by ticket 051
+**File:** `auth/oauth.py:58-117`
+**Detail:** The file still carries four functions used only by the Streamlit prototype (`validate_and_consume_state`, `try_restore_session`, `get_session`, `clear_session` — imported by `app.py`, `pages/`, and `utils/common.py`, never by `web/`), roughly 45 of its (now shorter) line count. Worth archiving once the Streamlit prototype teardown is scoped, since their presence is what makes `auth/oauth.py`'s test ratio look alarming when the FastAPI-live half of the file is in fact well covered. Ticket 051 deliberately left these in place — removing them breaks the Streamlit prototype's import graph and is a cross-workstream teardown, not a small credential-helper fix.
+
+**Update (Review 051) — the same teardown should also take `_pending_states`.** `auth/oauth.py:28-32` keeps an in-memory `_pending_states` dict for the Streamlit single-process flow, and `get_auth_url()` (line ~54) writes to it on *every* call, including the FastAPI path, which persists nonces to the `oauth_states` DB table instead. The only code that removes entries is `validate_and_consume_state()`, which `web/` never calls, so in the Fly process the dict grows by one 43-byte key per login attempt for the life of the machine and is never pruned. Not a correctness or security problem (the nonces are single-use, the DB is the authority, and a pinned machine restarts often enough that the growth is immaterial at M1 traffic), and deliberately not fixed in 051 — out of that ticket's scope. Fold it into the Streamlit teardown: when the four functions above go, `_pending_states`, `_NONCE_TTL_SECONDS`, and the `_pending_states[state] = ...` line in `get_auth_url()` go with them.
 
 ---
 
@@ -202,6 +203,7 @@ projected at read time.
 **Source:** Code review 040 (discovered by QA 040)
 **File:** `docs/LEARNINGS.md` (append); evidence in `tickets/done/040-qa.md`
 **Detail:** Mutation probes are now a standing verification technique in this workflow (036a, 036b and 040 all used one, and 040's acceptance criteria required one), so the trap QA 040 hit will recur. Lines 174, 241 and 311 of `web/routes/overview.py` are each exactly 77 bytes; deleting one and then another produces two source files of identical size, and when the mtimes land in the same second CPython treats the cached bytecode as current and reuses the **previous** probe's `.pyc`. QA 040's first pass consequently reported line 241 failing `test_authenticated_head_to_head_renders_authenticated_nav` — the line-174 result — and `pytest -p no:cacheprovider` does not prevent it, since that flag governs pytest's own cache, not CPython's. Purging `__pycache__` between iterations fixed it and all five probes then matched. The failure mode is a silently wrong probe result, which is worse than a crash: it can certify the wrong test as the guard for a branch. Fix: append a `docs/LEARNINGS.md` entry stating the size+mtime collision and the `__pycache__` purge as the required step between mutations. This belongs in LEARNINGS.md rather than in a ticket artifact — it affects future unrelated tickets, and the file already carries test-harness gotchas (see "Tests must patch the importing module's namespace"). The Reviewer cannot append to LEARNINGS.md under the persona rules, so this is for the next ticket that opens the file, or a one-line docs ticket.
+**Update (Audit 046) — stop waiting for a passing ticket.** The trap has now been hit independently by the Engineer, QA, and the Reviewer on 040, and Review 042 recorded a third vote for writing it down. Two audit cycles of "take it whenever someone next opens LEARNINGS.md" have produced nothing, because no ticket's `Touches` has included that file. Scope the one-line docs ticket.
 
 ---
 
@@ -361,11 +363,11 @@ section the docstring does not mention. One-line wording fix when the file is ne
 
 ---
 
-### `docs/ARCHITECTURE.md` directory listing is stale on the two files ticket 039 landed
+### `docs/ARCHITECTURE.md` § Directory structure describes a planned tree, not the repo
 
 **Type:** quality
-**Source:** Review 039
-**File:** `docs/ARCHITECTURE.md:102`
+**Source:** Review 039; scope widened by Audit 046
+**File:** `docs/ARCHITECTURE.md:66-103` (the whole fenced tree; line 102 is one instance)
 **Detail:** Line 102 still reads ``fly.toml  # planned, not yet in repo (deployment is a roadmap
 item); port 8000; /data volume mount``. Ticket 039 landed the file, so "planned, not yet in repo"
 is now wrong; the rest of the line (port 8000, `/data` mount) is accurate. While there, the tree
@@ -374,8 +376,29 @@ replacement: `fly.toml  # single pinned machine in iad; port 8000; /data volume 
 `.dockerignore  # keeps .env, app.db*, .cache/ out of the build context` line beside the
 `Dockerfile` entry. Deliberately not fixed in 039 — `docs/` was outside that ticket's `Touches`
 and outside what the Engineer may edit. **Tech Lead owns this file**; take it in the next
-ARCHITECTURE upkeep pass rather than as its own ticket, since it is a two-line factual
-correction with no code impact.
+ARCHITECTURE upkeep pass rather than as its own ticket, since it is a factual correction with
+no code impact.
+
+**Update (Audit 046) — this is not a two-line fix; the whole tree is the April plan, never
+reconciled.** Verified against the working tree:
+
+| Listed | Reality |
+|---|---|
+| `routes/leagues.py` | Does not exist — the route file is `web/routes/home.py` |
+| `routes/demo.py` | Does not exist — demo handlers live inside `overview.py` / `waiver.py` / `projection.py` on public routers |
+| (absent) | `web/routes/common.py`, `web/routes/overview.py`, `web/templates.py`, `utils/` |
+| `templates/waiver.html`, `leagues.html`, `projection.html` (flat) | Per-feature subdirectories with `_underscore` fragment partials: `waiver/index.html`, `waiver/_table.html`, `overview/`, `projection/` |
+| (absent) | `templates/home.html`, `templates/error.html` |
+| `fly.toml  # planned, not yet in repo` | Shipped by 039 |
+| (absent) | `.dockerignore` |
+
+Two consequences beyond tidiness. First, the template layout above is a *convention* — the
+per-feature directory plus `_`-prefixed fragment naming — that no `docs/DECISIONS.md` entry
+records and that ARCHITECTURE.md actively contradicts, so the only place a new feature page can
+learn the pattern is by copying a neighbouring file. Second, this is the file a reviewer is told
+to verify changes against, so a stale tree quietly weakens every future review. Suggested fix:
+regenerate the tree from the repo in one pass and, in the same pass, decide whether the template
+convention wants its own short DECISIONS entry.
 
 ---
 
@@ -447,6 +470,52 @@ the nav and this link together. Related observation from QA 042, same owner: at 
 body (`max-w-xl mx-auto`, no horizontal padding) clips at the right edge — confirmed pre-existing
 by rendering the pre-042 templates at the same width, and in fact improved by 042, which removed
 four nav links that also overflowed that header.
+
+---
+
+### Front-end CDN dependencies are unpinned and Tailwind's is a development build
+
+**Type:** quality
+**Source:** Audit 046 (deployment-readiness sweep)
+**File:** `web/templates/base.html:7-9`
+**Detail:** Every page loads three third-party scripts from three different CDNs at request time:
+`cdn.tailwindcss.com`, `unpkg.com/htmx.org@2.0.4`, and `cdn.jsdelivr.net/.../alpinejs@3.x.x`.
+This implements DECISIONS 2026-04-10 "Stack: FastAPI + HTMX + Jinja2; no JS build pipeline"
+faithfully and was the right call for a local prototype, but that entry was written six months
+before the app had a public URL and its `Revisit if` clause is about UI richness, not delivery.
+Three things change once `fly deploy` runs. (1) `cdn.tailwindcss.com` is Tailwind's in-browser
+JIT compiler, which its own documentation says is for development only — it ships a compiler to
+every visitor, recomputes styles on each load, and logs a console warning on a public site.
+(2) Alpine is pinned to `3.x.x`, a floating range, so a future upstream release lands in
+production unreviewed; htmx, by contrast, is pinned exactly, so the file is already inconsistent
+with itself. (3) Three CDNs are three availability and supply-chain dependencies in front of an
+app whose entire M1 promise is a stable HTTPS URL, and none of them is covered by the
+single-machine reasoning in DECISIONS 2026-07-23. Nothing here is broken today and no exposure is
+claimed. Fix, cheapest first: pin Alpine to an exact version, then decide whether Tailwind stays
+a CDN compiler or becomes a vendored stylesheet under `web/static/`. **Route to the M1 UI
+re-design** (`docs/ROADMAP.md` § M1 item 3) — it is the pass that will touch every template's
+classes anyway, and the Tailwind half is a genuine decision the Tech Lead should record rather
+than an Engineer nit.
+
+---
+
+### Orchestrator tells QA to read the done note first; the Test Engineer persona says not to
+
+**Type:** bug
+**Source:** Audit 046 (disclosed as a persona deviation by QA on 038, 042, and 043)
+**File:** `.team/orchestrator.md:114` vs `.team/test-engineer.md:28-32`
+**Detail:** The orchestrator's QA task prompt says "Read `tickets/NNN-done.md` first to find what
+to verify, then re-read the ticket". The Test Engineer persona says the opposite: input 1 is the
+ticket, and input 2 is to "**Skim — but do not anchor on** — the Engineer's
+`tickets/NNN-done.md`". The anchoring guard exists so QA derives its plan from the acceptance
+criteria rather than reproducing the Engineer's proof. Because the launching prompt overrides the
+persona in practice, QA disclosed the deviation in three of the six tickets in this batch (038,
+042, 043) and each time had to spend a paragraph arguing the verification was still independent.
+No verification was actually compromised — QA compensated each time with its own harness and
+parameters, and the reviewers agreed — so this costs report space and reviewer attention rather
+than correctness. Fix: one line in `.team/orchestrator.md:114`, reordered to "Read the ticket
+first, then skim `tickets/NNN-done.md`", so the prompt stops contradicting the persona it spawns.
+Owner action — personas and orchestration files are outside what any agent in this workflow edits.
 
 ---
 

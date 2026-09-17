@@ -147,22 +147,19 @@ def exchange_code(code: str) -> dict:
 def _client_id() -> str:
     if "YAHOO_CLIENT_ID" in os.environ:
         return os.environ["YAHOO_CLIENT_ID"]
-    import streamlit as st
-    return st.secrets["yahoo"]["client_id"]
+    raise RuntimeError("YAHOO_CLIENT_ID environment variable not set")
 
 
 def _client_secret() -> str:
     if "YAHOO_CLIENT_SECRET" in os.environ:
         return os.environ["YAHOO_CLIENT_SECRET"]
-    import streamlit as st
-    return st.secrets["yahoo"]["client_secret"]
+    raise RuntimeError("YAHOO_CLIENT_SECRET environment variable not set")
 
 
 def _redirect_uri() -> str:
     if "YAHOO_REDIRECT_URI" in os.environ:
         return os.environ["YAHOO_REDIRECT_URI"]
-    import streamlit as st
-    return st.secrets["yahoo"]["redirect_uri"]
+    raise RuntimeError("YAHOO_REDIRECT_URI environment variable not set")
 
 
 def _stamp_expiry(tokens: dict) -> dict:

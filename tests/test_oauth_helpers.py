@@ -6,7 +6,15 @@ import time
 
 import pytest
 
-from auth.oauth import TOKEN_EXPIRY_BUFFER_SECONDS, _is_valid, _stamp_expiry, make_session
+from auth.oauth import (
+    TOKEN_EXPIRY_BUFFER_SECONDS,
+    _client_id,
+    _client_secret,
+    _is_valid,
+    _redirect_uri,
+    _stamp_expiry,
+    make_session,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -57,3 +65,46 @@ def test_is_valid_returns_true_when_ample_time_remains():
 def test_make_session_sets_authorization_header():
     session = make_session("test_token")
     assert session.headers["Authorization"] == "Bearer test_token"
+
+
+# ---------------------------------------------------------------------------
+# _client_id / _client_secret / _redirect_uri
+# ---------------------------------------------------------------------------
+
+def test_client_id_returns_env_value(monkeypatch):
+    monkeypatch.setenv("YAHOO_CLIENT_ID", "test-client-id")
+    assert _client_id() == "test-client-id"
+
+
+def test_client_id_raises_when_env_unset(monkeypatch):
+    monkeypatch.delenv("YAHOO_CLIENT_ID", raising=False)
+    with pytest.raises(RuntimeError) as exc_info:
+        _client_id()
+    assert type(exc_info.value) is RuntimeError
+    assert "YAHOO_CLIENT_ID" in str(exc_info.value)
+
+
+def test_client_secret_returns_env_value(monkeypatch):
+    monkeypatch.setenv("YAHOO_CLIENT_SECRET", "test-client-secret")
+    assert _client_secret() == "test-client-secret"
+
+
+def test_client_secret_raises_when_env_unset(monkeypatch):
+    monkeypatch.delenv("YAHOO_CLIENT_SECRET", raising=False)
+    with pytest.raises(RuntimeError) as exc_info:
+        _client_secret()
+    assert type(exc_info.value) is RuntimeError
+    assert "YAHOO_CLIENT_SECRET" in str(exc_info.value)
+
+
+def test_redirect_uri_returns_env_value(monkeypatch):
+    monkeypatch.setenv("YAHOO_REDIRECT_URI", "https://example.com/callback")
+    assert _redirect_uri() == "https://example.com/callback"
+
+
+def test_redirect_uri_raises_when_env_unset(monkeypatch):
+    monkeypatch.delenv("YAHOO_REDIRECT_URI", raising=False)
+    with pytest.raises(RuntimeError) as exc_info:
+        _redirect_uri()
+    assert type(exc_info.value) is RuntimeError
+    assert "YAHOO_REDIRECT_URI" in str(exc_info.value)
