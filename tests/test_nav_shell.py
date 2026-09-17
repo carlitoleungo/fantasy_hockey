@@ -15,9 +15,10 @@ What is asserted here, and why in this shape:
     discriminate — the league list in the content area repeats the string, so a
     render that blanks the header label still passes.
   - The `base.html` default path (neither flag in context) is asserted directly
-    against the template, independent of any route, since that default is the
-    DECISIONS.md 2026-07-03 safety constraint that keeps a page which does not
-    pass `shell_context()` rendering as before.
+    against the template, independent of any route. Since 044 that default is
+    fail-safe: absent flags render the nav-free header, so a page which forgets
+    `shell_context()` degrades visibly instead of claiming the visitor is
+    logged in (DECISIONS.md 2026-07-25).
   - Every full-page branch that spreads `**shell_context(...)` has a case here,
     including the empty-state branches. Those fail silently when the spread is
     dropped: the page still returns 200 and still renders, it just serves the
@@ -157,10 +158,10 @@ def test_shell_context_derives_is_authenticated_from_user():
 @pytest.mark.parametrize(
     "context,expected",
     [
-        # AC3 safety constraint: neither flag present -> authenticated nav.
-        ({}, AUTHENTICATED_NAV),
-        # A route passing only demo=False must also fall through to authenticated.
-        ({"demo_mode": False}, AUTHENTICATED_NAV),
+        # 044 fail-safe default: no is_authenticated key at all -> nav-free.
+        ({}, []),
+        # A route passing only demo=False still has no auth flag -> nav-free.
+        ({"demo_mode": False}, []),
         ({"is_authenticated": True, "demo_mode": False}, AUTHENTICATED_NAV),
         ({"is_authenticated": False, "demo_mode": False},
          [("/auth/login", "Log in with Yahoo")]),
@@ -171,6 +172,12 @@ def test_shell_context_derives_is_authenticated_from_user():
 def test_base_html_nav_branches(context, expected):
     html = templates.env.get_template("base.html").render(**context)
     assert _nav_links(html) == expected
+
+
+def test_base_html_absent_flags_keep_the_brand_link():
+    html = templates.env.get_template("base.html").render()
+    assert '<a href="/" class="font-semibold text-gray-800 hover:text-gray-600">Fantasy Hockey</a>' in _header_left(html)
+    assert _nav_links(html) == []
 
 
 def test_base_html_demo_nav_has_no_logout():

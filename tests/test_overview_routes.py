@@ -285,11 +285,11 @@ def test_head_to_head_back_link_targets_authenticated_route(ctx):
 
 
 # ---------------------------------------------------------------------------
-# TC9 — Ticket 036a: /overview has not adopted shell_context yet, so base.html
-# must fall back to the authenticated nav (no regression before 036b)
+# TC9 — /overview passes shell_context() (since 036b), so an authenticated
+# request renders base.html's explicit is_authenticated=True nav
 # ---------------------------------------------------------------------------
 
-def test_overview_renders_authenticated_nav_by_default(ctx):
+def test_overview_renders_authenticated_nav(ctx):
     conn, client = ctx
     _insert_session(conn, league_key="419.l.11111")
     df = _make_matchups_df()

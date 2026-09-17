@@ -66,6 +66,17 @@ nothing. Check whether the import is module-level or in-body before choosing a t
 (Discovered scoping ticket 040; the working pattern is in
 `tests/test_demo_overview_routes.py` lines 11-12.)
 
+### Purge `__pycache__` between mutation probes, or CPython replays the previous result
+
+CPython invalidates a `.pyc` on source **size + mtime**, not content. Mutation probes that
+delete one same-length line at a time (e.g. the four 77-byte `**shell_context(...)` lines in
+`web/routes/overview.py`) produce successive source files of identical size, and when two
+probes land in the same second the cached bytecode is reused — the run reports the *previous*
+mutation's result. `pytest -p no:cacheprovider` does not help: it governs pytest's own cache,
+not CPython's bytecode cache. Delete every `__pycache__` between mutations
+(`find . -name __pycache__ -type d -not -path "./.venv/*" -exec rm -rf {} +`). QA 040 hit this
+and initially certified the wrong test as a branch's guard (`tickets/done/040-qa.md`).
+
 ### Off-season → no live data; week-keyed feature pages only show empty states
 
 We develop during the NHL off-season, so live Yahoo data for week-keyed features is

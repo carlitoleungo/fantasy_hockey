@@ -1,7 +1,7 @@
 # 044 — Flip `base.html`'s absent-flag default from authenticated nav to nav-free
 
 ## Status
-ready
+done
 
 ## Type
 refactor

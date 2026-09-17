@@ -195,3 +195,30 @@ and `tests/test_auth_routes.py` import it from there. Dead `import sqlite3` remo
 **Source:** Code review 036a (proved by QA 036a mutation probe)
 **File:** `tests/test_home_routes.py` lines 450-451
 **Resolved:** Ticket 043 — deleted the trailing `assert "Alpha League" in body` and its comment from `test_home_authenticated_nav_has_feature_links_in_roadmap_order` (TC18). TC9 (`test_home_header_shows_selected_league_name`) and `tests/test_nav_shell.py::test_authenticated_home_nav_and_league_label` remain as the tests that actually scope the assertion to `<header>…</header>`.
+
+---
+
+### Post-036b stale comments about pages "not yet" passing `shell_context()`
+
+**Type:** quality
+**Source:** Code review 036b (flagged by both the Engineer and QA)
+**File:** `tests/test_overview_routes.py` (`test_overview_renders_authenticated_nav_by_default`), `web/templates/base.html` lines 21-22
+**Resolved:** Ticket 044 — both halves retired. `base.html`'s "pages that do not yet pass `shell_context()`" comment was deleted along with the default it described (the default now renders nav-free). In `tests/test_overview_routes.py`, TC9's comment was rewritten to say `/overview` passes `shell_context()` since 036b so the test proves the explicit `is_authenticated=True` branch, and the test was renamed `test_overview_renders_authenticated_nav` (dropping the misleading `_by_default`). Its assertions were left unchanged.
+
+---
+
+### `base.html`'s authenticated-nav default is now unblocked, and 040 measured what it costs
+
+**Type:** quality
+**Source:** Code review 040 (evidence from QA 040's ablation probes)
+**File:** `web/templates/base.html` lines 21-33 (`{% elif is_authenticated is undefined or is_authenticated %}`)
+**Resolved:** Ticket 044 — the flip landed, implementing the "Forward commitment" paragraph of DECISIONS.md 2026-07-25. `{% elif is_authenticated is undefined or is_authenticated %}` split into an empty `{% elif is_authenticated is undefined %}` branch (nav-free) followed by `{% elif is_authenticated %}`, so absent flags degrade visibly while an explicit `is_authenticated=False` still renders the login link. The mutation probe in the ticket's AC4 now fails a `tests/test_nav_shell.py` test for all four authenticated full-page branches of `web/routes/overview.py` (lines 56, 77, 146, 174); previously all four were silent.
+
+---
+
+### Mutation-probe `.pyc` staleness trap is recorded only in a QA report
+
+**Type:** quality
+**Source:** Code review 040 (discovered by QA 040)
+**File:** `docs/LEARNINGS.md` (append); evidence in `tickets/done/040-qa.md`
+**Resolved:** Ticket 044 — appended "Purge `__pycache__` between mutation probes, or CPython replays the previous result" to `docs/LEARNINGS.md`, next to the patch-target gotcha. It records the size+mtime invalidation collision, the purge command, why `pytest -p no:cacheprovider` does not help, and points at `tickets/done/040-qa.md`.

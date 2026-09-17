@@ -170,34 +170,6 @@ projected at read time.
 
 ---
 
-### Post-036b stale comments about pages "not yet" passing `shell_context()`
-
-**Type:** quality
-**Source:** Code review 036b (flagged by both the Engineer and QA)
-**File:** `tests/test_overview_routes.py` (`test_overview_renders_authenticated_nav_by_default`), `web/templates/base.html` lines 21-22
-**Detail:** Two comments describe a migration state that no longer exists. The overview test's comment says "/overview has not adopted shell_context yet, so base.html must fall back to the authenticated nav" — since 036b, `/overview` does adopt it, so the test now proves the explicit `is_authenticated=True` branch, not the default branch. Its assertions remain correct and valuable; only the comment (and arguably the test name) is wrong. `base.html`'s comment ("pages that do not yet pass `shell_context()` render exactly as before") has one remaining beneficiary, `error.html`, which is the defect tracked in "Error pages show the authenticated nav to logged-out visitors" above. Fix the test comment in whichever ticket next touches that file; the `base.html` comment should be resolved by the DECISIONS 2026-07-25 default-flip follow-up rather than edited on its own.
-
----
-
-### `base.html`'s authenticated-nav default is now unblocked, and 040 measured what it costs
-
-**Type:** quality
-**Source:** Code review 040 (evidence from QA 040's ablation probes)
-**File:** `web/templates/base.html` lines 21-33 (`{% elif is_authenticated is undefined or is_authenticated %}`)
-**Detail:** DECISIONS 2026-07-25 already commits to flipping this default (absent flags ⇒ nav-free header) and states the flip is blocked on 036b. **036b is done, so the flip is unblocked** — this entry exists so the follow-up is tracked as work rather than living only inside a decision paragraph. Ticket 040 also supplies the first direct measurement of the default's cost, and it is larger than the error-page defect it was previously known for. QA 040 ablated the header-label assertion from the three new authenticated branch tests, deleted each branch's `**shell_context(...)` spread in turn, and the module returned `32 passed` every time: with the default in place, a dropped spread on an *authenticated* branch is invisible to any nav assertion, because the nav falls back to exactly the nav the test expects. The only thing catching it is `assert "Alpha League" in _header_left(...)`, which works solely because `selected_league_name` also disappears with the spread. A future authenticated page rendered without a selected league would have no guard at all, and the same regression on a demo branch is caught immediately (the nav flips visibly). Fix: the flip described in the 2026-07-25 ruling's "Forward commitment" paragraph, which also retires the stale `base.html` comment tracked in the entry above and makes the nav assertions in `tests/test_nav_shell.py` load-bearing on authenticated branches instead of merely correct. Sequencing note for the PM: pair it with, or land it after, the `auth_state_unknown` error-page ticket, since both touch the same `base.html` branch block.
-
----
-
-### Mutation-probe `.pyc` staleness trap is recorded only in a QA report
-
-**Type:** quality
-**Source:** Code review 040 (discovered by QA 040)
-**File:** `docs/LEARNINGS.md` (append); evidence in `tickets/done/040-qa.md`
-**Detail:** Mutation probes are now a standing verification technique in this workflow (036a, 036b and 040 all used one, and 040's acceptance criteria required one), so the trap QA 040 hit will recur. Lines 174, 241 and 311 of `web/routes/overview.py` are each exactly 77 bytes; deleting one and then another produces two source files of identical size, and when the mtimes land in the same second CPython treats the cached bytecode as current and reuses the **previous** probe's `.pyc`. QA 040's first pass consequently reported line 241 failing `test_authenticated_head_to_head_renders_authenticated_nav` — the line-174 result — and `pytest -p no:cacheprovider` does not prevent it, since that flag governs pytest's own cache, not CPython's. Purging `__pycache__` between iterations fixed it and all five probes then matched. The failure mode is a silently wrong probe result, which is worse than a crash: it can certify the wrong test as the guard for a branch. Fix: append a `docs/LEARNINGS.md` entry stating the size+mtime collision and the `__pycache__` purge as the required step between mutations. This belongs in LEARNINGS.md rather than in a ticket artifact — it affects future unrelated tickets, and the file already carries test-harness gotchas (see "Tests must patch the importing module's namespace"). The Reviewer cannot append to LEARNINGS.md under the persona rules, so this is for the next ticket that opens the file, or a one-line docs ticket.
-**Update (Audit 046) — stop waiting for a passing ticket.** The trap has now been hit independently by the Engineer, QA, and the Reviewer on 040, and Review 042 recorded a third vote for writing it down. Two audit cycles of "take it whenever someone next opens LEARNINGS.md" have produced nothing, because no ticket's `Touches` has included that file. Scope the one-line docs ticket.
-
----
-
 ### Atomic cache write is crash-safe against concurrent readers but not against machine restart
 
 **Type:** quality
@@ -511,6 +483,41 @@ parameters, and the reviewers agreed — so this costs report space and reviewer
 than correctness. Fix: one line in `.team/orchestrator.md:114`, reordered to "Read the ticket
 first, then skim `tickets/NNN-done.md`", so the prompt stops contradicting the persona it spawns.
 Owner action — personas and orchestration files are outside what any agent in this workflow edits.
+
+---
+
+### Stale "dormant until 036b adopts it" comment on the demo row of the nav branch matrix
+
+**Type:** quality
+**Source:** Code review 044 (flagged by the Engineer, seconded by QA 044)
+**File:** `tests/test_nav_shell.py` line 168
+**Detail:** The `({"is_authenticated": False, "demo_mode": True}, DEMO_NAV)` row still carries
+`# Demo branch shipped in 036a, dormant until 036b adopts it.` 036b landed 2026-07-25, so the
+demo branch is no longer dormant and the comment misdescribes the state of the codebase. Ticket
+044's AC5 named exactly two comments and this was not one of them, and 044's Out of scope section
+was emphatic about not widening, so the Engineer correctly left it and flagged it. Comment-only
+change, no behavioural component. Take it in the `tests/conftest.py` consolidation ticket audit
+041 reserved (that item already names this file), or as a one-line sweep in whichever ticket next
+opens it.
+
+---
+
+### DECISIONS 2026-07-25's "Forward commitment" paragraph has been discharged but still reads as pending
+
+**Type:** quality
+**Source:** Code review 044
+**File:** `docs/DECISIONS.md` — "Nav shell: render sites that cannot resolve a user declare the
+state unknown and render nav-free; exception handlers never derive auth (2026-07-25)", final
+paragraph
+**Detail:** That paragraph commits to the `base.html` default flip and says it "is blocked on
+036b". Ticket 044 implemented it verbatim, so a reader arriving at the entry today is told a
+change is pending that has in fact shipped. The flip itself needs no new decision entry — it is
+the literal execution of a ruling the Tech Lead already made, with the same rationale and the
+same branch structure, so a second entry would restate the first. What is missing is the
+discharge marker: a short amendment noting that the flip landed in ticket 044 and naming the
+resulting branch shape (`{% elif is_authenticated is undefined %}` ahead of
+`{% elif is_authenticated %}`, keeping absent and explicit-`False` distinguishable).
+**Tech Lead action** — the Reviewer persona does not edit `docs/DECISIONS.md`.
 
 ---
 

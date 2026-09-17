@@ -18,8 +18,6 @@
         <span class="text-gray-500 text-sm">{{ selected_league_name }}</span>
       {% endif %}
     </div>
-    {# Defaults to the authenticated nav when neither flag is set, so pages that
-       do not yet pass shell_context() render exactly as before. #}
     <nav class="flex items-center gap-4">
       {# auth_state_unknown comes first: the render site could not resolve a
          user, so the nav claims nothing. The brand link above and error.html's
@@ -30,7 +28,11 @@
         <a href="/demo/waiver" class="text-sm text-gray-600 hover:text-gray-800">Waiver</a>
         <a href="/demo/projection" class="text-sm text-gray-600 hover:text-gray-800">Projection</a>
         <a href="/auth/login" class="text-sm text-gray-500 hover:text-gray-700">Log in with Yahoo</a>
-      {% elif is_authenticated is undefined or is_authenticated %}
+      {# Fail-safe default: a page that forgets shell_context() renders
+         nav-free rather than claiming the visitor is logged in
+         (DECISIONS.md 2026-07-25). #}
+      {% elif is_authenticated is undefined %}
+      {% elif is_authenticated %}
         <a href="/overview" class="text-sm text-gray-600 hover:text-gray-800">Overview</a>
         <a href="/waiver" class="text-sm text-gray-600 hover:text-gray-800">Waiver</a>
         <a href="/projection" class="text-sm text-gray-600 hover:text-gray-800">Projection</a>
