@@ -47,7 +47,12 @@ cleanup and design application", now superseded there too).
    recommends per-page tickets over one cross-page ticket, and that recommendation stands).
 4. **Error-page nav fix** — ticket **042** (logged-out and demo visitors currently get an
    authenticated nav on 500/502 pages, every link of which dead-ends at `/auth/login`).
-5. Owner actions 1–4 below (Yahoo redirect URI, `fly apps create`, Fly volume + deploy,
+5. **OAuth credential fail-fast** — ticket **051**, from Audit 046's single NEEDS ATTENTION
+   item. `auth/oauth.py`'s credential helpers fall back to `import streamlit`, which is not
+   in `requirements-web.txt`, so a missing Yahoo secret on Fly surfaces as
+   `ModuleNotFoundError` behind a "Something went wrong" 500 instead of a named env var.
+   **Must land before owner launch step 3 (`fly deploy`) below.**
+6. Owner actions 1–4 below (Yahoo redirect URI, `fly apps create`, Fly volume + deploy,
    Streamlit decommission).
 
 ### M2 — strangers can sign in
@@ -82,7 +87,8 @@ them here so they are not lost:
    under another name and edit `fly.toml`'s `app` key to match. A mismatch fails loudly
    (`fly deploy` cannot find the app) rather than quietly, so this is a sequencing note, not a
    risk. **Owner action** (routed here by Review 039).
-3. **Provision the Fly volume and deploy.** After the app exists, run `fly config validate`
+3. **Provision the Fly volume and deploy.** *(Ticket **051** must be shipped first — it
+   turns a missing Yahoo secret into a named error instead of a `ModuleNotFoundError`.)* After the app exists, run `fly config validate`
    (the first deploy step — `flyctl` was unavailable when 039 was built, so the Fly schema has
    never been checked), then `fly volumes create data --size 1 --region iad`, set the Yahoo
    secrets via `fly secrets set`, then `fly deploy`. The `fly.toml` is the ticket; running the
@@ -173,7 +179,10 @@ them here so they are not lost:
 
 ---
 
-_Last updated: 2026-07-26 (**ticket 039 SHIPPED — the M1 deployment gate is clear**; scoped its
+_Last updated: 2026-09-17 (scoped ticket **051** OAuth credential fail-fast from Audit 046's
+sole NEEDS ATTENTION item — added to the M1 work list as item 5 and gated in front of owner
+launch step 3 `fly deploy`).
+Prior: 2026-07-26 (**ticket 039 SHIPPED — the M1 deployment gate is clear**; scoped its
 two review should-fix findings into one ticket **045** [`.dockerignore` `**/` secret globs +
 `fly.toml` `auto_start_machines = true`], accepted DECISIONS 2026-07-23 "Deployment: M1 shape" as
 the covering decision so no new Tech Lead consult was needed, and added 045 to the M1 work list;

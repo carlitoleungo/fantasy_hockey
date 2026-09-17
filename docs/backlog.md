@@ -429,6 +429,16 @@ they are settled:**
 Owner decision at the top of this entry.)*
 **Milestone:** none
 **Blocked by:** nothing
+**Scoping update (2026-09-15, PM):** Parts A and B are now scoped as tickets **047**
+(`data/schedule.py` per-night slate + demo counterpart), **048** (`analysis/off_nights.py`
+off-night rule), and **049** (waiver "ON" column, live + demo), in that dependency order. Part B
+was split across the analysis and UI layers per the PM no-layer-spanning rule. **Part C remains
+unscoped and is not scopeable** — the two owner questions above (today's-roster approximation vs.
+per-night lineup check; persisted my-team vs. per-request dropdown) are still unanswered, and it
+lands on the session/schema, `data/client.py`, and cache surfaces, so it needs a Tech Lead consult
+after the owner answers. Off-night work was confirmed **not** blocked by the two neighbouring
+ranking entries: 047-049 produce a display flag, not a ranking lever, so the double-counting
+hazard those entries warn about does not arise.
 **Estimated complexity:** Large overall. Small for Part A (per-night schedule data + tests),
 Small–Medium for Part B (off-night flagging + UI), Medium–Large for Part C (needs the my-team
 decision, a settings-parse extension, a roster fetch on the waiver path, and probably a roster
