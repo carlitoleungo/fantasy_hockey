@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 from web.main import app
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def client():
     # Temporarily add test routes to the production app for exception handler testing.
     # These routes are never registered in production — they're added only in-process
@@ -55,3 +55,8 @@ def test_500_handler_returns_html(client):
 def test_500_handler_contains_error_message(client):
     resp = client.get("/test/unhandled")
     assert "Something went wrong" in resp.text
+
+
+def test_500_handler_content_container_has_horizontal_padding(client):
+    resp = client.get("/test/unhandled")
+    assert '<div class="max-w-xl mx-auto mt-16 px-4 text-center">' in resp.text

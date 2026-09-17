@@ -1,7 +1,7 @@
 # 050 — Error page body clips at phone width
 
 ## Status
-ready
+done
 
 ## Type
 bug

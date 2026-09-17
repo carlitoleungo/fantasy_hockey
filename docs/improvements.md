@@ -132,15 +132,6 @@ projected at read time.
 
 ---
 
-### Scope `client` fixture in `test_error_handling.py` to module level
-
-**Type:** quality
-**Source:** Code review 009
-**File:** `tests/test_error_handling.py` line 8
-**Detail:** The `client` fixture is function-scoped (default), so the two test routes (`/test/http-error`, `/test/unhandled`) are registered on the production `app` object once per test — 7 times total. FastAPI silently accumulates duplicate route entries. Add `scope="module"` to the fixture decorator so routes are registered once per test session.
-
----
-
 ### TC4 (`test_demo_waiver_shell_returns_200`) only asserts form action — misses stat chips
 
 **Type:** quality
@@ -470,6 +461,10 @@ the nav and this link together. Related observation from QA 042, same owner: at 
 body (`max-w-xl mx-auto`, no horizontal padding) clips at the right edge — confirmed pre-existing
 by rendering the pre-042 templates at the same width, and in fact improved by 042, which removed
 four nav links that also overflowed that header.
+**Update (Ticket 050):** the 375 px clip described above is fixed — `error.html`'s container
+now carries `px-4` like every other page shell. The link-affordance half (no underline, no
+link colour) is unchanged and deliberately left for the M1 UI re-design; this entry stays open
+for that half.
 
 ---
 

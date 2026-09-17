@@ -11,6 +11,15 @@
 
 ## Closed
 
+### Scope `client` fixture in `test_error_handling.py` to module level
+
+**Type:** quality
+**Source:** Code review 009
+**File:** `tests/test_error_handling.py` line 8
+**Resolved:** Ticket 050 — added `scope="module"` to the `client` fixture decorator, so the
+two test routes (`/test/http-error`, `/test/unhandled`) are registered on the production `app`
+object once per test module instead of once per test (7 times).
+
 ### Error pages show the authenticated nav to logged-out visitors
 
 **Type:** quality
