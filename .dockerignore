@@ -37,12 +37,8 @@ node_modules/
 # Not needed at runtime
 tests/
 docs/
-tickets/
-.team/
 reference/
 scripts/
-team-generator/
 .devcontainer/
 .claude/
 .claudeignore
-WORKFLOW.md
