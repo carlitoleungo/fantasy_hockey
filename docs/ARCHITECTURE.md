@@ -54,7 +54,7 @@ client-side toggles. No JS build pipeline.
 |-----|-----|-----|
 | `app.py` | `web/main.py` | Streamlit entry point → FastAPI app factory |
 | `pages/__init__.py` | (removed — no equivalent in FastAPI structure) | Streamlit package marker → not needed |
-| `pages/01_league_overview.py` | `web/routes/leagues.py` + templates | Streamlit page → FastAPI route + Jinja2 |
+| `pages/01_league_overview.py` | `web/routes/overview.py` + templates | Streamlit page → FastAPI route + Jinja2 |
 | `pages/03_waiver_wire.py` | `web/routes/waiver.py` + templates | Streamlit page → FastAPI route + Jinja2 |
 | `pages/04_week_projection.py` | `web/routes/projection.py` + templates | Streamlit page → FastAPI route + Jinja2 |
 | `st.session_state["tokens"]` | SQLite `user_sessions` table | In-process per-tab → persistent per-user |
@@ -68,38 +68,35 @@ client-side toggles. No JS build pipeline.
 ```
 fantasy_hockey/
   web/
-    main.py                  # FastAPI app factory; mounts routers, registers middleware
+    main.py                  # FastAPI app; mounts routers, registers exception handlers
+    templates.py             # Jinja2 environment
     routes/
-      auth.py                # GET /auth/login, GET /auth/callback
-      leagues.py             # GET /leagues (HTML)
-      waiver.py              # GET /waiver (HTML), POST /api/waiver/players (HTMX fragment)
-      projection.py          # GET /projection (HTML)
-      demo.py                # GET /demo/* — no auth required
-      health.py              # GET /health → {"status": "ok"}
+      auth.py                # /auth/login, /auth/callback, logout
+      home.py                # / (league picker or logged-out landing)
+      overview.py            # /overview, head-to-head, plus /demo/overview*
+      waiver.py              # /waiver + HTMX fragment endpoints, plus /demo/waiver*
+      projection.py          # /projection + matchup fragment, plus /demo/projection*
+      common.py              # shared route helpers (league key, shell context)
+      health.py              # /health
     middleware/
-      session.py             # Validates session cookie; refreshes tokens; injects current_user
-    templates/               # Jinja2 .html files
-      base.html
-      waiver.html
-      leagues.html
-      projection.html
-      demo/
-    static/                  # Favicon, any vendored CSS overrides
+      session.py             # require_user / optional_user; token refresh
+    templates/
+      base.html, home.html, error.html
+      overview/, waiver/, projection/   # index.html shell + _fragment.html partials
+    static/
   db/
-    schema.sql               # CREATE TABLE oauth_states, user_sessions
-    connection.py            # get_db() → sqlite3 connection with WAL mode + row_factory
-  auth/
-    oauth.py                 # As-is minus st imports; client_id/secret/redirect_uri as params
-  data/                      # Unchanged
-  analysis/                  # Unchanged
-  demo/data/                 # Unchanged
-  docs/
-    ARCHITECTURE.md          # This file
-    DECISIONS.md             # Newest-first decisions log
-  requirements.txt           # Existing Streamlit deps (kept for prototype)
-  requirements-web.txt       # fastapi uvicorn[standard] jinja2 itsdangerous python-multipart
-  Dockerfile                 # python:3.11-slim; installs requirements-web.txt
-  fly.toml                   # planned, not yet in repo (deployment is a roadmap item); port 8000; /data volume mount
+    schema.sql               # oauth_states, user_sessions
+    connection.py            # get_db(): SQLite, WAL mode, row_factory
+  auth/oauth.py              # OAuth URL, code exchange, refresh (+ legacy Streamlit helpers)
+  data/                      # client, cache, leagues, matchups, players, roster, schedule, scoreboard, demo
+  analysis/                  # waiver_ranking, team_scores, matchup_sim, projection
+  demo/data/                 # static snapshot served by data/demo.py
+  scripts/                   # demo data generation
+  tests/                     # pytest suite + fixtures/
+  docs/                      # ARCHITECTURE, DECISIONS, LEARNINGS, TODO, specs/, ui-brief, archive/
+  Dockerfile, fly.toml, .dockerignore
+  requirements-web.txt       # FastAPI app deps
+  app.py, pages/, utils/, validate_api.py, requirements.txt   # legacy Streamlit prototype
 ```
 
 ## Key patterns
@@ -129,7 +126,7 @@ fantasy_hockey/
    `import streamlit`, no `import fastapi`), no route decorators, no DB ORM calls (raw
    `sqlite3` lives in `db/connection.py` only). These modules take inputs and return
    DataFrames or plain Python dicts; route handlers in `web/` are the only integration
-   point. The Reviewer treats violations as always-blockers.
+   point.
 
 7. **Shared live/demo compute helper for feature pages** — where a feature page has both
    an authenticated and a `/demo/*` route, both handlers assemble their own data (live

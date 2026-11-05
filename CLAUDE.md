@@ -1,82 +1,63 @@
-# Fantasy Hockey Manager Tool
+# Fantasy Hockey Waiver Wire
 
-## Project Purpose
-A public-facing web app that helps fantasy hockey managers evaluate waiver wire add/drop decisions using Yahoo Fantasy API data. Users authenticate with their own Yahoo account; the backend fetches their league, matchup, and player data; the frontend renders stat tables and rankings. A demo mode lets unauthenticated users explore a pre-snapshotted dataset.
+A FastAPI + HTMX web app that helps Yahoo Fantasy Hockey managers make waiver add/drop
+decisions. Each user signs in with their own Yahoo account; a demo mode (`/demo/*`) serves a
+static snapshot to logged-out visitors. Audience today: the owner and a handful of friends.
 
-The repo is mid-migration: a FastAPI/HTMX app (`web/`, `db/`) is replacing the original Streamlit prototype (`app.py`, `pages/`) view-by-view. The pure-Python `data/`, `analysis/`, and `auth/` layers are shared by both and are stable.
+## Commands
 
-## Team Workflow
-Development runs through a team-of-personas workflow: tickets in `tickets/`, persona definitions in `.team/`, operating manual in **`WORKFLOW.md`** (start with its Quick start section). If you're asked to scope, implement, QA, or review a ticket, read the relevant persona file first.
-
-## Key Documentation
-- `docs/ARCHITECTURE.md` — stack, directory structure, layer rules, data flow, storage tiers
-- `docs/DECISIONS.md` — newest-first architectural decisions log (why things are the way they are)
-- `docs/LEARNINGS.md` — recurring gotchas, including all Yahoo API quirks
-- `docs/improvements.md` — Type-tagged tracker for quality nits and bugs
-- `RUNNING.md` — first-time setup and run instructions (venv, ngrok, Yahoo OAuth)
-- Yahoo Fantasy Sports API (official): https://developer.yahoo.com/fantasysports/guide/#player-resource
-- Yahoo Fantasy API (better structured): https://yahoo-fantasy-node-docs.vercel.app/resource/player/stats
-
-Auth flow and API patterns are established in `auth/oauth.py` and `data/client.py` — read those as the reference implementation, not the notebook.
-
-## Caching
-The parquet cache layer (`data/cache.py`) is the primary defence against Yahoo rate limits. Storage tiers and refresh strategies are documented in `docs/ARCHITECTURE.md` § Storage tiers; delta-fetch behaviour is documented in `docs/DECISIONS.md` (see the matchups.py entries).
-
-- Cache location is the `CACHE_DIR` env var: defaults to `.cache/` locally, `/data/cache/` in production. Both are gitignored — cache files can always be regenerated from the API.
-- Available (waiver) players **are** cached, with a 24 h TTL: season pools per `(league_key, position, stat)` as `ww_season__{pos}__{stat}.parquet`, plus a cumulative `ww_lastmonth.parquet` per league. See `data/cache.py` § "Player pool cache" and the call sites in `web/routes/waiver.py`. Only rosters, projections, and league settings/stat categories are fetched live on every request.
-
-## Secrets & Auth
-- Yahoo OAuth 2.0, redirect-based flow, implemented directly with `requests` in `auth/oauth.py` (the `yahoo_oauth` library is incompatible — see `docs/DECISIONS.md` 2026-03-03).
-- Credentials come from environment variables, loaded from a gitignored `.env` file locally: `YAHOO_CLIENT_ID`, `YAHOO_CLIENT_SECRET`, `YAHOO_REDIRECT_URI`. See `.env.example` for the full set (`DB_PATH`, `CACHE_DIR`, `HTTPS_ONLY`).
-- Never hardcode credentials or commit secrets files.
-- Token refresh is handled transparently by the session middleware — users should not need to re-auth mid-session.
-- Sessions are server-side: tokens live in SQLite, the browser holds only an opaque `session_id` cookie (see `docs/ARCHITECTURE.md` § Session strategy).
-
-## API Notes
-- Yahoo Fantasy API uses OAuth 2.0. Redirect URIs must be registered in the Yahoo developer console; Yahoo requires HTTPS, so local development uses an ngrok tunnel (see `RUNNING.md`).
-- Rate limits apply — the cache layer is the primary defence against hitting them.
-- **Minimise API calls**: always prefer bulk/collection endpoints over per-entity calls. For example, use `/league/{key}/teams/stats;type=week;week={w}` (1 call for all teams) instead of N individual `/team/{key}/stats` calls. When adding new data fetches, check whether a collection endpoint exists before defaulting to a per-item loop.
-- Weekly data is keyed by week number within a season.
-- Player stats endpoints differ for season aggregate vs recent (`type=lastmonth` is the only param that returns last-30-day stats — see `docs/DECISIONS.md` 2026-03-23).
-- The API returns XML by default; use format=json query param where supported.
-
-## Known Gotchas
-All recurring gotchas (Yahoo API quirks, xmltodict behaviour, test patch targets) live in **`docs/LEARNINGS.md`** — read it before touching `data/` or `analysis/`. One legacy note: the Streamlit prototype reruns the entire script on every interaction, so its expensive operations are wrapped in `@st.cache_data`; this does not apply to the FastAPI app.
-
-## Testing Strategy
-- Save raw API responses as JSON fixtures in `tests/fixtures/`.
-- Unit test all `data/` and `analysis/` functions against fixtures — no framework dependency, straightforward to test.
-- Test `cache.py` read/write/append/delta logic explicitly with known dataframes.
-- Do not make live API calls in tests.
-- Run with `.venv/bin/python -m pytest tests/` (the bare `python` and `python3` on PATH have
-  no pytest installed).
-
-## Running Locally
-
-### FastAPI app (current)
 ```bash
-pip install -r requirements-web.txt
-uvicorn web.main:app --reload
+uv venv .venv --python 3.11 && uv pip install -r requirements-web.txt   # first time
+.venv/bin/python -m uvicorn web.main:app --reload                        # run (needs .env, see RUNNING.md)
+.venv/bin/python -m pytest tests/                                        # test (bare python has no pytest)
+fly deploy                                                               # ship (fly.toml in repo)
 ```
 
-### Streamlit prototype (legacy, being torn down)
-```bash
-pip install -r requirements.txt
-streamlit run app.py
-```
+Local OAuth needs an HTTPS tunnel (ngrok); see `RUNNING.md`. Env vars are listed in `.env.example`.
 
-See `RUNNING.md` for full first-time setup and subsequent-run instructions (venv, ngrok, Yahoo OAuth).
+## Layout
 
-## Development Workflow
-- Make changes directly in the main working directory (`/Users/carlinleung/personal_dev/fantasy_hockey`). **Do not use git worktrees** unless explicitly asked.
+- `web/` FastAPI routes, session middleware, Jinja2 templates. Route handlers are the only
+  place HTTP meets the data stack.
+- `data/` Yahoo API client, parsers, parquet cache, demo loader. `analysis/` ranking and
+  projection maths. `auth/` OAuth helpers. `db/` SQLite sessions.
+- `app.py`, `pages/`, `utils/`, `validate_api.py`, `requirements.txt`: the legacy Streamlit
+  prototype. Don't extend it; delete once the Fly app is live.
 
-## Key Decisions Log
-See `docs/DECISIONS.md` for the newest-first decisions log, including the 2026-04-10 stack selection (FastAPI + Jinja2 + HTMX + Alpine + Tailwind via CDN, SQLite, Fly.io).
+More detail: `docs/ARCHITECTURE.md` (structure, data flow, storage) and `docs/DECISIONS.md`
+(the rules below, with reasons).
 
-## Out of Scope (for now)
-- Trade analysis (deferred — context preserved in `docs/backlog.md`)
-- Multi-season historical data
-- Push notifications or scheduling
-- Native mobile apps (responsive web only — see `docs/DECISIONS.md` 2026-04-10)
+## Rules that matter
 
-Note: multi-user deployment is **no longer** out of scope — per-user cache storage and deployment configuration are tracked on `docs/ROADMAP.md`.
+1. **`data/`, `analysis/`, `auth/` stay framework-free.** No `fastapi`, `streamlit`, or DB
+   imports; they take inputs and return DataFrames or dicts.
+2. **Read `docs/LEARNINGS.md` before touching `data/` or `analysis/`.** It lists the Yahoo and
+   xmltodict quirks (`_as_list`, `_coerce`, lastmonth GAA, patch targets in tests).
+3. **Minimise Yahoo calls.** Use collection endpoints over per-entity loops, and go through
+   the cache in `data/cache.py`. Rate limits are shared across all users of the app.
+4. **Demo parity.** Every live data function needs a `data/demo.py` counterpart, and live and
+   demo routes share one compute/render helper (see `web/routes/projection.py`).
+5. **One machine, one worker.** Sessions and cache live on a single Fly volume; never add
+   `--workers N` or a second machine.
+6. **Secrets only from env vars.** Never commit `.env`, tokens, or certs.
+
+## Definition of done
+
+- Tests added or updated for the change; `pytest tests/` passes. Tests use fixtures in
+  `tests/fixtures/`, never live API calls. Name test modules for the feature they cover.
+- UI changes checked in a browser, including the `/demo/*` version of the page.
+- New gotchas go in `docs/LEARNINGS.md`; new architectural choices go in `docs/DECISIONS.md`.
+- Work happens on a branch and lands through a PR. Don't create git worktrees unless asked.
+
+## Check with the owner first
+
+Changes to the OAuth flow or session storage, the cache's on-disk layout, new dependencies
+or env vars, or anything that adds Yahoo calls per request. Otherwise, use your judgement and
+explain choices in the PR.
+
+## Where work is tracked
+
+`docs/TODO.md` holds launch steps, open work, known issues, and ideas. Detailed specs for
+upcoming features are in `docs/specs/`. The UI direction is in `docs/ui-brief.md`.
+
+Out of scope for now: trade analysis, multi-season history, notifications, native apps.

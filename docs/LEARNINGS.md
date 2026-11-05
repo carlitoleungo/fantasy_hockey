@@ -1,11 +1,8 @@
 # Learnings — Fantasy Hockey Waiver Wire
 
-Recurring gotchas and patterns that apply across tickets. Every persona reads this
-before starting work. Only add entries that would affect future, unrelated tickets —
-not one-off bugs or ticket-specific issues.
-
-If this file grows past ~30 entries, the PM should prune stale items during a
-product review (remove anything resolved by architecture changes or no longer relevant).
+Recurring gotchas that a model or new contributor can't guess from the code. Read this
+before touching `data/` or `analysis/`. Only add entries that would affect future, unrelated
+work, not one-off bugs. Prune entries once the architecture makes them irrelevant.
 
 ---
 
@@ -63,8 +60,7 @@ above inverts: patch `data.demo.get_matchups`, **not**
 silently — the handler still gets the real snapshot, so a test meant to exercise an
 empty-state branch quietly runs against the populated one and passes while guarding
 nothing. Check whether the import is module-level or in-body before choosing a target.
-(Discovered scoping ticket 040; the working pattern is in
-`tests/test_demo_overview_routes.py` lines 11-12.)
+(The working pattern is in `tests/test_demo_overview_routes.py` lines 11-12.)
 
 ### Purge `__pycache__` between mutation probes, or CPython replays the previous result
 
@@ -74,12 +70,12 @@ delete one same-length line at a time (e.g. the four 77-byte `**shell_context(..
 probes land in the same second the cached bytecode is reused — the run reports the *previous*
 mutation's result. `pytest -p no:cacheprovider` does not help: it governs pytest's own cache,
 not CPython's bytecode cache. Delete every `__pycache__` between mutations
-(`find . -name __pycache__ -type d -not -path "./.venv/*" -exec rm -rf {} +`). QA 040 hit this
-and initially certified the wrong test as a branch's guard (`tickets/done/040-qa.md`).
+(`find . -name __pycache__ -type d -not -path "./.venv/*" -exec rm -rf {} +`). This has happened
+before: a QA pass certified the wrong test as a branch's guard.
 
 ### Off-season → no live data; week-keyed feature pages only show empty states
 
-We develop during the NHL off-season, so live Yahoo data for week-keyed features is
+During the NHL off-season (roughly mid-April to early October), live Yahoo data for week-keyed features is
 empty or stale: matchups, weekly scoreboards, `type=lastmonth` player rates, and
 `schedule.get_remaining_games` (which counts games from today forward) all return
 nothing meaningful. The app fetches **live snapshots by default** (`current_week` is read
@@ -90,9 +86,6 @@ QA pass of any week-keyed page (Week Projection 029/030, matchups) can only exer
 empty/placeholder state — it cannot validate real compute against live data. **Demo mode
 (`data/demo.py`, snapshotted at `snapshot_week`) is the current answer for a *visual*
 check**, but it does not exercise the authenticated live-fetch code paths in
-`client.py` / `cache.py`. Testing those against a *specific past week* is unsolved and
-being explored — see the scoping brief `tickets/033-dev-past-week-testing-spike.md`.
+`client.py` / `cache.py`. There is deliberately no runtime past-week override (see `docs/DECISIONS.md` § Testing);
+the fallback is captured fixtures, listed as an idea in `docs/TODO.md`.
 
----
-
-[Test Engineer and team members add entries here as they're discovered]
