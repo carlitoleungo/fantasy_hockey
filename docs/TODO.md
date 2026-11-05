@@ -27,8 +27,10 @@ The previous trackers (`docs/ROADMAP.md`, `docs/backlog.md`, `docs/improvements.
       `auth/oauth.py`.
 - [ ] Add CI: a GitHub Action that runs `pytest` and deploys to Fly on push to `main`.
 - [ ] Pin Alpine to an exact version in `web/templates/base.html` (it floats on `3.x.x`).
-- [ ] UI redesign, one page at a time, per `docs/ui-brief.md`. Decide whether Tailwind stays
-      on the CDN compiler or becomes a built stylesheet.
+- [ ] UI redesign, one page at a time, per `docs/ui-brief.md` (what each page does) and
+      `docs/design-system.md` (how it looks). Waiver Wire, the app shell and the built
+      stylesheet are done; next Overview/Leaderboard, Head-to-Head, Projection, landing and
+      league picker. Then drop the `data-theme="light"` default from `base.html`.
 
 ## Next features
 

@@ -15,8 +15,9 @@ client-side toggles. No JS build pipeline.
 
 - **Backend:** FastAPI + uvicorn (single worker) — keeps `data/` and `analysis/` importable
   with no language boundary; single worker is safe for SQLite write concurrency
-- **Frontend:** Jinja2 templates + HTMX CDN + Alpine.js CDN + TailwindCSS CDN — interactive
-  table/filter UX without a build pipeline; total JS payload ~22 KB
+- **Frontend:** Jinja2 templates + HTMX CDN + Alpine.js CDN + a built Tailwind stylesheet
+  (`web/styles/` → `web/static/app.css`, committed) and self-hosted fonts in `web/static/fonts/`.
+  The look is specified in `docs/design-system.md`
 - **Auth:** Yahoo OAuth 2.0 via `requests` (existing `auth/oauth.py` logic, minus Streamlit
   imports) with server-side sessions in SQLite
 - **Session store:** SQLite at `/data/app.db` (two tables: `oauth_states`, `user_sessions`) —

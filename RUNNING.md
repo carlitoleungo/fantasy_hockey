@@ -44,6 +44,18 @@ ngrok gives you a stable subdomain on the free plan (e.g. `https://blatancy-gril
 
 ---
 
+### 4. Styles (only when you change templates or CSS)
+
+The built stylesheet `web/static/app.css` is committed, so running the app needs no Node. After
+adding Tailwind classes to a template or editing `web/styles/app.css`, rebuild it (Node 18+):
+
+```bash
+cd web/styles && npm install && npm run build   # or `npm run watch` while editing
+```
+
+`npm run fonts` re-copies the self-hosted fonts into `web/static/fonts/` (only needed when
+changing font weights or versions).
+
 ## Subsequent runs
 
 ```bash

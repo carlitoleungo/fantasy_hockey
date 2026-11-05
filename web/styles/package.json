@@ -1,0 +1,16 @@
+{
+  "name": "fantasy-hockey-styles",
+  "private": true,
+  "description": "Builds web/static/app.css from the design tokens. See docs/design-system.md.",
+  "scripts": {
+    "fonts": "node copy-fonts.mjs",
+    "build": "tailwindcss -c tailwind.config.js -i app.css -o ../static/app.css --minify",
+    "watch": "tailwindcss -c tailwind.config.js -i app.css -o ../static/app.css --watch"
+  },
+  "devDependencies": {
+    "tailwindcss": "3.4.17",
+    "@fontsource/ibm-plex-sans": "5.2.5",
+    "@fontsource/ibm-plex-mono": "5.2.5",
+    "@fontsource/barlow-condensed": "5.2.5"
+  }
+}

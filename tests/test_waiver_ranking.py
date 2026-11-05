@@ -158,3 +158,32 @@ class TestFilterByPosition:
     def test_reset_index_after_filter(self):
         result = filter_by_position(PLAYERS, "Goalies")
         assert list(result.index) == list(range(len(result)))
+
+
+# ---------------------------------------------------------------------------
+# shade_levels
+# ---------------------------------------------------------------------------
+
+from analysis.waiver_ranking import shade_levels  # noqa: E402
+
+
+def test_shade_levels_best_gets_4_and_worst_gets_0():
+    df = pd.DataFrame({"Goals": [float(v) for v in range(20, 0, -1)]})
+    levels = shade_levels(df, ["Goals"])["Goals"].tolist()
+    assert levels[0] == 4
+    assert levels[-1] == 0
+    assert levels == sorted(levels, reverse=True)
+
+
+def test_shade_levels_lower_is_better_and_zero_counts_as_missing():
+    df = pd.DataFrame({"Goals Against Average": [0.0, 2.0, 3.0, 4.0, 5.0]})
+    levels = shade_levels(df, ["Goals Against Average"])["Goals Against Average"].tolist()
+    assert levels[0] == 0          # 0.0 = skater with no GAA, not the best goalie
+    assert levels[1] > levels[4]   # lowest real GAA shades darkest
+
+
+def test_shade_levels_nan_and_unknown_columns():
+    df = pd.DataFrame({"Goals": [3.0, float("nan"), 1.0]})
+    out = shade_levels(df, ["Goals", "Not A Column"])
+    assert list(out.columns) == ["Goals"]
+    assert out["Goals"].tolist()[1] == 0

@@ -1,44 +1,57 @@
 <!DOCTYPE html>
-<html lang="en">
+{# Pages that have been redesigned override `theme_attr` with nothing so they follow the
+   system light/dark setting. Pages still on the old styling pin the light theme, because
+   their gray-on-white utility classes are unreadable on the dark tokens. #}
+<html lang="en" {% block theme_attr %}data-theme="light"{% endblock %}>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}Fantasy Hockey{% endblock %}</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/static/app.css?v={{ static_version }}">
   <script src="https://unpkg.com/htmx.org@2.0.4"></script>
   <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
   {% block head %}{% endblock %}
 </head>
-<body>
-  <header class="border-b px-4 py-3 flex items-center justify-between">
-    <div class="flex items-center gap-2">
-      <a href="/" class="font-semibold text-gray-800 hover:text-gray-600">Fantasy Hockey</a>
+<body class="min-h-screen bg-app text-fg font-sans antialiased">
+  {% set path = request.url.path if request is defined else "" %}
+  {% set collapsible = not auth_state_unknown and (demo_mode or is_authenticated) %}
+  {% macro navlink(href, text, match) -%}
+    <a href="{{ href }}" class="label-cond text-[14px] flex items-center px-3 py-2 md:py-0 {% if match and path.startswith(match) %}text-strong md:shadow-[inset_0_-2px_0_var(--accent)]{% else %}text-muted hover:text-fg{% endif %}">{{ text }}</a>
+  {%- endmacro %}
+  <header class="relative bg-panel border-b border-line px-4 h-[52px] flex items-center justify-between gap-3"
+    x-data="{ open: false }" @keydown.escape.window="open = false">
+    <div class="flex items-center gap-3 min-w-0">
+      <a href="/" class="flex items-center gap-2 font-bold text-[15px] text-strong whitespace-nowrap"><span class="pos" aria-hidden="true">FH</span>Fantasy Hockey</a>
       {% if selected_league_name %}
-        <span class="text-gray-400">&middot;</span>
-        <span class="text-gray-500 text-sm">{{ selected_league_name }}</span>
+        <span class="hidden sm:inline-block truncate max-w-[16rem] font-mono text-xs text-muted border border-line rounded px-2 py-0.5">{{ selected_league_name }}</span>
       {% endif %}
     </div>
-    <nav class="flex items-center gap-4">
+    {% if collapsible %}
+      <button type="button" class="md:hidden grid place-content-center gap-1 w-8 h-7 border border-line rounded" aria-label="Menu" :aria-expanded="open.toString()" @click="open = !open">
+        <i class="block w-3.5 h-0.5 bg-fg"></i><i class="block w-3.5 h-0.5 bg-fg"></i><i class="block w-3.5 h-0.5 bg-fg"></i>
+      </button>
+    {% endif %}
+    <nav class="h-full items-stretch {% if collapsible %}hidden md:flex max-md:absolute max-md:top-[52px] max-md:inset-x-0 max-md:z-20 max-md:h-auto max-md:flex-col max-md:bg-panel max-md:border-b max-md:border-line max-md:py-1{% else %}flex{% endif %}" {% if collapsible %}:class="open ? '!flex' : ''"{% endif %}>
       {# auth_state_unknown comes first: the render site could not resolve a
          user, so the nav claims nothing. The brand link above and error.html's
          "Back to home" are the recovery path. #}
       {% if auth_state_unknown %}
       {% elif demo_mode %}
-        <a href="/demo/overview" class="text-sm text-gray-600 hover:text-gray-800">Overview</a>
-        <a href="/demo/waiver" class="text-sm text-gray-600 hover:text-gray-800">Waiver</a>
-        <a href="/demo/projection" class="text-sm text-gray-600 hover:text-gray-800">Projection</a>
-        <a href="/auth/login" class="text-sm text-gray-500 hover:text-gray-700">Log in with Yahoo</a>
+        {{ navlink("/demo/overview", "Overview", "/demo/overview") }}
+        {{ navlink("/demo/waiver", "Waiver", "/demo/waiver") }}
+        {{ navlink("/demo/projection", "Projection", "/demo/projection") }}
+        {{ navlink("/auth/login", "Log in with Yahoo", None) }}
       {# Fail-safe default: a page that forgets shell_context() renders
          nav-free rather than claiming the visitor is logged in
          (DECISIONS.md 2026-07-25). #}
       {% elif is_authenticated is undefined %}
       {% elif is_authenticated %}
-        <a href="/overview" class="text-sm text-gray-600 hover:text-gray-800">Overview</a>
-        <a href="/waiver" class="text-sm text-gray-600 hover:text-gray-800">Waiver</a>
-        <a href="/projection" class="text-sm text-gray-600 hover:text-gray-800">Projection</a>
-        <a href="/auth/logout" class="text-sm text-gray-500 hover:text-gray-700">Logout</a>
+        {{ navlink("/overview", "Overview", "/overview") }}
+        {{ navlink("/waiver", "Waiver", "/waiver") }}
+        {{ navlink("/projection", "Projection", "/projection") }}
+        {{ navlink("/auth/logout", "Logout", None) }}
       {% else %}
-        <a href="/auth/login" class="text-sm text-gray-600 hover:text-gray-800">Log in with Yahoo</a>
+        {{ navlink("/auth/login", "Log in with Yahoo", None) }}
       {% endif %}
     </nav>
   </header>

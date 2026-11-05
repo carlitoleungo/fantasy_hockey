@@ -1,33 +1,38 @@
 {% extends "base.html" %}
 
+{% block theme_attr %}{% endblock %}
 {% block title %}Waiver Wire{% endblock %}
 
 {% block content %}
-<div class="max-w-6xl mx-auto mt-8 px-4">
-  <h1 class="text-2xl font-bold text-gray-800 mb-2">Waiver Wire</h1>
-  <p class="text-sm text-gray-600 mb-1">Find the best available players for your weakest categories.</p>
-  <p class="text-sm text-gray-500 mb-6">Pick the stats you want to improve, then narrow by position if needed. Players are ranked by combined performance across your selected categories — lower composite rank is better. Toggle between season totals and last 30 days to separate consistent producers from hot streaks.</p>
+<main class="max-w-6xl mx-auto px-4 pt-5 pb-10 flex flex-col gap-4">
+  <div>
+    <h1 class="text-[22px] leading-tight font-bold text-strong">Waiver Wire</h1>
+    <p class="mt-1 text-[13.5px] text-muted max-w-3xl">Available players ranked across the categories you pick. Lower composite rank is better. Switch to Last 30 days to separate hot streaks from steady producers.</p>
+  </div>
 
   {% if not stat_cols %}
-    <p class="text-sm text-yellow-700 bg-yellow-50 border border-yellow-200 rounded px-3 py-2 mb-4">
+    <p class="text-sm text-dtd border border-line bg-panel rounded px-3 py-2">
       No league data available yet — the season may not have started.
     </p>
   {% endif %}
 
   <form id="waiver-filters"
+    class="flex flex-wrap items-center gap-x-5 gap-y-3"
     hx-post="{{ form_action }}"
     hx-target="#waiver-table-container"
     hx-trigger="change"
+    hx-indicator="#waiver-table-container"
     hx-on:change="document.getElementById('page-input').value='0'">
 
     <input type="hidden" name="page" id="page-input" value="0">
 
-    <!-- Position checkboxes: "All" (no filter) or one/more specific positions -->
-    <div class="mb-4">
-      <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 block">Position</span>
-      <div class="flex flex-wrap gap-2">
+    <!-- Position: "All" (no filter) or one/more specific positions -->
+    <fieldset class="flex items-center gap-2 min-w-0 max-w-full">
+      <legend class="sr-only">Position</legend>
+      <span class="label-cond text-xs text-dim" aria-hidden="true">Pos</span>
+      <div class="flex gap-[3px] overflow-x-auto">
         {% for pos in ["All", "C", "LW", "RW", "D", "G"] %}
-          <label class="cursor-pointer">
+          <label>
             {% if pos == "All" %}
               <input type="checkbox" name="positions" value="All" class="sr-only peer" checked
                 onchange="if(this.checked){this.form.querySelectorAll('input[name=positions]:not([value=All])').forEach(c=>c.checked=false)}">
@@ -35,53 +40,48 @@
               <input type="checkbox" name="positions" value="{{ pos }}" class="sr-only peer"
                 onchange="if(this.checked){this.form.querySelector('input[name=positions][value=All]').checked=false}">
             {% endif %}
-            <span class="px-3 py-1 rounded-full text-sm border border-gray-300 text-gray-600
-              peer-checked:bg-blue-600 peer-checked:text-white peer-checked:border-blue-600
-              hover:border-gray-400 transition-colors">
-              {{ pos }}
-            </span>
+            <span class="chip">{{ pos }}</span>
           </label>
         {% endfor %}
       </div>
-    </div>
+    </fieldset>
 
-    <!-- Period radio -->
-    <div class="mb-4">
-      <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 block">Rank by</span>
-      <div class="flex gap-4">
+    <!-- Period: the streak-vs-consistency toggle -->
+    <fieldset class="flex items-center gap-2">
+      <legend class="sr-only">Rank by period</legend>
+      <span class="label-cond text-xs text-dim" aria-hidden="true">Period</span>
+      <div class="seg">
         {% for period in ["Season", "Last 30 days"] %}
-          <label class="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
-            <input type="radio" name="period" value="{{ period }}"
+          <label>
+            <input type="radio" name="period" value="{{ period }}" class="sr-only peer"
               {% if period == "Season" %}checked{% endif %}>
-            {{ period }}
+            <span class="seg-opt">{{ period }}</span>
           </label>
         {% endfor %}
       </div>
-    </div>
+    </fieldset>
 
-    <!-- Stat category chips -->
-    <div class="mb-6">
-      <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 block">Categories</span>
-      <div class="flex flex-wrap gap-2">
+    <!-- Categories to rank on -->
+    <fieldset class="flex items-center gap-2 min-w-0 max-w-full">
+      <legend class="sr-only">Categories to rank on</legend>
+      <span class="label-cond text-xs text-dim whitespace-nowrap" aria-hidden="true">Rank on</span>
+      <div class="flex flex-wrap gap-[3px]">
         {% for stat in stat_cols %}
-          <label class="cursor-pointer">
+          <label>
             <input type="checkbox" name="stats" value="{{ stat }}" class="sr-only peer">
-            <span class="px-3 py-1 rounded-full text-sm border border-gray-300 text-gray-600
-              peer-checked:bg-blue-600 peer-checked:text-white peer-checked:border-blue-600
-              hover:border-gray-400 transition-colors">
-              {{ stat_abbrev.get(stat, stat) }}
-            </span>
+            <span class="chip" title="{{ stat }}">{{ stat_abbrev.get(stat, stat) }}</span>
           </label>
         {% endfor %}
       </div>
-    </div>
-
+    </fieldset>
   </form>
 
-  <div id="waiver-table-container">
-    <p class="text-sm text-gray-500 text-center my-6">
-      Select one or more stat categories above to rank available players.
-    </p>
+  <div id="waiver-table-container" class="[&.htmx-request]:opacity-60 transition-opacity">
+    <div class="grid-panel">
+      <p class="px-4 py-8 text-sm text-muted text-center">
+        Select one or more stat categories above to rank available players.
+      </p>
+    </div>
   </div>
-</div>
+</main>
 {% endblock %}
