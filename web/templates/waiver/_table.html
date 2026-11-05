@@ -1,166 +1,73 @@
 {% if rows is none or stats | length == 0 %}
-<p class="text-sm text-gray-500 text-center my-6">
-  Select one or more stat categories above to rank available players.
-</p>
+<div class="grid-panel">
+  <p class="px-4 py-8 text-sm text-muted text-center">
+    Select one or more stat categories above to rank available players.
+  </p>
+</div>
 {% elif rows.empty %}
-<p class="text-sm text-gray-500 text-center my-6">
-  No players found for the selected position and categories.
-</p>
+<div class="grid-panel">
+  <p class="px-4 py-8 text-sm text-muted text-center">
+    No players found for the selected position and categories.
+  </p>
+</div>
 {% else %}
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,700;1,400;1,700&family=Manrope:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap');
-* { box-sizing: border-box; }
-.ww-card {
-    background: #1c1c1a;
-    border-radius: 12px;
-    border-left: 4px solid #266b5c;
-    overflow: hidden;
-    box-shadow: 0 4px 24px rgba(0,0,0,0.3);
-}
-.ww-table-wrap { overflow-x: auto; }
-.ww-table {
-    width: auto;
-    border-collapse: collapse;
-}
-@media (min-width: 768px) {
-    .ww-table { width: 100%; }
-}
-.ww-table thead tr {
-    background-color: rgba(53,53,50,0.3);
-    border-bottom: 1px solid rgba(63,73,69,0.2);
-}
-.ww-table th {
-    padding: 14px 12px;
-    font-family: 'Manrope', sans-serif;
-    font-size: 0.5625rem;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    font-weight: 700;
-    white-space: nowrap;
-    color: #90d4c1;
-}
-.ww-table tbody tr {
-    border-bottom: 1px solid rgba(63,73,69,0.08);
-    transition: background-color 0.12s;
-}
-.ww-table tbody tr:hover { background-color: rgba(32,32,30,0.6); }
-.ww-table td {
-    padding: 14px 12px;
-    font-family: 'Inter', sans-serif;
-    font-size: 0.75rem;
-    color: #e5e2de;
-    white-space: nowrap;
-}
-.fh-player-name {
-    font-family: 'Newsreader', serif;
-    font-size: 0.9375rem;
-    font-weight: 700;
-    color: #e5e2de;
-    margin: 0;
-}
-.fh-player-meta {
-    font-family: 'Manrope', sans-serif;
-    font-size: 0.5625rem;
-    color: #90d4c1;
-    margin: 2px 0 0 0;
-    font-weight: 600;
-    letter-spacing: 0.05em;
-}
-.fh-badge {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 999px;
-    font-family: 'Manrope', sans-serif;
-    font-size: 0.5625rem;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-}
-.ww-footer {
-    padding: 12px 16px;
-    background-color: rgba(53,53,50,0.2);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    font-family: 'Manrope', sans-serif;
-    font-size: 0.5625rem;
-    text-transform: uppercase;
-    letter-spacing: 0.15em;
-    color: #89938f;
-    font-weight: 700;
-}
-.ww-table th:first-child,
-.ww-table td:first-child {
-    position: sticky;
-    left: 0;
-    background-color: #1c1c1a;
-    z-index: 2;
-}
-</style>
-
-<div class="ww-card mt-4">
-  <div class="ww-table-wrap">
-    <table class="ww-table">
+{% set last30 = period == "Last 30 days" %}
+<div class="grid-panel">
+  <div class="grid-bar border-b border-line">
+    <span><b>{{ total_rows }}</b> available · stats: <b>{{ "last 30 days" if last30 else "season" }}</b></span>
+    <span class="legend" aria-label="Cell shading: darker is better">worse <i class="s1"></i><i class="s2"></i><i class="s3"></i><i class="s4"></i> better</span>
+  </div>
+  <div class="overflow-x-auto">
+    <table class="dt">
       <thead>
         <tr>
-          <th style="text-align:left;">Player</th>
-          {% if period == "Last 30 days" %}
-            <th style="text-align:right;">GP</th>
-            <th style="text-align:right;">GR</th>
+          <th class="l" scope="col">Pos</th>
+          <th class="l sticky-col" scope="col">Player</th>
+          <th class="l" scope="col">Elig</th>
+          <th class="l" scope="col">Status</th>
+          {% if last30 %}
+            <th scope="col" title="Games played, last 30 days">GP</th>
+            <th scope="col" title="Games remaining this week">GR</th>
           {% endif %}
           {% for stat in stats %}
-            <th style="text-align:right;">{{ stat }}</th>
+            <th class="ranked" scope="col" title="{{ stat }}">{{ stat_abbrev.get(stat, stat) }}</th>
           {% endfor %}
         </tr>
       </thead>
       <tbody>
-        {% for _, row in rows.iterrows() %}
+        {% for idx, row in rows.iterrows() %}
+          {% set rank = current_page * page_size + loop.index %}
           {% set status_raw = row.get("status", "") %}
-          {% if status_raw == "DTD" %}
-            {% set badge_style = "background-color:rgba(155,72,37,0.3);color:#ffb599;" %}
-            {% set badge_label = "DTD" %}
-          {% elif status_raw == "IR" %}
-            {% set badge_style = "background-color:rgba(147,0,10,0.3);color:#ffb4ab;" %}
-            {% set badge_label = "IR" %}
-          {% elif status_raw == "O" %}
-            {% set badge_style = "background-color:rgba(147,0,10,0.3);color:#ffb4ab;" %}
-            {% set badge_label = "OUT" %}
-          {% else %}
-            {% set badge_style = "background-color:rgba(53,53,50,1);color:#89938f;" %}
-            {% set badge_label = "HEALTHY" %}
-          {% endif %}
+          {% set row_shades = shades.get(idx, {}) %}
           <tr>
-            <td>
-              <p class="fh-player-name">{{ row.get("player_name", "") }}</p>
-              <p class="fh-player-meta">
-                {{ row.get("team_abbr", "") }} · {{ row.get("display_position", "") }}
-                <span class="fh-badge" style="{{ badge_style }}">{{ badge_label }}</span>
-              </p>
+            <td class="l"><span class="pos{% if rank == 1 %} pos-top{% endif %}">{{ rank }}</span></td>
+            <td class="l sticky-col">
+              <span class="font-sans font-semibold text-sm text-strong">{{ row.get("player_name", "") }}</span>
+              <span class="label-cond text-[13px] text-muted ml-1.5">{{ row.get("team_abbr", "") }}</span>
             </td>
-            {% if period == "Last 30 days" %}
+            <td class="l text-muted">{{ (row.get("display_position", "") or "") | replace(",", "/") }}</td>
+            <td class="l">
+              {% if status_raw == "DTD" %}<span class="tag tag-dtd" title="Day-to-day">DTD</span>
+              {% elif status_raw == "IR" %}<span class="tag tag-out" title="Injured reserve">IR</span>
+              {% elif status_raw == "O" %}<span class="tag tag-out" title="Out">OUT</span>
+              {% elif status_raw == "NA" %}<span class="tag tag-dtd" title="Not active (minors or scratched)">NA</span>
+              {% elif status_raw %}<span class="tag tag-dtd">{{ status_raw }}</span>
+              {% else %}<span class="dash" title="Healthy">—</span>{% endif %}
+            </td>
+            {% if last30 %}
               {% set gp = row.get("games_played") %}
-              {% if gp is not none and gp == gp %}
-                <td style="text-align:right;">{{ gp | int }}</td>
-              {% else %}
-                <td style="text-align:right;">—</td>
-              {% endif %}
+              <td>{% if gp is not none and gp == gp %}{{ gp | int }}{% else %}<span class="dash">—</span>{% endif %}</td>
               {% set gr = row.get("games_remaining") %}
-              {% if gr is not none and gr == gr %}
-                <td style="text-align:right;">{{ gr | int }}</td>
-              {% else %}
-                <td style="text-align:right;">—</td>
-              {% endif %}
+              <td>{% if gr is not none and gr == gr %}{{ gr | int }}{% else %}<span class="dash">—</span>{% endif %}</td>
             {% endif %}
             {% for stat in stats %}
               {% set v = row.get(stat) %}
+              {% set lvl = row_shades.get(stat, 0) %}
               {% if v is not none and v == v %}
                 {# v == v is False for NaN #}
-                {% if is_rate_stat(stat) %}
-                  <td style="text-align:right;">{{ "%.2f"|format(v) }}</td>
-                {% else %}
-                  <td style="text-align:right;">{{ "%.0f"|format(v) }}</td>
-                {% endif %}
+                <td class="{% if lvl %}s{{ lvl }}{% endif %}">{% if is_rate_stat(stat) %}{{ "%.2f"|format(v) }}{% else %}{{ "%.0f"|format(v) }}{% endif %}</td>
               {% else %}
-                <td style="text-align:right;">—</td>
+                <td><span class="dash">—</span></td>
               {% endif %}
             {% endfor %}
           </tr>
@@ -168,32 +75,24 @@
       </tbody>
     </table>
   </div>
-  <div class="ww-footer">
-    {% if period == "Last 30 days" %}
-      <span>{{ total_rows }} players · last 30 days stats</span>
-    {% else %}
-      <span>{{ total_rows }} players · season stats</span>
-    {% endif %}
-    <span style="display:flex;gap:8px;align-items:center;">
-      <button
+  <div class="grid-bar border-t border-line">
+    <span>{{ total_rows }} players · {{ "last 30 days stats" if last30 else "season stats" }}</span>
+    <span class="flex items-center gap-2">
+      <button type="button" class="pager-btn"
         {% if current_page == 0 %}disabled{% endif %}
         hx-post="{{ form_action }}"
         hx-target="#waiver-table-container"
         hx-include="#waiver-filters"
         hx-vals='{"page": {{ current_page - 1 }}}'
-        style="cursor:pointer;{% if current_page == 0 %}opacity:0.4;cursor:default;{% endif %}">
-        ← Prev
-      </button>
+        aria-label="Previous page">←</button>
       <span>Page {{ current_page + 1 }} of {{ total_pages }}</span>
-      <button
+      <button type="button" class="pager-btn"
         {% if current_page >= total_pages - 1 %}disabled{% endif %}
         hx-post="{{ form_action }}"
         hx-target="#waiver-table-container"
         hx-include="#waiver-filters"
         hx-vals='{"page": {{ current_page + 1 }}}'
-        style="cursor:pointer;{% if current_page >= total_pages - 1 %}opacity:0.4;cursor:default;{% endif %}">
-        Next →
-      </button>
+        aria-label="Next page">→</button>
     </span>
   </div>
 </div>

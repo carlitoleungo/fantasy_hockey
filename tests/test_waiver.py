@@ -537,6 +537,28 @@ def test_demo_waiver_post_lastmonth_no_yahoo_no_cache(ctx):
     mock_matchup.assert_not_called()
 
 
+def test_demo_waiver_post_lastmonth_shows_player_names(ctx):
+    """Demo last-month rows carry stats only; names and positions come from the season pool."""
+    _, client = ctx
+
+    lm_pool = _make_lastmonth_pool(3).drop(columns=["team_abbr"])  # matches the demo snapshot shape
+
+    with (
+        patch("data.demo.load_season_pool", return_value=_make_season_pool(5)),
+        patch("data.demo.load_lastmonth_pool", return_value=lm_pool),
+        patch("data.demo.get_games_remaining", return_value={"TOR": 3}),
+    ):
+        response = client.post(
+            "/demo/api/waiver/players",
+            data={"stats": ["Goals"], "positions": ["C"], "period": "Last 30 days", "page": "0"},
+        )
+
+    assert response.status_code == 200
+    assert "Player 0" in response.text
+    assert ">TOR<" in response.text
+    assert "Player 4" not in response.text  # no last-month row → not listed
+
+
 # ---------------------------------------------------------------------------
 # TC13 — get_matchups returns None → games_remaining == 0, no 500
 # ---------------------------------------------------------------------------
@@ -805,3 +827,71 @@ def test_live_multi_position_fetches_each_position(ctx):
     # Both positions' players merged into the one table.
     assert "C Player" in response.text
     assert "LW Player" in response.text
+
+
+# ---------------------------------------------------------------------------
+# Redesign (docs/design-system.md): abbreviated headers, position blocks,
+# rank shading and status tags in the results table
+# ---------------------------------------------------------------------------
+
+def test_demo_waiver_table_uses_design_system_markup(ctx):
+    _, client = ctx
+
+    pool_df = _make_season_pool(10)
+    pool_df.loc[3, "status"] = "DTD"
+    pool_df.loc[4, "status"] = "IR"
+
+    with (
+        patch("data.demo.load_season_pool", return_value=pool_df),
+        patch("data.demo.get_stat_categories", return_value=_make_stat_categories()),
+    ):
+        response = client.post(
+            "/demo/api/waiver/players",
+            data={"stats": ["Goals"], "period": "Season", "page": "0"},
+        )
+
+    html = response.text
+    assert response.status_code == 200
+    # Header shows the league abbreviation, full name kept as a tooltip.
+    assert 'title="Goals">G</th>' in html
+    # Rank 1 gets the accent position block; later ranks the plain one.
+    assert '<span class="pos pos-top">1</span>' in html
+    assert '<span class="pos">2</span>' in html
+    # Player 0 has the most goals, so its Goals cell gets the top shade.
+    assert '<td class="s4">10</td>' in html
+    # Injury tags: DTD outlined, IR filled.
+    assert '<span class="tag tag-dtd" title="Day-to-day">DTD</span>' in html
+    assert '<span class="tag tag-out" title="Injured reserve">IR</span>' in html
+
+
+def test_waiver_position_blocks_continue_across_pages(ctx):
+    _, client = ctx
+
+    with (
+        patch("data.demo.load_season_pool", return_value=_make_season_pool(30)),
+        patch("data.demo.get_stat_categories", return_value=_make_stat_categories()),
+    ):
+        response = client.post(
+            "/demo/api/waiver/players",
+            data={"stats": ["Goals"], "period": "Season", "page": "1"},
+        )
+
+    assert response.status_code == 200
+    assert f'<span class="pos">{PAGE_SIZE + 1}</span>' in response.text
+    assert "pos-top" not in response.text
+
+
+def test_waiver_page_follows_system_theme_and_loads_built_css(ctx):
+    _, client = ctx
+
+    with (
+        patch("data.demo.get_matchups", return_value=None),
+        patch("data.demo.get_stat_categories", return_value=_make_stat_categories()),
+    ):
+        response = client.get("/demo/waiver")
+
+    assert response.status_code == 200
+    # Redesigned pages drop the pinned light theme that legacy pages keep.
+    assert '<html lang="en" >' in response.text
+    assert "/static/app.css?v=" in response.text
+    assert client.get("/static/app.css").status_code == 200

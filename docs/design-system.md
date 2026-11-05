@@ -89,8 +89,8 @@ Scale: 12 (meta) · 13 (table numbers) · 14 (names, body) · 22 (page title) ·
 Numbers are right-aligned with `font-variant-numeric: tabular-nums`; counting stats are integers,
 rate stats (SV%, GAA) two or three decimals, missing values an em dash in `--dim`.
 
-All three are Google Fonts. Loading them is a new external dependency (like the Tailwind and HTMX
-CDNs today); confirm with the owner before shipping.
+All three are self-hosted (`web/static/fonts/`, latin + latin-ext, SIL OFL licences alongside),
+copied from `@fontsource` by `web/styles/copy-fonts.mjs`.
 
 ### Spacing and shape
 
@@ -118,21 +118,26 @@ CDNs today); confirm with the owner before shipping.
 | **Buttons** | Primary = accent fill; secondary = panel + border. 4 px radius, sans 600 14 px. |
 | **Empty / loading** | Plain sentence in `--muted` inside the grid panel; loading uses the same panel with a mono "Loading…" status bar. |
 
-## Wiring (when the build starts)
+## Wiring
 
-1. Paste the token block into a stylesheet loaded by `web/templates/base.html` (inline `<style>`
-   while Tailwind stays on the CDN; a real file once there's a static mount or a build step).
-2. Point Tailwind at the tokens, e.g. with the CDN's inline config:
-   `colors: { panel: 'var(--panel)', line: 'var(--line)', fg: 'var(--fg)', muted: 'var(--muted)', accent: 'var(--accent)', … }`
-   and `fontFamily: { sans: ['IBM Plex Sans', …], mono: ['IBM Plex Mono', …], cond: ['Barlow Condensed', …] }`.
-3. Small shared pieces (position block, tags, week strip, shading classes) become Jinja macros in
-   one `web/templates/_components.html` so each page imports them.
-4. Redesign page by page, Waiver Wire first; check live and `/demo/*` for each.
+Decided with the owner on 2026-11-05: built Tailwind, self-hosted fonts, follow the system theme.
 
-## Open questions for the owner
+- **Sources:** `web/styles/` holds `app.css` (tokens + component classes such as `.pos`, `.chip`,
+  `.seg`, `.dt`, `.s1`–`.s4`, `.tag`), `tailwind.config.js` (colours and font families point at
+  the tokens, e.g. `bg-panel`, `text-muted`, `font-cond`) and `package.json`.
+- **Output:** `npm run build` writes `web/static/app.css`, which is committed. `base.html` links
+  it with a content-hash `?v=` so browsers pick up changes. See `RUNNING.md`.
+- **Theme:** dark by default, light under `prefers-color-scheme: light`. A page opts in to that by
+  overriding `{% block theme_attr %}{% endblock %}`; pages not yet redesigned keep the default
+  `data-theme="light"`.
+- **Shading:** `analysis.waiver_ranking.shade_levels` returns a 0–4 level per cell, computed across
+  the whole ranked pool (not the page) so shades don't shift when paging; templates add `s{level}`.
+- **Order:** redesign page by page, Waiver Wire first (done); check live and `/demo/*` for each.
+  Shared pieces become Jinja macros in `web/templates/_components.html` once a second page needs them.
 
-- Tailwind on the CDN vs a built stylesheet (already in `docs/TODO.md`).
-- Google Fonts as a dependency, or self-host the three families.
-- Dark as the default, or follow the system setting only (mockups follow the system).
+## Open questions
+
 - Watchlist tab and the 7-day rank change column appear in mockups but need new data; treat as
   future work, not part of the redesign.
+- HOT / COLD form tag and the week strip are specified but not built yet (week strip needs specs
+  047–049).

@@ -6,7 +6,7 @@ from fastapi.responses import RedirectResponse
 
 from analysis.projection import _is_rate_stat
 from analysis.team_scores import stat_columns
-from analysis.waiver_ranking import filter_by_position, rank_players
+from analysis.waiver_ranking import filter_by_position, rank_players, shade_levels
 from auth.oauth import make_session
 from data import cache
 from data.client import get_stat_categories
@@ -167,6 +167,7 @@ def _waiver_post_impl(
     if demo:
         from data import demo as demo_module
         season_pool = demo_module.load_season_pool()
+        cats = demo_module.get_stat_categories()
     else:
         cats = get_stat_categories(session, league_key)
         name_to_id = {c["stat_name"]: c["stat_id"] for c in cats if c["is_enabled"]}
@@ -230,12 +231,12 @@ def _waiver_post_impl(
             # Fallback: use season stats
             base_df = season_pool
         else:
-            if not demo:
-                meta_cols = ["player_key", "player_name", "team_abbr", "display_position", "status"]
-                season_meta = season_pool[[c for c in meta_cols if c in season_pool.columns]]
-                base_df = season_meta.merge(lm_pool, on="player_key", how="inner")
-            else:
-                base_df = lm_pool
+            # Last-month rows carry stats only; names, team, positions and status
+            # come from the season pool (live and demo alike).
+            meta_cols = ["player_key", "player_name", "team_abbr", "display_position", "status"]
+            season_meta = season_pool[[c for c in meta_cols if c in season_pool.columns]]
+            lm_stats = lm_pool.drop(columns=[c for c in season_meta.columns if c != "player_key" and c in lm_pool.columns])
+            base_df = season_meta.merge(lm_stats, on="player_key", how="inner")
 
         if not demo:
             # Games remaining — fetch from scoreboard; fall back to empty map on any error
@@ -282,6 +283,8 @@ def _waiver_post_impl(
             lambda a: games_remaining_map.get(a, 0)
         )
 
+    shades = shade_levels(ranked_df, safe_cats) if safe_cats and not ranked_df.empty else None
+
     total_rows = len(ranked_df)
     total_pages = max(1, (total_rows + PAGE_SIZE - 1) // PAGE_SIZE)
 
@@ -289,6 +292,15 @@ def _waiver_post_impl(
     page = max(0, min(page, total_pages - 1))
 
     page_df = ranked_df.iloc[page * PAGE_SIZE : (page + 1) * PAGE_SIZE]
+    page_shades = (
+        shades.iloc[page * PAGE_SIZE : (page + 1) * PAGE_SIZE].to_dict("index")
+        if shades is not None
+        else {}
+    )
+    stat_abbrev = {
+        **_STAT_FALLBACK_ABBREV,
+        **{c["stat_name"]: c["abbreviation"] for c in cats if c.get("is_enabled") and c.get("abbreviation")},
+    }
 
     return templates.TemplateResponse(
         request,
@@ -300,8 +312,11 @@ def _waiver_post_impl(
             "total_rows": total_rows,
             "total_pages": total_pages,
             "current_page": page,
+            "page_size": PAGE_SIZE,
             "form_action": form_action,
             "is_rate_stat": _is_rate_stat,
+            "shades": page_shades,
+            "stat_abbrev": stat_abbrev,
         },
     )
 
