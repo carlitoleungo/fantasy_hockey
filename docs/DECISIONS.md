@@ -60,6 +60,11 @@ and, if it needs more than a few sentences, a full entry in the history file.
   2026-07-25).
 - **Rank-to-colour mapping lives in templates, not `analysis/`** (2026-04-19). `analysis/`
   may return shade *levels* (0–4, `shade_levels`); templates map them to classes (2026-11-05).
+- **Waiver Wire shows games remaining in every period, and the current week's dates are kept
+  in memory per league for the day** (2026-11-08, owner's call). One scoreboard call per league
+  per day instead of one per filter change; safe because of the single worker. The "Rest of
+  week" period projects last-30 per-game pace × games left (`project_rest_of_week`), the same
+  maths as the Projection page, from data Last 30 days already fetches.
 - **The visual design system is `docs/design-system.md`** (2026-11-05). Tailwind is a built
   stylesheet, not the CDN: sources in `web/styles/`, output committed to `web/static/app.css`
   so the Docker image needs no Node. Fonts are self-hosted from `web/static/fonts/` (no Google

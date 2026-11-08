@@ -88,6 +88,18 @@ def _make_stat_categories() -> list[dict]:
     ]
 
 
+@pytest.fixture(autouse=True)
+def _no_live_week_lookup():
+    """Clear the in-memory week-dates cache and, unless a test patches it, make the
+    current-week lookup find nothing (so no test reaches the real matchups code)."""
+    from web.routes import waiver as waiver_routes
+
+    waiver_routes._week_dates_cache.clear()
+    with patch("web.routes.waiver.get_matchups", return_value=None):
+        yield
+    waiver_routes._week_dates_cache.clear()
+
+
 @pytest.fixture()
 def ctx():
     conn = _make_db()
@@ -478,7 +490,7 @@ def test_waiver_post_lastmonth_returns_gp_column_and_footer(ctx):
 # TC11 — period="Season" unchanged: no GP column, footer reads "season stats"
 # ---------------------------------------------------------------------------
 
-def test_waiver_post_season_footer_unchanged(ctx):
+def test_waiver_post_season_footer_and_no_gp(ctx):
     conn, client = ctx
     _insert_session(conn)
 
@@ -503,7 +515,117 @@ def test_waiver_post_season_footer_unchanged(ctx):
     assert "season stats" in body
     assert "last 30 days stats" not in body
     assert ">GP<" not in body
+    # The week couldn't be resolved (no matchups), so no GR column either.
     assert ">GR<" not in body
+
+
+def test_waiver_post_season_shows_games_remaining(ctx):
+    conn, client = ctx
+    _insert_session(conn)
+
+    with (
+        patch("web.routes.waiver.make_session", return_value=MagicMock()),
+        patch("web.routes.waiver._get_league_key", return_value="419.l.11111"),
+        patch("web.routes.waiver.get_stat_categories", return_value=_make_stat_categories()),
+        patch("web.routes.waiver.cache.is_player_pool_stale", return_value=True),
+        patch("web.routes.waiver.fetch_season_pool", return_value=_make_season_pool(5)),
+        patch("web.routes.waiver.cache.write_player_pool"),
+        patch("web.routes.waiver.get_matchups", return_value=_make_matchups_df()),
+        patch("web.routes.waiver.get_current_matchup", return_value=_make_matchup_dict()),
+        patch("web.routes.waiver.get_remaining_games", return_value={"TOR": 3}),
+    ):
+        response = client.post(
+            "/api/waiver/players",
+            data={"stats": ["Goals"], "period": "Season", "page": "0"},
+            cookies={"session_id": "sid-test"},
+        )
+
+    body = response.text
+    assert response.status_code == 200
+    assert ">GR<" in body
+    assert ">GP<" not in body
+    assert "3 left" in body  # phone layout
+
+
+def test_week_dates_are_fetched_once_per_day(ctx):
+    """Repeat requests reuse the cached week dates: one scoreboard call, not one per request."""
+    conn, client = ctx
+    _insert_session(conn)
+
+    with (
+        patch("web.routes.waiver.make_session", return_value=MagicMock()),
+        patch("web.routes.waiver._get_league_key", return_value="419.l.11111"),
+        patch("web.routes.waiver.get_stat_categories", return_value=_make_stat_categories()),
+        patch("web.routes.waiver.cache.is_player_pool_stale", return_value=True),
+        patch("web.routes.waiver.fetch_season_pool", return_value=_make_season_pool(5)),
+        patch("web.routes.waiver.cache.write_player_pool"),
+        patch("web.routes.waiver.get_matchups", return_value=_make_matchups_df()),
+        patch("web.routes.waiver.get_current_matchup", return_value=_make_matchup_dict()) as mock_matchup,
+        patch("web.routes.waiver.get_remaining_games", return_value={"TOR": 3}),
+    ):
+        for _ in range(3):
+            response = client.post(
+                "/api/waiver/players",
+                data={"stats": ["Goals"], "period": "Season", "page": "0"},
+                cookies={"session_id": "sid-test"},
+            )
+            assert response.status_code == 200
+
+    assert mock_matchup.call_count == 1
+
+
+def test_demo_rest_of_week_projects_last30_pace(ctx):
+    """Rest of week = last-30 per-game pace x games left, ranked and shown to one decimal."""
+    _, client = ctx
+
+    season_pool = _make_season_pool(3)
+    lm_pool = pd.DataFrame([
+        # 10 goals in 10 games, 2 left -> 2.0
+        {"player_key": "nhl.p.0", "games_played": 10, "Goals": 10.0, "Assists": 0.0},
+        # 6 goals in 10 games, 4 left -> 2.4 (ranks first despite fewer goals)
+        {"player_key": "nhl.p.1", "games_played": 10, "Goals": 6.0, "Assists": 0.0},
+        # team unknown this week -> dash, ranked last
+        {"player_key": "nhl.p.2", "games_played": 10, "Goals": 9.0, "Assists": 0.0},
+    ])
+    season_pool.loc[1, "team_abbr"] = "EDM"
+    season_pool.loc[2, "team_abbr"] = "XXX"
+
+    with (
+        patch("data.demo.load_season_pool", return_value=season_pool),
+        patch("data.demo.load_lastmonth_pool", return_value=lm_pool),
+        patch("data.demo.get_games_remaining", return_value={"TOR": 2, "EDM": 4}),
+        patch("data.demo.get_stat_categories", return_value=_make_stat_categories()),
+    ):
+        response = client.post(
+            "/demo/api/waiver/players",
+            data={"stats": ["Goals"], "period": "Rest of week", "page": "0"},
+        )
+
+    body = response.text
+    assert response.status_code == 200
+    assert "projected rest of week" in body
+    assert ">GP<" in body and ">GR<" in body
+    assert body.index("Player 1") < body.index("Player 0") < body.index("Player 2")
+    assert ">2.4</td>" in body
+    assert ">2.0</td>" in body
+
+
+def test_rest_of_week_without_games_remaining_says_so(ctx):
+    _, client = ctx
+
+    with (
+        patch("data.demo.load_season_pool", return_value=_make_season_pool(3)),
+        patch("data.demo.load_lastmonth_pool", return_value=_make_lastmonth_pool(3)),
+        patch("data.demo.get_games_remaining", return_value={}),
+    ):
+        response = client.post(
+            "/demo/api/waiver/players",
+            data={"stats": ["Goals"], "period": "Rest of week", "page": "0"},
+        )
+
+    assert response.status_code == 200
+    assert "Can&#39;t project the rest of the week" in response.text or "Can't project the rest of the week" in response.text
+    assert "last 30 days stats" in response.text
 
 
 # ---------------------------------------------------------------------------

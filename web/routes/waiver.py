@@ -6,7 +6,12 @@ from fastapi.responses import RedirectResponse
 
 from analysis.projection import _is_rate_stat
 from analysis.team_scores import stat_columns
-from analysis.waiver_ranking import filter_by_position, rank_players, shade_levels
+from analysis.waiver_ranking import (
+    filter_by_position,
+    project_rest_of_week,
+    rank_players,
+    shade_levels,
+)
 from auth.oauth import make_session
 from data import cache
 from data.client import get_stat_categories
@@ -21,6 +26,35 @@ from web.routes.common import _get_league_key, shell_context
 from web.templates import templates
 
 PAGE_SIZE = 25
+
+SEASON = "Season"
+LAST_30 = "Last 30 days"
+REST_OF_WEEK = "Rest of week"
+PERIODS = (SEASON, LAST_30, REST_OF_WEEK)
+# Periods built from the last-30-day pool (Rest of week projects from it).
+_LASTMONTH_PERIODS = (LAST_30, REST_OF_WEEK)
+
+# league_key -> (cached_on, week_start, week_end). This week's dates change at most once a
+# day, so keep them in memory instead of asking Yahoo's scoreboard on every filter change.
+# Safe because the app runs one worker on one machine (CLAUDE.md rule 5).
+_week_dates_cache: dict[str, tuple[date, date, date]] = {}
+
+
+def _current_week_dates(session, league_key: str) -> tuple[date, date] | None:
+    """Return (week_start, week_end) of the current fantasy week, cached for the day."""
+    today = date.today()
+    hit = _week_dates_cache.get(league_key)
+    if hit and hit[0] == today:
+        return hit[1], hit[2]
+    matchups_df = get_matchups(session, league_key)
+    if matchups_df is None or matchups_df.empty:
+        return None
+    current_week = int(matchups_df["week"].max())
+    matchup = get_current_matchup(session, league_key, current_week)
+    start = date.fromisoformat(matchup["week_start"])
+    end = date.fromisoformat(matchup["week_end"])
+    _week_dates_cache[league_key] = (today, start, end)
+    return start, end
 
 router = APIRouter()
 public_router = APIRouter()
@@ -203,11 +237,14 @@ def _waiver_post_impl(
     # ---------------------------------------------------------------------------
     games_remaining_map: dict = {}
 
-    if period == "Last 30 days":
+    if period not in PERIODS:
+        period = SEASON
+    has_lastmonth = False
+
+    if period in _LASTMONTH_PERIODS:
         if demo:
             from data import demo as demo_module
             lm_pool = demo_module.load_lastmonth_pool()
-            games_remaining_map = demo_module.get_games_remaining()
         else:
             pool_keys = set(season_pool["player_key"]) if not season_pool.empty else set()
 
@@ -237,23 +274,33 @@ def _waiver_post_impl(
             season_meta = season_pool[[c for c in meta_cols if c in season_pool.columns]]
             lm_stats = lm_pool.drop(columns=[c for c in season_meta.columns if c != "player_key" and c in lm_pool.columns])
             base_df = season_meta.merge(lm_stats, on="player_key", how="inner")
-
-        if not demo:
-            # Games remaining — fetch from scoreboard; fall back to empty map on any error
-            try:
-                matchups_df = get_matchups(session, league_key)
-                if matchups_df is not None and not matchups_df.empty:
-                    current_week = int(matchups_df["week"].max())
-                    matchup = get_current_matchup(session, league_key, current_week)
-                    from_date = date.fromisoformat(matchup["week_start"])
-                    to_date = date.fromisoformat(matchup["week_end"])
-                    team_abbrs = base_df["team_abbr"].unique().tolist() if not base_df.empty else []
-                    if team_abbrs:
-                        games_remaining_map = get_remaining_games(team_abbrs, from_date, to_date)
-            except Exception:
-                games_remaining_map = {}
+            has_lastmonth = True
     else:
         base_df = season_pool
+
+    # Games remaining this week, shown in every period; falls back to an empty map
+    # (em dashes in the GR column) on any error.
+    if demo:
+        from data import demo as demo_module
+        games_remaining_map = demo_module.get_games_remaining()
+    else:
+        try:
+            week = _current_week_dates(session, league_key)
+            team_abbrs = base_df["team_abbr"].unique().tolist() if not base_df.empty else []
+            if week and team_abbrs:
+                games_remaining_map = get_remaining_games(team_abbrs, week[0], week[1])
+        except Exception:
+            games_remaining_map = {}
+
+    # Rest of week: last-30 per-game pace x games left. Without last-30 data or games
+    # remaining there is nothing to project from, so show last-30 (or season) values
+    # and say so.
+    projection_unavailable = False
+    if period == REST_OF_WEEK:
+        if has_lastmonth and games_remaining_map:
+            base_df = project_rest_of_week(base_df, [s for s in stats if s in base_df.columns], games_remaining_map)
+        else:
+            projection_unavailable = True
 
     # Union the pool across each selected position, de-duplicated on player_key.
     # "All"/empty ⇒ no position filter.
@@ -278,10 +325,9 @@ def _waiver_post_impl(
         if "composite_rank" not in ranked_df.columns:
             ranked_df["composite_rank"] = None
 
-    if period == "Last 30 days" and games_remaining_map and "team_abbr" in ranked_df.columns:
-        ranked_df["games_remaining"] = ranked_df["team_abbr"].map(
-            lambda a: games_remaining_map.get(a, 0)
-        )
+    if games_remaining_map and "team_abbr" in ranked_df.columns and "games_remaining" not in ranked_df.columns:
+        # A team missing from the map is unknown (em dash), not 0.
+        ranked_df["games_remaining"] = ranked_df["team_abbr"].map(games_remaining_map)
 
     shades = shade_levels(ranked_df, safe_cats) if safe_cats and not ranked_df.empty else None
 
@@ -317,6 +363,7 @@ def _waiver_post_impl(
             "is_rate_stat": _is_rate_stat,
             "shades": page_shades,
             "stat_abbrev": stat_abbrev,
+            "projection_unavailable": projection_unavailable,
         },
     )
 

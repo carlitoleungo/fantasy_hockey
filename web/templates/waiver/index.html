@@ -7,7 +7,7 @@
 <main class="max-w-6xl mx-auto px-4 pt-5 pb-10 flex flex-col gap-4">
   <div>
     <h1 class="text-[22px] leading-tight font-bold text-strong">Waiver Wire</h1>
-    <p class="mt-1 text-[13.5px] text-muted max-w-3xl">Available players ranked across the categories you pick. Lower composite rank is better. Switch to Last 30 days to separate hot streaks from steady producers.</p>
+    <p class="mt-1 text-[13.5px] text-muted max-w-3xl">Available players ranked across the categories you pick. Lower composite rank is better. Last 30 days separates hot streaks from steady producers; Rest of week projects that pace over the games each player has left.</p>
   </div>
 
   {% if not stat_cols %}
@@ -51,7 +51,7 @@
       <legend class="sr-only">Rank by period</legend>
       <span class="label-cond text-xs text-dim" aria-hidden="true">Period</span>
       <div class="seg">
-        {% for period in ["Season", "Last 30 days"] %}
+        {% for period in ["Season", "Last 30 days", "Rest of week"] %}
           <label>
             <input type="radio" name="period" value="{{ period }}" class="sr-only peer"
               {% if period == "Season" %}checked{% endif %}>

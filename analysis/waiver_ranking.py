@@ -151,3 +151,33 @@ _POSITION_GROUPS: dict[str, frozenset[str]] = {
     "D":  frozenset({"D"}),
     "G":  frozenset({"G"}),
 }
+
+
+def project_rest_of_week(
+    df: pd.DataFrame,
+    categories: list[str],
+    games_remaining: dict[str, int],
+) -> pd.DataFrame:
+    """
+    Project each player's totals for the rest of the fantasy week.
+
+    Same maths as analysis.projection.project_team_stats, per player:
+        projected[stat] = last-30 total / games_played * games remaining this week
+    Rate stats (GAA, SV%) are already per game, so they keep their last-30 value.
+
+    Expects a last-30 frame (with games_played). Adds a games_remaining column.
+    A team missing from games_remaining is unknown: its projections are NaN and
+    the player ranks last. A player with 0 games played projects to 0.
+    """
+    from analysis.projection import _is_rate_stat
+
+    out = df.copy()
+    gr = out["team_abbr"].map(games_remaining).astype(float)
+    gp = pd.to_numeric(out.get("games_played", pd.Series(0, index=out.index)), errors="coerce").fillna(0)
+    per_game_scale = (gr / gp.where(gp > 0)).fillna(0).where(gr.notna())
+    for col in categories:
+        if col not in out.columns or _is_rate_stat(col):
+            continue
+        out[col] = pd.to_numeric(out[col], errors="coerce").fillna(0) * per_game_scale
+    out["games_remaining"] = gr
+    return out

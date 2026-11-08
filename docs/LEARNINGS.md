@@ -95,6 +95,10 @@ the fallback is captured fixtures, listed as an idea in `docs/TODO.md`.
   stats-only, like the live last-month fetch; the waiver route joins names, team, positions and
   status from the season pool in both modes. Before 2026-11-05 the demo skipped that join and
   rendered blank player cells.
+- **The demo's `games_remaining.json` was all zeros** (snapshot taken after the week ended). It
+  now holds the 26 teams from `projection_pair_data.json`, the same week the Projection demo
+  uses; the other teams show an em dash. Re-running `scripts/generate_demo_data.py` would
+  overwrite it.
 - **`.gitignore` ignores `package.json` and `package-lock.json` everywhere.** The style tooling in
   `web/styles/` is committed with `git add -f`.
 - **Class names built in templates are invisible to Tailwind.** `pchip-{{ pos }}` or

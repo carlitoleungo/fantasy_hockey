@@ -187,3 +187,31 @@ def test_shade_levels_nan_and_unknown_columns():
     out = shade_levels(df, ["Goals", "Not A Column"])
     assert list(out.columns) == ["Goals"]
     assert out["Goals"].tolist()[1] == 0
+
+
+# ---------------------------------------------------------------------------
+# project_rest_of_week
+# ---------------------------------------------------------------------------
+
+def test_project_rest_of_week_scales_per_game_by_games_left():
+    from analysis.waiver_ranking import project_rest_of_week
+
+    df = pd.DataFrame({
+        "player_key": ["a", "b", "c", "d"],
+        "team_abbr": ["TOR", "EDM", "TOR", "XXX"],
+        "games_played": [10, 5, 0, 10],
+        "Goals": [5.0, 5.0, 3.0, 4.0],
+        "Goals Against Average": [0.0, 2.5, 0.0, 0.0],
+    })
+    out = project_rest_of_week(df, ["Goals", "Goals Against Average"], {"TOR": 4, "EDM": 2})
+
+    # 5 goals in 10 games, 4 left -> 2.0; 5 in 5, 2 left -> 2.0
+    assert out.loc[0, "Goals"] == pytest.approx(2.0)
+    assert out.loc[1, "Goals"] == pytest.approx(2.0)
+    # No games played -> projects to 0, not a division error
+    assert out.loc[2, "Goals"] == 0
+    # Team with unknown games remaining -> NaN
+    assert pd.isna(out.loc[3, "Goals"])
+    # Rate stats keep their per-game value
+    assert out.loc[1, "Goals Against Average"] == 2.5
+    assert out["games_remaining"].tolist()[:3] == [4, 2, 4]

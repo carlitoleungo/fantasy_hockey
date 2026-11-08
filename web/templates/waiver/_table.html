@@ -20,10 +20,21 @@
   </p>
 </div>
 {% else %}
-{% set last30 = period == "Last 30 days" %}
+{% set last30 = period in ("Last 30 days", "Rest of week") %}
+{% set projected = period == "Rest of week" and not projection_unavailable %}
+{% set has_gr = "games_remaining" in rows.columns %}
+{% set period_label = "projected rest of week" if projected else ("last 30 days" if last30 else "season") %}
+{% macro stat_value(stat, v, projected) -%}
+  {%- if is_rate_stat(stat) %}{{ "%.2f"|format(v) }}{% elif projected %}{{ "%.1f"|format(v) }}{% else %}{{ "%.0f"|format(v) }}{% endif -%}
+{%- endmacro %}
+{% if projection_unavailable %}
+<p class="mb-3 text-sm text-dtd border border-line bg-panel rounded px-3 py-2">
+  Can't project the rest of the week right now (games remaining or last-30-day stats are unavailable). Showing {{ "last 30 days" if "games_played" in rows.columns else "season" }} stats instead.
+</p>
+{% endif %}
 <div class="grid-panel">
   <div class="grid-bar border-b border-line">
-    <span><b>{{ total_rows }}</b> available · stats: <b>{{ "last 30 days" if last30 else "season" }}</b></span>
+    <span><b>{{ total_rows }}</b> available · stats: <b>{{ period_label }}</b></span>
     <span class="legend" aria-label="Cell shading: darker is better">worse <i class="s1"></i><i class="s2"></i><i class="s3"></i><i class="s4"></i> better</span>
   </div>
   {# Desktop: one row per player. Phones get layout B2 below, so no sideways scrolling. #}
@@ -35,10 +46,8 @@
           <th class="l sticky-col" scope="col">Player</th>
           <th class="l" scope="col">Elig</th>
           <th class="l" scope="col">Status</th>
-          {% if last30 %}
-            <th scope="col" title="Games played, last 30 days">GP</th>
-            <th scope="col" title="Games remaining this week">GR</th>
-          {% endif %}
+          {% if last30 %}<th scope="col" title="Games played, last 30 days">GP</th>{% endif %}
+          {% if has_gr %}<th scope="col" title="Games remaining this week">GR</th>{% endif %}
           {% for stat in stats %}
             <th class="ranked" scope="col" title="{{ stat }}">{{ stat_abbrev.get(stat, stat) }}</th>
           {% endfor %}
@@ -62,6 +71,8 @@
             {% if last30 %}
               {% set gp = row.get("games_played") %}
               <td>{% if gp is not none and gp == gp %}{{ gp | int }}{% else %}<span class="dash">—</span>{% endif %}</td>
+            {% endif %}
+            {% if has_gr %}
               {% set gr = row.get("games_remaining") %}
               <td>{% if gr is not none and gr == gr %}{{ gr | int }}{% else %}<span class="dash">—</span>{% endif %}</td>
             {% endif %}
@@ -70,7 +81,7 @@
               {% set lvl = row_shades.get(stat, 0) %}
               {% if v is not none and v == v %}
                 {# v == v is False for NaN #}
-                <td class="{% if lvl %}s{{ lvl }}{% endif %}">{% if is_rate_stat(stat) %}{{ "%.2f"|format(v) }}{% else %}{{ "%.0f"|format(v) }}{% endif %}</td>
+                <td class="{% if lvl %}s{{ lvl }}{% endif %}">{{ stat_value(stat, v, projected) }}</td>
               {% else %}
                 <td><span class="dash">—</span></td>
               {% endif %}
@@ -94,9 +105,15 @@
           <span class="label-cond text-[12px] text-muted flex-none">{{ row.get("team_abbr", "") }}</span>
           <span class="flex-none">{{ pos_chips(row.get("display_position", "")) }}</span>
           <span class="ml-auto flex-none flex items-center gap-2">
-            {% if last30 %}
-              {% set gp = row.get("games_played") %}
-              <span class="font-mono text-[11px] text-muted">{% if gp is not none and gp == gp %}{{ gp | int }}{% else %}–{% endif %} GP</span>
+            {% set gp = row.get("games_played") %}
+            {% set gr = row.get("games_remaining") %}
+            {% set gr_known = has_gr and gr is not none and gr == gr %}
+            {% if last30 or gr_known %}
+              <span class="font-mono text-[11px] text-muted whitespace-nowrap">
+                {%- if last30 %}<span title="Games played, last 30 days">{% if gp is not none and gp == gp %}{{ gp | int }}{% else %}–{% endif %} GP</span>{% endif %}
+                {%- if last30 and gr_known %} · {% endif %}
+                {%- if gr_known %}<span title="Games remaining this week" class="text-fg">{{ gr | int }} left</span>{% endif -%}
+              </span>
             {% endif %}
             {{ status_tag(row.get("status", ""), false) }}
           </span>
@@ -106,7 +123,7 @@
             {% set v = row.get(stat) %}
             {% set lvl = row_shades.get(stat, 0) %}
             {% if v is not none and v == v %}
-              <span class="{% if lvl %}s{{ lvl }}{% endif %}">{% if is_rate_stat(stat) %}{{ "%.2f"|format(v) }}{% else %}{{ "%.0f"|format(v) }}{% endif %}</span>
+              <span class="{% if lvl %}s{{ lvl }}{% endif %}">{{ stat_value(stat, v, projected) }}</span>
             {% else %}
               <span class="dash">—</span>
             {% endif %}
@@ -116,7 +133,7 @@
     {% endfor %}
   </div>
   <div class="grid-bar border-t border-line">
-    <span>{{ total_rows }} players · {{ "last 30 days stats" if last30 else "season stats" }}</span>
+    <span>{{ total_rows }} players · {{ "projected rest of week (last-30 pace × games left)" if projected else ("last 30 days stats" if last30 else "season stats") }}</span>
     <span class="flex items-center gap-2">
       <button type="button" class="pager-btn"
         {% if current_page == 0 %}disabled{% endif %}
