@@ -97,6 +97,9 @@ the fallback is captured fixtures, listed as an idea in `docs/TODO.md`.
   rendered blank player cells.
 - **`.gitignore` ignores `package.json` and `package-lock.json` everywhere.** The style tooling in
   `web/styles/` is committed with `git add -f`.
+- **Class names built in templates are invisible to Tailwind.** `pchip-{{ pos }}` or
+  `s{{ level }}` never appear literally, so the build purges them unless they are in the
+  `safelist` in `web/styles/tailwind.config.js`.
 - **New Tailwind classes need a rebuild.** The committed `web/static/app.css` only contains
   classes Tailwind found in `web/templates/**`; a class added without `npm run build` silently
   does nothing.

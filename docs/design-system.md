@@ -21,7 +21,8 @@ jerseys or flames: **F1-timing position blocks** and **condensed caps labels**. 
    bold on the best. Win/loss reuses the same shade for the winner and dims the loser.
 3. **Nothing relies on red vs green.** Direction uses arrows (▲ ▼) as well as colour; injuries use
    a filled tag for IR/OUT and an outlined one for DTD.
-4. **One accent.** Blue marks selection, the top pick, and "you". Everything else is neutral.
+4. **One accent.** Blue marks selection, the top pick, and "you". Everything else is neutral,
+   except position chips, which have their own five colours (owner's call, 2026-11-08).
 5. **No decoration without a job.** Row colour stripes were tried and dropped until there's a
    distinct use case for them.
 6. **Light and dark are both first-class.** Dark is the reference; light mirrors it.
@@ -50,6 +51,7 @@ Defined once as CSS custom properties; Tailwind classes reference them (see "Wir
 | `--down` | `#ffa04d` | `#b85600` | ▼ rank change, COLD tag |
 | `--dtd` | `#ffb547` | `#a86200` | DTD tag (outline) |
 | `--inj` | `#ff6b6b` | `#c62828` | IR / OUT tag (filled) |
+| `--pc-c` `--pc-lw` `--pc-rw` `--pc-d` `--pc-g` | `#5cc0f2` `#4fd39b` `#b99bff` `#e9c74f` `#ff86bd` | `#13729f` `#16784e` `#6b47c4` `#8a6a00` `#b23772` | Position chips C / LW / RW / D / G |
 
 ```css
 :root {                         /* dark is the default */
@@ -109,6 +111,8 @@ copied from `@fontsource` by `web/styles/copy-fonts.mjs`.
 | **Segmented toggle** | Season / Last 30 days, week ‹ › picker. Selected segment filled `--accent`, white text. |
 | **Tabs** | Condensed caps with a mono count (`SCREEN 248`). Active = `--strong` + accent underline. |
 | **Data grid** | Panel with a mono status bar on top (count, filters, period, legend) and a footer (pagination, notes). First column sticky. Ranked-on columns get an accent underline in the header. |
+| **Phone grid** (below `md`) | **No sideways scrolling: the stats are the point of the screen.** Each player is two lines: position block, name, team, position chips and status on top; every ranked stat on one shaded line underneath, lined up under a single header (`--n` columns). At 9+ stats the numbers drop to 11 px. Classes `.pg-head`, `.pg-row`, `.pg-cells`. Chosen over a squeezed one-line table and a heat strip (mockups: https://claude.ai/artifact/HKCmHiRGreZQNkx6r8f6BN, option B2). |
+| **Position chip** | One chip per eligible position (`C,LW` → two chips), condensed 700 11 px, position colour on a 16 % tint of itself. The label is always shown, so colour is a second cue. Macro `pos_chips()` in `web/templates/_components.html`. |
 | **Rank shading** | Classes `s4`…`s1` on cells, computed per column; `s4` also bold `--strong`. Lower-is-better stats (GAA) flip the order. Always show the legend (worse ▢▢▢▢ better). |
 | **Status tag** | Condensed 700 11 px. DTD = `--dtd` outline; IR / OUT = `--inj` fill; healthy = em dash. |
 | **Form tag** | HOT = `--up` fill; COLD = `--down` outline. Last-30 pace vs season pace, ±15 % (threshold to tune). |
@@ -133,7 +137,9 @@ Decided with the owner on 2026-11-05: built Tailwind, self-hosted fonts, follow 
 - **Shading:** `analysis.waiver_ranking.shade_levels` returns a 0–4 level per cell, computed across
   the whole ranked pool (not the page) so shades don't shift when paging; templates add `s{level}`.
 - **Order:** redesign page by page, Waiver Wire first (done); check live and `/demo/*` for each.
-  Shared pieces become Jinja macros in `web/templates/_components.html` once a second page needs them.
+  Shared pieces are Jinja macros in `web/templates/_components.html` (`pos_chips` so far).
+- **Dynamic class names** (`pchip-{{ pos }}`, `s{{ level }}`) must be in the `safelist` in
+  `tailwind.config.js`, or the build drops them.
 
 ## Open questions
 

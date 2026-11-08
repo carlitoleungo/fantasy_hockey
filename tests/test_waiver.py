@@ -864,6 +864,34 @@ def test_demo_waiver_table_uses_design_system_markup(ctx):
     assert '<span class="tag tag-out" title="Injured reserve">IR</span>' in html
 
 
+def test_demo_waiver_phone_layout_puts_every_stat_on_one_line(ctx):
+    """Phones get layout B2: a name line, then one grid line holding every ranked stat."""
+    _, client = ctx
+
+    pool_df = _make_season_pool(5)
+    pool_df.loc[0, "display_position"] = "C,LW"
+
+    with (
+        patch("data.demo.load_season_pool", return_value=pool_df),
+        patch("data.demo.get_stat_categories", return_value=_make_stat_categories()),
+    ):
+        response = client.post(
+            "/demo/api/waiver/players",
+            data={"stats": ["Goals", "Assists"], "period": "Season", "page": "0"},
+        )
+
+    html = response.text
+    assert response.status_code == 200
+    # Desktop table is hidden on phones; the phone grid is hidden on desktop.
+    assert 'class="hidden md:block overflow-x-auto"' in html
+    assert 'class="md:hidden" style="--n: 2"' in html
+    assert html.count('class="pg-row"') == 5
+    assert html.count('class="pg-cells"') == 5
+    # Multi-position players get one chip per position, in both layouts.
+    assert html.count('<span class="pchip pchip-C">C</span>') == 5 * 2
+    assert html.count('<span class="pchip pchip-LW">LW</span>') == 2
+
+
 def test_waiver_position_blocks_continue_across_pages(ctx):
     _, client = ctx
 

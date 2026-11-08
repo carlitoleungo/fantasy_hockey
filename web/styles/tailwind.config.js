@@ -3,6 +3,9 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: ["../templates/**/*.html", "../routes/**/*.py", "../templates.py"],
+  // Class names built in templates (`pchip-{{ pos }}`, `s{{ level }}`) are invisible to the
+  // content scan, so list them here or the build drops them.
+  safelist: ["pchip-C", "pchip-LW", "pchip-RW", "pchip-D", "pchip-G", "s1", "s2", "s3", "s4"],
   theme: {
     extend: {
       colors: {

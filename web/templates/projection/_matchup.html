@@ -1,3 +1,4 @@
+{% from "_components.html" import pos_chips %}
 {% if not has_matchup %}
   <p class="text-sm text-yellow-700 bg-yellow-50 border border-yellow-200 rounded px-3 py-2 my-6">
     {{ my_team_name }} has no matchup this week (bye week).
@@ -90,7 +91,7 @@
                     {{ p.player_name }}
                   {%- endif -%}
                 </span>
-                <span class="block text-xs text-gray-400">{{ p.position }} · {{ p.team_abbr }}</span>
+                <span class="flex items-center gap-1.5 mt-0.5 text-xs text-gray-400">{{ pos_chips(p.position) }}{{ p.team_abbr }}</span>
               </td>
               <td class="px-3 py-2 text-right text-gray-700">{{ p.games_left }}</td>
               {% for c in columns %}

@@ -16,6 +16,8 @@
   --pos-bg:#ffffff; --pos-fg:#070b12;
   --h4:rgb(61 139 255 / .55); --h3:rgb(61 139 255 / .32); --h2:rgb(61 139 255 / .16); --h1:rgb(61 139 255 / .06);
   --up:#4cc3ff; --down:#ffa04d; --dtd:#ffb547; --inj:#ff6b6b;
+  /* position chips (label text always shown, so colour is a second cue) */
+  --pc-c:#5cc0f2; --pc-lw:#4fd39b; --pc-rw:#b99bff; --pc-d:#e9c74f; --pc-g:#ff86bd;
 }
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) {
@@ -27,6 +29,7 @@
     --pos-bg:#0b111b; --pos-fg:#ffffff;
     --h4:rgb(31 95 191 / .42); --h3:rgb(31 95 191 / .24); --h2:rgb(31 95 191 / .12); --h1:rgb(31 95 191 / .05);
     --up:#0b6fb0; --down:#b85600; --dtd:#a86200; --inj:#c62828;
+    --pc-c:#13729f; --pc-lw:#16784e; --pc-rw:#6b47c4; --pc-d:#8a6a00; --pc-g:#b23772;
   }
 }
 /* Pages not yet redesigned pin the light theme (base.html sets data-theme="light"). */
@@ -39,6 +42,7 @@
   --pos-bg:#0b111b; --pos-fg:#ffffff;
   --h4:rgb(31 95 191 / .42); --h3:rgb(31 95 191 / .24); --h2:rgb(31 95 191 / .12); --h1:rgb(31 95 191 / .05);
   --up:#0b6fb0; --down:#b85600; --dtd:#a86200; --inj:#c62828;
+    --pc-c:#13729f; --pc-lw:#16784e; --pc-rw:#6b47c4; --pc-d:#8a6a00; --pc-g:#b23772;
 }
 
 @layer base {
@@ -96,6 +100,34 @@
   .dt td.s1, .legend .s1 { background: var(--h1); }
   .legend { display: inline-flex; align-items: center; gap: 4px; }
   .legend i { display: inline-block; width: 14px; height: 10px; border: 1px solid var(--line); }
+
+  /* position chips: one per eligible position */
+  .pchips { display: inline-flex; gap: 3px; vertical-align: middle; }
+  .pchip { --c: var(--muted); display: inline-block; min-width: 22px; padding: 0 4px; border-radius: 2px;
+    font-family: theme('fontFamily.cond'); font-weight: 700; font-size: 11px; line-height: 16px;
+    letter-spacing: .04em; text-align: center; color: var(--c);
+    background: color-mix(in srgb, var(--c) 16%, transparent); }
+  .pchip-C { --c: var(--pc-c); } .pchip-LW { --c: var(--pc-lw); } .pchip-RW { --c: var(--pc-rw); }
+  .pchip-D { --c: var(--pc-d); } .pchip-G { --c: var(--pc-g); }
+
+  /* phone grid (layout B2): name line, then every ranked stat on one line */
+  .pg-head, .pg-cells { display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); }
+  .pg-head { padding: 0 8px; border-bottom: 1px solid var(--line); }
+  .pg-head span { padding: 6px 0; text-align: center; color: var(--strong); box-shadow: inset 0 -2px 0 var(--accent);
+    font-family: theme('fontFamily.cond'); font-weight: 600; font-size: 11px; letter-spacing: .06em; text-transform: uppercase;
+    overflow: hidden; white-space: nowrap; }
+  .pg-row { padding: 7px 8px 8px; border-bottom: 1px solid var(--line-2); display: flex; flex-direction: column; gap: 5px; }
+  .pg-top { display: flex; align-items: center; gap: 7px; min-width: 0; }
+  .pg-top .pos { flex: none; }
+  .pg-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pg-cells span { height: 26px; display: grid; place-items: center; font-family: theme('fontFamily.mono');
+    font-size: 12.5px; font-variant-numeric: tabular-nums; border-right: 1px solid var(--app); }
+  .pg-cells span.s4 { background: var(--h4); color: var(--strong); font-weight: 600; }
+  .pg-cells span.s3 { background: var(--h3); }
+  .pg-cells span.s2 { background: var(--h2); }
+  .pg-cells span.s1 { background: var(--h1); }
+  .pg-tight .pg-cells span { font-size: 11px; }
+  .pg-tight .pg-head span { font-size: 10px; letter-spacing: .02em; }
 
   /* status tags */
   .tag { display: inline-block; padding: 0 5px; border-radius: 2px; border: 1px solid currentColor;

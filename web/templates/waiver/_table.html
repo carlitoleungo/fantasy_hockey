@@ -1,3 +1,12 @@
+{% from "_components.html" import pos_chips %}
+{% macro status_tag(status_raw, healthy_dash=true) -%}
+  {%- if status_raw == "DTD" %}<span class="tag tag-dtd" title="Day-to-day">DTD</span>
+  {%- elif status_raw == "IR" %}<span class="tag tag-out" title="Injured reserve">IR</span>
+  {%- elif status_raw == "O" %}<span class="tag tag-out" title="Out">OUT</span>
+  {%- elif status_raw == "NA" %}<span class="tag tag-dtd" title="Not active (minors or scratched)">NA</span>
+  {%- elif status_raw %}<span class="tag tag-dtd">{{ status_raw }}</span>
+  {%- elif healthy_dash %}<span class="dash" title="Healthy">—</span>{% endif -%}
+{%- endmacro %}
 {% if rows is none or stats | length == 0 %}
 <div class="grid-panel">
   <p class="px-4 py-8 text-sm text-muted text-center">
@@ -17,7 +26,8 @@
     <span><b>{{ total_rows }}</b> available · stats: <b>{{ "last 30 days" if last30 else "season" }}</b></span>
     <span class="legend" aria-label="Cell shading: darker is better">worse <i class="s1"></i><i class="s2"></i><i class="s3"></i><i class="s4"></i> better</span>
   </div>
-  <div class="overflow-x-auto">
+  {# Desktop: one row per player. Phones get layout B2 below, so no sideways scrolling. #}
+  <div class="hidden md:block overflow-x-auto">
     <table class="dt">
       <thead>
         <tr>
@@ -45,14 +55,9 @@
               <span class="font-sans font-semibold text-sm text-strong">{{ row.get("player_name", "") }}</span>
               <span class="label-cond text-[13px] text-muted ml-1.5">{{ row.get("team_abbr", "") }}</span>
             </td>
-            <td class="l text-muted">{{ (row.get("display_position", "") or "") | replace(",", "/") }}</td>
+            <td class="l">{{ pos_chips(row.get("display_position", "")) }}</td>
             <td class="l">
-              {% if status_raw == "DTD" %}<span class="tag tag-dtd" title="Day-to-day">DTD</span>
-              {% elif status_raw == "IR" %}<span class="tag tag-out" title="Injured reserve">IR</span>
-              {% elif status_raw == "O" %}<span class="tag tag-out" title="Out">OUT</span>
-              {% elif status_raw == "NA" %}<span class="tag tag-dtd" title="Not active (minors or scratched)">NA</span>
-              {% elif status_raw %}<span class="tag tag-dtd">{{ status_raw }}</span>
-              {% else %}<span class="dash" title="Healthy">—</span>{% endif %}
+              {{ status_tag(status_raw) }}
             </td>
             {% if last30 %}
               {% set gp = row.get("games_played") %}
@@ -74,6 +79,41 @@
         {% endfor %}
       </tbody>
     </table>
+  </div>
+  <div class="md:hidden{% if stats | length >= 9 %} pg-tight{% endif %}" style="--n: {{ stats | length }}">
+    <div class="pg-head">
+      {% for stat in stats %}<span title="{{ stat }}">{{ stat_abbrev.get(stat, stat) }}</span>{% endfor %}
+    </div>
+    {% for idx, row in rows.iterrows() %}
+      {% set rank = current_page * page_size + loop.index %}
+      {% set row_shades = shades.get(idx, {}) %}
+      <div class="pg-row">
+        <div class="pg-top">
+          <span class="pos{% if rank == 1 %} pos-top{% endif %}">{{ rank }}</span>
+          <span class="pg-name font-semibold text-[13.5px] text-strong">{{ row.get("player_name", "") }}</span>
+          <span class="label-cond text-[12px] text-muted flex-none">{{ row.get("team_abbr", "") }}</span>
+          <span class="flex-none">{{ pos_chips(row.get("display_position", "")) }}</span>
+          <span class="ml-auto flex-none flex items-center gap-2">
+            {% if last30 %}
+              {% set gp = row.get("games_played") %}
+              <span class="font-mono text-[11px] text-muted">{% if gp is not none and gp == gp %}{{ gp | int }}{% else %}–{% endif %} GP</span>
+            {% endif %}
+            {{ status_tag(row.get("status", ""), false) }}
+          </span>
+        </div>
+        <div class="pg-cells">
+          {% for stat in stats %}
+            {% set v = row.get(stat) %}
+            {% set lvl = row_shades.get(stat, 0) %}
+            {% if v is not none and v == v %}
+              <span class="{% if lvl %}s{{ lvl }}{% endif %}">{% if is_rate_stat(stat) %}{{ "%.2f"|format(v) }}{% else %}{{ "%.0f"|format(v) }}{% endif %}</span>
+            {% else %}
+              <span class="dash">—</span>
+            {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+    {% endfor %}
   </div>
   <div class="grid-bar border-t border-line">
     <span>{{ total_rows }} players · {{ "last 30 days stats" if last30 else "season stats" }}</span>
