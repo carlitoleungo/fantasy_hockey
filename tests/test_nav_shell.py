@@ -176,7 +176,9 @@ def test_base_html_nav_branches(context, expected):
 
 def test_base_html_absent_flags_keep_the_brand_link():
     html = templates.env.get_template("base.html").render()
-    assert '<a href="/" class="font-semibold text-gray-800 hover:text-gray-600">Fantasy Hockey</a>' in _header_left(html)
+    header_left = _header_left(html)
+    assert '<a href="/"' in header_left
+    assert "Fantasy Hockey</a>" in header_left
     assert _nav_links(html) == []
 
 
@@ -532,7 +534,7 @@ def test_error_pages_keep_brand_link_and_shared_head(error_client, path, status)
     response = error_client.get(path)
 
     assert "<title>Error</title>" in response.text
-    assert "https://cdn.tailwindcss.com" in response.text
+    assert "/static/app.css" in response.text
     header_left = _header_left(response.text)
     assert '<a href="/"' in header_left
     assert "Fantasy Hockey" in header_left

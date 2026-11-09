@@ -363,11 +363,11 @@ def test_home_unauthenticated_shows_login_cta(ctx):
     assert 'href="/auth/login"' in body
     assert "Log in with Yahoo" in body
     # The authenticated heading must not appear in the page body. Scoped past
-    # <body> because home.html's {% block title %} is the fixed string
+    # <body because home.html's {% block title %} is the fixed string
     # "Your Leagues" regardless of branch, so a plain `not in body` check
     # always fails against the <title> tag.
     assert "Fantasy Hockey Waiver Wire" in body
-    assert "Your Leagues" not in body.split("<body>", 1)[1]
+    assert "Your Leagues" not in body.split("<body", 1)[1]
 
 
 # ---------------------------------------------------------------------------

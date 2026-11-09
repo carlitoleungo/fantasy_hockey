@@ -69,6 +69,48 @@ def rank_players(
     return result.sort_values("composite_rank").reset_index(drop=True)
 
 
+# Percentile cut-offs for shade levels, best first: top 10% -> 4, top 25% -> 3,
+# top 50% -> 2, top 75% -> 1, the rest -> 0. See docs/design-system.md "Rank shading".
+_SHADE_CUTOFFS: tuple[tuple[float, int], ...] = ((0.10, 4), (0.25, 3), (0.50, 2), (0.75, 1))
+
+
+def shade_levels(
+    df: pd.DataFrame,
+    categories: list[str],
+    lower_is_better: frozenset[str] | None = None,
+) -> pd.DataFrame:
+    """
+    Return a DataFrame (same index as df) with one int column per category
+    giving the cell's shade level, 4 = best in the pool, 0 = weakest or missing.
+
+    Levels come from each player's percentile rank within the whole df (not
+    just the page being shown), so shading is stable across pages.
+    Lower-is-better stats (GAA) rank ascending, and a coerced 0.0 counts as
+    missing, matching rank_players().
+    """
+    if lower_is_better is None:
+        lower_is_better = LOWER_IS_BETTER
+
+    out = pd.DataFrame(index=df.index)
+    for col in categories:
+        if col not in df.columns:
+            continue
+        values = pd.to_numeric(df[col], errors="coerce")
+        ascending = col in lower_is_better
+        if ascending:
+            values = values.replace(0.0, float("nan"))
+        n = values.notna().sum()
+        if n == 0:
+            out[col] = 0
+            continue
+        pct = values.rank(method="min", ascending=ascending) / n
+        level = pd.Series(0, index=df.index)
+        for cutoff, lvl in reversed(_SHADE_CUTOFFS):
+            level = level.mask(pct <= cutoff, lvl)
+        out[col] = level.where(values.notna(), 0).astype(int)
+    return out
+
+
 def filter_by_position(df: pd.DataFrame, position_group: str) -> pd.DataFrame:
     """
     Filter players by position group.
@@ -109,3 +151,33 @@ _POSITION_GROUPS: dict[str, frozenset[str]] = {
     "D":  frozenset({"D"}),
     "G":  frozenset({"G"}),
 }
+
+
+def project_rest_of_week(
+    df: pd.DataFrame,
+    categories: list[str],
+    games_remaining: dict[str, int],
+) -> pd.DataFrame:
+    """
+    Project each player's totals for the rest of the fantasy week.
+
+    Same maths as analysis.projection.project_team_stats, per player:
+        projected[stat] = last-30 total / games_played * games remaining this week
+    Rate stats (GAA, SV%) are already per game, so they keep their last-30 value.
+
+    Expects a last-30 frame (with games_played). Adds a games_remaining column.
+    A team missing from games_remaining is unknown: its projections are NaN and
+    the player ranks last. A player with 0 games played projects to 0.
+    """
+    from analysis.projection import _is_rate_stat
+
+    out = df.copy()
+    gr = out["team_abbr"].map(games_remaining).astype(float)
+    gp = pd.to_numeric(out.get("games_played", pd.Series(0, index=out.index)), errors="coerce").fillna(0)
+    per_game_scale = (gr / gp.where(gp > 0)).fillna(0).where(gr.notna())
+    for col in categories:
+        if col not in out.columns or _is_rate_stat(col):
+            continue
+        out[col] = pd.to_numeric(out[col], errors="coerce").fillna(0) * per_game_scale
+    out["games_remaining"] = gr
+    return out

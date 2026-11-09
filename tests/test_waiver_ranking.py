@@ -158,3 +158,60 @@ class TestFilterByPosition:
     def test_reset_index_after_filter(self):
         result = filter_by_position(PLAYERS, "Goalies")
         assert list(result.index) == list(range(len(result)))
+
+
+# ---------------------------------------------------------------------------
+# shade_levels
+# ---------------------------------------------------------------------------
+
+from analysis.waiver_ranking import shade_levels  # noqa: E402
+
+
+def test_shade_levels_best_gets_4_and_worst_gets_0():
+    df = pd.DataFrame({"Goals": [float(v) for v in range(20, 0, -1)]})
+    levels = shade_levels(df, ["Goals"])["Goals"].tolist()
+    assert levels[0] == 4
+    assert levels[-1] == 0
+    assert levels == sorted(levels, reverse=True)
+
+
+def test_shade_levels_lower_is_better_and_zero_counts_as_missing():
+    df = pd.DataFrame({"Goals Against Average": [0.0, 2.0, 3.0, 4.0, 5.0]})
+    levels = shade_levels(df, ["Goals Against Average"])["Goals Against Average"].tolist()
+    assert levels[0] == 0          # 0.0 = skater with no GAA, not the best goalie
+    assert levels[1] > levels[4]   # lowest real GAA shades darkest
+
+
+def test_shade_levels_nan_and_unknown_columns():
+    df = pd.DataFrame({"Goals": [3.0, float("nan"), 1.0]})
+    out = shade_levels(df, ["Goals", "Not A Column"])
+    assert list(out.columns) == ["Goals"]
+    assert out["Goals"].tolist()[1] == 0
+
+
+# ---------------------------------------------------------------------------
+# project_rest_of_week
+# ---------------------------------------------------------------------------
+
+def test_project_rest_of_week_scales_per_game_by_games_left():
+    from analysis.waiver_ranking import project_rest_of_week
+
+    df = pd.DataFrame({
+        "player_key": ["a", "b", "c", "d"],
+        "team_abbr": ["TOR", "EDM", "TOR", "XXX"],
+        "games_played": [10, 5, 0, 10],
+        "Goals": [5.0, 5.0, 3.0, 4.0],
+        "Goals Against Average": [0.0, 2.5, 0.0, 0.0],
+    })
+    out = project_rest_of_week(df, ["Goals", "Goals Against Average"], {"TOR": 4, "EDM": 2})
+
+    # 5 goals in 10 games, 4 left -> 2.0; 5 in 5, 2 left -> 2.0
+    assert out.loc[0, "Goals"] == pytest.approx(2.0)
+    assert out.loc[1, "Goals"] == pytest.approx(2.0)
+    # No games played -> projects to 0, not a division error
+    assert out.loc[2, "Goals"] == 0
+    # Team with unknown games remaining -> NaN
+    assert pd.isna(out.loc[3, "Goals"])
+    # Rate stats keep their per-game value
+    assert out.loc[1, "Goals Against Average"] == 2.5
+    assert out["games_remaining"].tolist()[:3] == [4, 2, 4]

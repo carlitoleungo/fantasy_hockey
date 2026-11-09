@@ -1,0 +1,14 @@
+{# Shared UI pieces from docs/design-system.md. Import with
+   {% from "_components.html" import pos_chips %} #}
+
+{# One colour-coded chip per eligible position. Accepts Yahoo's "C,LW" or "C/LW". #}
+{% macro pos_chips(value) -%}
+  {%- set positions = (value or "") | replace("/", ",") | trim -%}
+  {%- if positions -%}
+  <span class="pchips">
+    {%- for p in positions.split(",") if p | trim -%}
+      <span class="pchip pchip-{{ p | trim }}">{{ p | trim }}</span>
+    {%- endfor -%}
+  </span>
+  {%- endif -%}
+{%- endmacro %}

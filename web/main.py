@@ -1,4 +1,5 @@
 import sqlite3
+from pathlib import Path
 from contextlib import asynccontextmanager
 
 import requests
@@ -7,6 +8,7 @@ from dotenv import load_dotenv
 load_dotenv()
 from fastapi import FastAPI, Request
 from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
 
 from db.connection import get_db, init_db
 from web.middleware.session import RequiresLogin
@@ -39,6 +41,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+app.mount("/static", StaticFiles(directory=Path(__file__).parent / "static"), name="static")
 
 
 @app.exception_handler(RequiresLogin)

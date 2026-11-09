@@ -1,0 +1,143 @@
+/* Source for web/static/app.css. Build: `cd web/styles && npm run build`.
+   Tokens and components are documented in docs/design-system.md. */
+@import "./fonts.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---------- tokens: dark is the default ---------- */
+:root {
+  color-scheme: dark;
+  --bg:#070b12; --app:#0b111b; --panel:#0f1724; --panel-2:#131d2d;
+  --line:#1f2b3e; --line-2:#162133;
+  --fg:#dfe6f0; --strong:#ffffff; --muted:#8190a6; --dim:#56647a;
+  --accent:#3d8bff; --accent-soft:#132745;
+  --pos-bg:#ffffff; --pos-fg:#070b12;
+  --h4:rgb(61 139 255 / .55); --h3:rgb(61 139 255 / .32); --h2:rgb(61 139 255 / .16); --h1:rgb(61 139 255 / .06);
+  --up:#4cc3ff; --down:#ffa04d; --dtd:#ffb547; --inj:#ff6b6b;
+  /* position chips (label text always shown, so colour is a second cue) */
+  --pc-c:#5cc0f2; --pc-lw:#4fd39b; --pc-rw:#b99bff; --pc-d:#e9c74f; --pc-g:#ff86bd;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    color-scheme: light;
+    --bg:#e9edf2; --app:#f4f6f9; --panel:#ffffff; --panel-2:#f3f5f8;
+    --line:#dce2ea; --line-2:#edf0f4;
+    --fg:#1a2230; --strong:#0b111b; --muted:#5d6a7c; --dim:#97a2b1;
+    --accent:#1f5fbf; --accent-soft:#e3ecfa;
+    --pos-bg:#0b111b; --pos-fg:#ffffff;
+    --h4:rgb(31 95 191 / .42); --h3:rgb(31 95 191 / .24); --h2:rgb(31 95 191 / .12); --h1:rgb(31 95 191 / .05);
+    --up:#0b6fb0; --down:#b85600; --dtd:#a86200; --inj:#c62828;
+    --pc-c:#13729f; --pc-lw:#16784e; --pc-rw:#6b47c4; --pc-d:#8a6a00; --pc-g:#b23772;
+  }
+}
+/* Pages not yet redesigned pin the light theme (base.html sets data-theme="light"). */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg:#e9edf2; --app:#f4f6f9; --panel:#ffffff; --panel-2:#f3f5f8;
+  --line:#dce2ea; --line-2:#edf0f4;
+  --fg:#1a2230; --strong:#0b111b; --muted:#5d6a7c; --dim:#97a2b1;
+  --accent:#1f5fbf; --accent-soft:#e3ecfa;
+  --pos-bg:#0b111b; --pos-fg:#ffffff;
+  --h4:rgb(31 95 191 / .42); --h3:rgb(31 95 191 / .24); --h2:rgb(31 95 191 / .12); --h1:rgb(31 95 191 / .05);
+  --up:#0b6fb0; --down:#b85600; --dtd:#a86200; --inj:#c62828;
+    --pc-c:#13729f; --pc-lw:#16784e; --pc-rw:#6b47c4; --pc-d:#8a6a00; --pc-g:#b23772;
+}
+
+@layer base {
+  body { background: var(--app); color: var(--fg); }
+  .num, td, .tabular { font-variant-numeric: tabular-nums; }
+}
+
+@layer components {
+  /* condensed caps label: nav, column headers, filter labels */
+  .label-cond { font-family: theme("fontFamily.cond"); font-weight: 600; letter-spacing: .1em; text-transform: uppercase; }
+
+  /* F1-style position block */
+  .pos { display: inline-grid; place-items: center; min-width: 26px; height: 22px; padding: 0 4px;
+         background: var(--pos-bg); color: var(--pos-fg); border-radius: 2px;
+         font: 700 15px/1 theme("fontFamily.cond"); }
+  .pos-top { background: var(--accent); color: #fff; }
+
+  /* filter chip: <label><input class="sr-only peer"><span class="chip">…</span></label> */
+  .chip { display: inline-block; padding: 3px 9px; border: 1px solid var(--line); border-radius: 4px;
+          background: var(--panel); color: var(--fg); font: 500 12.5px theme("fontFamily.mono"); cursor: pointer;
+          transition: border-color .12s, background-color .12s; }
+  .chip:hover { border-color: var(--muted); }
+  .peer:checked + .chip { background: var(--accent-soft); border-color: var(--accent); color: var(--strong); }
+  .peer:focus-visible + .chip { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* segmented toggle: same markup as chips, inside .seg */
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+  .seg label + label .seg-opt { border-left: 1px solid var(--line); }
+  .seg-opt { display: block; padding: 3px 11px; background: var(--panel); color: var(--muted);
+             font: 500 12.5px theme("fontFamily.sans"); cursor: pointer; }
+  .peer:checked + .seg-opt { background: var(--accent); color: #fff; }
+  .peer:focus-visible + .seg-opt { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+  /* data grid */
+  .grid-panel { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  .grid-bar { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 12px; padding: 7px 12px;
+              font: 500 11.5px theme("fontFamily.mono"); color: var(--muted); }
+  .grid-bar b { color: var(--fg); font-weight: 500; }
+  .dt { width: 100%; border-collapse: collapse; white-space: nowrap; }
+  .dt th { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: right; color: var(--muted);
+           font: 600 12px theme("fontFamily.cond"); letter-spacing: .1em; text-transform: uppercase; }
+  .dt th.ranked { color: var(--strong); box-shadow: inset 0 -2px 0 var(--accent); }
+  .dt td { height: 36px; padding: 0 10px; border-bottom: 1px solid var(--line-2); text-align: right;
+           color: var(--fg); font: 500 13px theme("fontFamily.mono"); }
+  .dt .l { text-align: left; }
+  .dt tbody tr:hover td { background-color: var(--panel-2); }
+  .dt .sticky-col { position: sticky; left: 0; z-index: 1; background: var(--panel); }
+  .dt tbody tr:hover td.sticky-col { background: var(--panel-2); }
+  .dt .dash { color: var(--dim); }
+
+  /* rank shading, best (s4) to weakest (s1) */
+  .dt td.s4, .legend .s4 { background: var(--h4); color: var(--strong); font-weight: 600; }
+  .dt td.s3, .legend .s3 { background: var(--h3); }
+  .dt td.s2, .legend .s2 { background: var(--h2); }
+  .dt td.s1, .legend .s1 { background: var(--h1); }
+  .legend { display: inline-flex; align-items: center; gap: 4px; }
+  .legend i { display: inline-block; width: 14px; height: 10px; border: 1px solid var(--line); }
+
+  /* position chips: one per eligible position */
+  .pchips { display: inline-flex; gap: 3px; vertical-align: middle; }
+  .pchip { --c: var(--muted); display: inline-block; min-width: 22px; padding: 0 4px; border-radius: 2px;
+    font-family: theme('fontFamily.cond'); font-weight: 700; font-size: 11px; line-height: 16px;
+    letter-spacing: .04em; text-align: center; color: var(--c);
+    background: color-mix(in srgb, var(--c) 16%, transparent); }
+  .pchip-C { --c: var(--pc-c); } .pchip-LW { --c: var(--pc-lw); } .pchip-RW { --c: var(--pc-rw); }
+  .pchip-D { --c: var(--pc-d); } .pchip-G { --c: var(--pc-g); }
+
+  /* phone grid (layout B2): name line, then every ranked stat on one line */
+  .pg-head, .pg-cells { display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); }
+  .pg-head { padding: 0 8px; border-bottom: 1px solid var(--line); }
+  .pg-head span { padding: 6px 0; text-align: center; color: var(--strong); box-shadow: inset 0 -2px 0 var(--accent);
+    font-family: theme('fontFamily.cond'); font-weight: 600; font-size: 11px; letter-spacing: .06em; text-transform: uppercase;
+    overflow: hidden; white-space: nowrap; }
+  .pg-row { padding: 7px 8px 8px; border-bottom: 1px solid var(--line-2); display: flex; flex-direction: column; gap: 5px; }
+  .pg-top { display: flex; align-items: center; gap: 7px; min-width: 0; }
+  .pg-top .pos { flex: none; }
+  .pg-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pg-cells span { height: 26px; display: grid; place-items: center; font-family: theme('fontFamily.mono');
+    font-size: 12.5px; font-variant-numeric: tabular-nums; border-right: 1px solid var(--app); }
+  .pg-cells span.s4 { background: var(--h4); color: var(--strong); font-weight: 600; }
+  .pg-cells span.s3 { background: var(--h3); }
+  .pg-cells span.s2 { background: var(--h2); }
+  .pg-cells span.s1 { background: var(--h1); }
+  .pg-tight .pg-cells span { font-size: 11px; }
+  .pg-tight .pg-head span { font-size: 10px; letter-spacing: .02em; }
+
+  /* status tags */
+  .tag { display: inline-block; padding: 0 5px; border-radius: 2px; border: 1px solid currentColor;
+         font: 700 11px/16px theme("fontFamily.cond"); letter-spacing: .08em; }
+  .tag-dtd { color: var(--dtd); }
+  .tag-out { background: var(--inj); border-color: var(--inj); color: var(--panel); }
+
+  /* pager button */
+  .pager-btn { min-width: 26px; padding: 0 8px; border: 1px solid var(--line); border-radius: 3px;
+               background: var(--panel); color: var(--fg); font: 500 12px/22px theme("fontFamily.mono"); }
+  .pager-btn:disabled { opacity: .35; cursor: default; }
+  .pager-btn:not(:disabled):hover { border-color: var(--muted); }
+}
