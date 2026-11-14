@@ -105,9 +105,15 @@ the fallback is captured fixtures, listed as an idea in `docs/TODO.md`.
   status from the season pool in both modes. Before 2026-11-05 the demo skipped that join and
   rendered blank player cells.
 - **The demo's `games_remaining.json` was all zeros** (snapshot taken after the week ended). It
-  now holds the 26 teams from `projection_pair_data.json`, the same week the Projection demo
-  uses; the other teams show an em dash. Re-running `scripts/generate_demo_data.py` would
-  overwrite it.
+  holds the 26 teams from `projection_pair_data.json`, the same week the Projection demo uses,
+  plus six edge-case teams (0 and 4 games) added by `scripts/add_demo_edge_cases.py`.
+- **Part of the demo snapshot is hand-made edge cases.** `scripts/add_demo_edge_cases.py` adds
+  derived (not real) last-30 rows for D and G, every Yahoo status code (`IR-LT`, `IR-NR`, `SUSP`,
+  `GTD` and the rest), 0- and 4-game weeks and an accented name. Re-running
+  `scripts/generate_demo_data.py` overwrites them, so run the edge-case script straight after.
+- **Yahoo seems to strip accents from player names** ("Teuvo Teravainen", "Charle-Edouard
+  D'Astous" in the snapshot). Don't rely on it: the demo carries one accented name
+  so templates are checked against them.
 - **`.gitignore` ignores `package.json` and `package-lock.json` everywhere.** The style tooling in
   `web/styles/` is committed with `git add -f`.
 - **Class names built in templates are invisible to Tailwind.** `pchip-{{ pos }}` or
