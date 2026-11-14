@@ -2,6 +2,8 @@
 {% macro status_tag(status_raw, healthy_dash=true) -%}
   {%- if status_raw == "DTD" %}<span class="tag tag-dtd" title="Day-to-day">DTD</span>
   {%- elif status_raw == "IR" %}<span class="tag tag-out" title="Injured reserve">IR</span>
+  {%- elif status_raw == "IR-LT" %}<span class="tag tag-out" title="Injured reserve, long-term">IR-LT</span>
+  {%- elif status_raw == "IR-NR" %}<span class="tag tag-out" title="Injured reserve, non-roster">IR-NR</span>
   {%- elif status_raw == "O" %}<span class="tag tag-out" title="Out">OUT</span>
   {%- elif status_raw == "NA" %}<span class="tag tag-dtd" title="Not active (minors or scratched)">NA</span>
   {%- elif status_raw %}<span class="tag tag-dtd">{{ status_raw }}</span>
