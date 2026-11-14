@@ -177,6 +177,7 @@ def project_rest_of_week(
     for col in categories:
         if col not in out.columns or is_rate_stat(col):
             continue
-        out[col] = pd.to_numeric(out[col], errors="coerce").fillna(0) * per_game_scale
+        # NaN means the stat doesn't apply (a goalie's Hits); keep it NaN so it shows a dash.
+        out[col] = pd.to_numeric(out[col], errors="coerce") * per_game_scale
     out["games_remaining"] = gr
     return out
