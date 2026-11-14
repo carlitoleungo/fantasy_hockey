@@ -71,6 +71,11 @@ and, if it needs more than a few sentences, a full entry in the history file.
   Fonts call). Redesigned pages follow the system light/dark setting; pages not yet redesigned
   pin light via `base.html`'s `theme_attr` block, because their gray utility classes are
   unreadable on dark tokens.
+- **htmx and Alpine are vendored, not loaded from CDNs** (2026-11-14): pinned copies in
+  `web/static/vendor/` with the version in the filename (htmx 2.0.4, Alpine 3.17.5), licences
+  alongside. Same reasoning as the fonts and Tailwind: no third-party calls at page load, exact
+  versions, and headless browsers without internet access can click-test the app. To upgrade,
+  replace the file, rename it with the new version and update `base.html`.
 - **The selected league is stored in the session (`user_sessions.league_key`); routes stay
   bare (`/overview`, `/waiver`, `/projection`)** (2026-04-19).
 

@@ -15,7 +15,7 @@ client-side toggles. No JS build pipeline.
 
 - **Backend:** FastAPI + uvicorn (single worker) — keeps `data/` and `analysis/` importable
   with no language boundary; single worker is safe for SQLite write concurrency
-- **Frontend:** Jinja2 templates + HTMX CDN + Alpine.js CDN + a built Tailwind stylesheet
+- **Frontend:** Jinja2 templates + HTMX and Alpine.js (vendored in `web/static/vendor/`) + a built Tailwind stylesheet
   (`web/styles/` → `web/static/app.css`, committed) and self-hosted fonts in `web/static/fonts/`.
   The look is specified in `docs/design-system.md`
 - **Auth:** Yahoo OAuth 2.0 via `requests` (existing `auth/oauth.py` logic, minus Streamlit

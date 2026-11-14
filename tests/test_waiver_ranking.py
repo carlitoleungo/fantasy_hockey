@@ -215,3 +215,19 @@ def test_project_rest_of_week_scales_per_game_by_games_left():
     # Rate stats keep their per-game value
     assert out.loc[1, "Goals Against Average"] == 2.5
     assert out["games_remaining"].tolist()[:3] == [4, 2, 4]
+
+
+def test_project_rest_of_week_keeps_missing_stats_missing():
+    """A goalie has no Hits: the projection stays NaN (a dash), not 0.0."""
+    from analysis.waiver_ranking import project_rest_of_week
+
+    df = pd.DataFrame({
+        "player_key": ["skater", "goalie"],
+        "team_abbr": ["TOR", "TOR"],
+        "games_played": [10, 8],
+        "Hits": [20.0, float("nan")],
+    })
+    out = project_rest_of_week(df, ["Hits"], {"TOR": 3})
+
+    assert out.loc[0, "Hits"] == pytest.approx(6.0)
+    assert pd.isna(out.loc[1, "Hits"])

@@ -963,6 +963,8 @@ def test_demo_waiver_table_uses_design_system_markup(ctx):
     pool_df = _make_season_pool(10)
     pool_df.loc[3, "status"] = "DTD"
     pool_df.loc[4, "status"] = "IR"
+    pool_df.loc[5, "status"] = "IR-LT"
+    pool_df.loc[6, "status"] = "IR-NR"
 
     with (
         patch("data.demo.load_season_pool", return_value=pool_df),
@@ -982,9 +984,11 @@ def test_demo_waiver_table_uses_design_system_markup(ctx):
     assert '<span class="pos">2</span>' in html
     # Player 0 has the most goals, so its Goals cell gets the top shade.
     assert '<td class="s4">10</td>' in html
-    # Injury tags: DTD outlined, IR filled.
+    # Injury tags: DTD outlined; IR, IR-LT and IR-NR filled.
     assert '<span class="tag tag-dtd" title="Day-to-day">DTD</span>' in html
     assert '<span class="tag tag-out" title="Injured reserve">IR</span>' in html
+    assert '<span class="tag tag-out" title="Injured reserve, long-term">IR-LT</span>' in html
+    assert '<span class="tag tag-out" title="Injured reserve, non-roster">IR-NR</span>' in html
 
 
 def test_demo_waiver_phone_layout_puts_every_stat_on_one_line(ctx):
