@@ -5,7 +5,8 @@ Uses the real cache (redirected to tmp_path) and monkeypatched client
 functions — no HTTP calls, no live API.
 
 Tests focus on the delta-fetch logic: which weeks get fetched, that new rows
-are appended correctly, and that the returned DataFrame has the expected shape.
+are merged into the cache (one row per team and week), and that the returned
+DataFrame has the expected shape.
 """
 
 from datetime import datetime, timedelta, timezone

@@ -11,8 +11,6 @@ Covers:
 
 from __future__ import annotations
 
-import sqlite3
-import time
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
@@ -21,6 +19,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from db.connection import db_dep
+from tests.helpers import insert_session, make_db
 from web.main import app
 
 
@@ -28,34 +27,9 @@ from web.main import app
 # Shared helpers
 # ---------------------------------------------------------------------------
 
-def _make_db() -> sqlite3.Connection:
-    conn = sqlite3.connect(":memory:", check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    conn.executescript("""
-        CREATE TABLE user_sessions (
-            session_id   TEXT PRIMARY KEY,
-            access_token TEXT,
-            refresh_token TEXT,
-            expires_at   REAL,
-            created_at   REAL,
-            league_key   TEXT
-        );
-        CREATE TABLE oauth_states (
-            state TEXT PRIMARY KEY,
-            expires_at REAL
-        );
-    """)
-    return conn
-
 
 def _insert_session(conn, session_id="sid-qa", league_key=None):
-    conn.execute(
-        "INSERT INTO user_sessions"
-        " (session_id, access_token, refresh_token, expires_at, created_at, league_key)"
-        " VALUES (?, ?, ?, ?, ?, ?)",
-        (session_id, "acc-token", "ref-token", time.time() + 3600, time.time(), league_key),
-    )
-    conn.commit()
+    insert_session(conn, session_id, league_key)
 
 
 def _make_matchups_df() -> pd.DataFrame:
@@ -86,7 +60,7 @@ LEAGUE_A = {"league_key": "419.l.11111", "league_name": "Alpha League", "season"
 
 @pytest.fixture()
 def ctx():
-    conn = _make_db()
+    conn = make_db()
 
     def override_db():
         yield conn

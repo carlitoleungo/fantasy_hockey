@@ -1,8 +1,8 @@
 """
 Fetch the authenticated user's Yahoo Fantasy hockey games and leagues.
 
-Used by app.py to populate the league selection dropdown. All results are
-returned as plain Python lists of dicts — no Streamlit, no pandas, no cache.
+Used by the home page's league picker and for the league name in the nav.
+All results are plain Python lists of dicts — no pandas, no cache.
 
 The Yahoo endpoint returns all fantasy games the user participates in across
 all sports. get_user_hockey_leagues() filters to NHL (code == "nhl") and

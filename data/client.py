@@ -187,10 +187,12 @@ def get_all_teams_week_stats(
     Return stats for ALL teams in one API call using the teams collection.
 
     Endpoint: /league/{key}/teams/stats;type=week;week={w}
-    This replaces N individual get_team_week_stats() calls with a single request.
+    One request covers every team, instead of one request per team.
 
-    Returns a list of flat dicts (same shape as get_team_week_stats output):
+    Returns a list of flat dicts:
         team_key, team_name, week, games_played, {stat_name...}
+    Stat values are floats; '-' (no activity) is coerced to 0.0. Stats outside
+    the enabled categories (display-only or unknown IDs) are ignored.
     """
     data = _get(
         session,
@@ -228,43 +230,3 @@ def get_all_teams_week_stats(
 
     return rows
 
-
-def get_team_week_stats(
-    session, team_key: str, week: int, stat_categories: list[dict]
-) -> dict:
-    """
-    Return a flat dict of stat values for one team for one week.
-
-    Keys: team_key, week, games_played, then one key per enabled stat category.
-    Stat values are floats; '-' (no activity) is coerced to 0.0.
-    Stats not in the enabled categories list (display-only or unknown IDs) are
-    silently ignored — this avoids the 'Unknown Stat ID: 22' columns the
-    notebook produced.
-
-    stat_id '0' is games played (not a scoring category).
-    """
-    data = _get(
-        session, f"{BASE_URL}/team/{team_key}/stats;type=week;week={week}"
-    )
-
-    id_to_name = {
-        cat["stat_id"]: cat["stat_name"]
-        for cat in stat_categories
-        if cat["is_enabled"]
-    }
-
-    row: dict = {"team_key": team_key, "week": week}
-
-    raw_stats = data["fantasy_content"]["team"]["team_stats"]["stats"]["stat"]
-    for stat in _as_list(raw_stats):
-        stat_id = stat["stat_id"]
-        value = stat["value"]
-
-        if stat_id == "0":
-            row["games_played"] = 0 if value in ("-", None) else int(value)
-            continue
-
-        if stat_id in id_to_name:
-            row[id_to_name[stat_id]] = _coerce(value)
-
-    return row

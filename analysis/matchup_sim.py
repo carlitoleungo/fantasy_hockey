@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from analysis.team_scores import LOWER_IS_BETTER, stat_columns
+from analysis.team_scores import LOWER_IS_BETTER, category_winner, stat_columns
 
 
 def simulate(
@@ -83,22 +83,8 @@ def simulate(
         a_val = a_avg[col]
         b_val = b_avg[col]
 
-        if col in lower_is_better:
-            # Lower is better — the team with the smaller average wins
-            if a_val < b_val:
-                winner = team_a
-            elif b_val < a_val:
-                winner = team_b
-            else:
-                winner = "Tie"
-        else:
-            # Higher is better
-            if a_val > b_val:
-                winner = team_a
-            elif b_val > a_val:
-                winner = team_b
-            else:
-                winner = "Tie"
+        outcome = category_winner(a_val, b_val, col in lower_is_better)
+        winner = {"a": team_a, "b": team_b, "tie": "Tie"}[outcome]
 
         rows.append({
             "category": col,

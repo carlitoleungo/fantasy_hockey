@@ -8,13 +8,13 @@ All functions are pure Python — no Streamlit, no API calls, no cache I/O.
 """
 from __future__ import annotations
 
-from analysis.team_scores import LOWER_IS_BETTER
+from analysis.team_scores import LOWER_IS_BETTER, category_winner
 
 
 _RATE_STAT_ABBRS: frozenset[str] = frozenset({"GAA", "SV%", "GSAA"})
 
 
-def _is_rate_stat(name: str) -> bool:
+def is_rate_stat(name: str) -> bool:
     """Return True for stats that are already a per-game rate (e.g. GAA, SV%)."""
     if name in _RATE_STAT_ABBRS:
         return True
@@ -52,8 +52,8 @@ def project_team_stats(
 
     # Rate stats (GAA, SV%) need a weighted average, not a sum.
     # Accumulate numerator (rate × weight) and total weight separately.
-    rate_numerator: dict[str, float] = {s: 0.0 for s in enabled if _is_rate_stat(s)}
-    rate_weight: dict[str, float] = {s: 0.0 for s in enabled if _is_rate_stat(s)}
+    rate_numerator: dict[str, float] = {s: 0.0 for s in enabled if is_rate_stat(s)}
+    rate_weight: dict[str, float] = {s: 0.0 for s in enabled if is_rate_stat(s)}
 
     for player in roster:
         remaining = games_remaining.get(player["team_abbr"], 0)
@@ -116,20 +116,8 @@ def compare_projections(
         a_val = team_a.get(stat, 0.0)
         b_val = team_b.get(stat, 0.0)
 
-        if stat in lower_is_better:
-            if a_val < b_val:
-                winner = "team_a"
-            elif b_val < a_val:
-                winner = "team_b"
-            else:
-                winner = "Tie"
-        else:
-            if a_val > b_val:
-                winner = "team_a"
-            elif b_val > a_val:
-                winner = "team_b"
-            else:
-                winner = "Tie"
+        outcome = category_winner(a_val, b_val, stat in lower_is_better)
+        winner = {"a": "team_a", "b": "team_b", "tie": "Tie"}[outcome]
 
         rows.append({"category": stat, "team_a": a_val, "team_b": b_val, "winner": winner})
 

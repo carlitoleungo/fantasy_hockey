@@ -48,6 +48,23 @@ def lower_is_better_from_categories(categories: list[dict]) -> frozenset[str]:
     return frozenset(result)
 
 
+def category_winner(a: float, b: float, lower_is_better: bool) -> str:
+    """
+    Decide one category between two values: "a", "b", or "tie".
+
+    Higher wins unless lower_is_better (e.g. Goals Against Average). Equal
+    values, or a NaN on either side (a team with no weeks in range), tie.
+    """
+    def beats(x: float, y: float) -> bool:
+        return x < y if lower_is_better else x > y
+
+    if beats(a, b):
+        return "a"
+    if beats(b, a):
+        return "b"
+    return "tie"
+
+
 def stat_columns(df: pd.DataFrame) -> list[str]:
     """Return the ordered list of stat column names (everything except metadata)."""
     return [c for c in df.columns if c not in _META_COLS]

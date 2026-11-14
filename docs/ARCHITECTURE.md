@@ -33,7 +33,7 @@ client-side toggles. No JS build pipeline.
 |------|-------------|--------|
 | `data/__init__.py` | Package marker | Unchanged |
 | `data/client.py` | Yahoo API calls, XML→dict parsing, `_as_list`/`_coerce` helpers | Unchanged |
-| `data/cache.py` | Parquet + metadata JSON disk cache; delta-fetch, TTL, append patterns | Unchanged (`CACHE_DIR` pointed at `/data/cache/`) |
+| `data/cache.py` | Parquet + metadata JSON disk cache; delta-fetch, TTL, upsert patterns | Unchanged (`CACHE_DIR` pointed at `/data/cache/`) |
 | `data/matchups.py` | Incremental matchup fetch with delta-fetch pattern | Unchanged |
 | `data/players.py` | Available player pagination, season + lastmonth stats | Unchanged |
 | `data/leagues.py` | Fetch and enumerate user's hockey leagues | Unchanged |

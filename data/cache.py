@@ -1,9 +1,7 @@
 """
 Local parquet cache for cross-session data persistence.
 
-Two-layer caching model:
-- This module handles the disk layer: .cache/{league_key}/{data_type}.parquet
-- @st.cache_data handles the in-session memory layer (applied in pages/ as needed)
+Files live at {CACHE_DIR}/{league_key}/{data_type}.parquet.
 
 last_updated.json lives alongside the parquet files and tracks write timestamps
 per data type, so callers can implement delta-fetch and staleness logic without
@@ -16,7 +14,7 @@ Concurrency: route handlers are sync `def`, so FastAPI runs them in a threadpool
 and cache writes genuinely interleave. Every write goes to a temp file in the
 target directory and is moved onto the target with os.replace(), which is atomic
 within a filesystem — a reader therefore never observes a partial file and needs
-no lock. The read-modify-write paths (append, upsert_lastmonth_cache, _write_meta)
+no lock. The read-modify-write paths (upsert_lastmonth_cache, _write_meta)
 are serialised by a per-league threading.Lock. That is sufficient only because the
 app runs a single uvicorn worker (docs/DECISIONS.md 2026-04-10 and 2026-07-23).
 """
@@ -149,11 +147,21 @@ def _write_meta(league_key: str | None, data_type: str, ts: datetime) -> None:
 # ---------------------------------------------------------------------------
 
 def read(league_key: str | None, data_type: str) -> pd.DataFrame | None:
-    """Load a parquet file. Returns None if the file doesn't exist."""
+    """
+    Load a parquet file. Returns None if the file doesn't exist.
+
+    Reads through one open file handle rather than passing the path: given a
+    path, pyarrow may open the file more than once, and a write that lands in
+    between swaps the file underneath it, giving a truncated read. A handle
+    pins the inode, so the reader always sees one complete file.
+    """
     path = _parquet_path(league_key, data_type)
-    if not path.exists():
+    try:
+        f = open(path, "rb")
+    except FileNotFoundError:
         return None
-    return pd.read_parquet(path)
+    with f:
+        return pd.read_parquet(f)
 
 
 def _write_unlocked(league_key: str | None, data_type: str, df: pd.DataFrame) -> None:
@@ -166,19 +174,6 @@ def _write_unlocked(league_key: str | None, data_type: str, df: pd.DataFrame) ->
 def write(league_key: str | None, data_type: str, df: pd.DataFrame) -> None:
     """Write/overwrite a parquet file and update last_updated.json."""
     with _lock_for(league_key):
-        _write_unlocked(league_key, data_type, df)
-
-
-def append(league_key: str | None, data_type: str, df: pd.DataFrame) -> None:
-    """
-    Append rows to an existing parquet file, or create it if absent.
-    Row order is preserved: existing rows first, new rows after.
-    Index is reset on write — callers should not rely on index values.
-    """
-    with _lock_for(league_key):
-        existing = read(league_key, data_type)
-        if existing is not None:
-            df = pd.concat([existing, df], ignore_index=True)
         _write_unlocked(league_key, data_type, df)
 
 

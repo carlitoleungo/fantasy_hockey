@@ -43,7 +43,8 @@ def unknown_auth_shell_context() -> dict:
     return {"auth_state_unknown": True}
 
 
-def _get_league_key(db, session_id: str) -> str | None:
+def get_league_key(db, session_id: str) -> str | None:
+    """The league this session selected on the home page, or None."""
     row = db.execute(
         "SELECT league_key FROM user_sessions WHERE session_id = ?",
         (session_id,),

@@ -146,7 +146,7 @@ def test_get_teams_calls_correct_url():
 
 
 # ---------------------------------------------------------------------------
-# get_team_week_stats()
+# Shared stat categories
 # ---------------------------------------------------------------------------
 
 STAT_CATEGORIES = [
@@ -155,114 +155,6 @@ STAT_CATEGORIES = [
     {"stat_id": "3", "stat_name": "Points",        "abbreviation": "Pts", "stat_group": "offense", "is_enabled": False},
     {"stat_id": "7", "stat_name": "Shots on Goal", "abbreviation": "SOG", "stat_group": "offense", "is_enabled": True},
 ]
-
-
-def test_get_team_week_stats_enabled_values():
-    with patch("data.client._get", return_value=load("team_week_stats.json")):
-        result = client.get_team_week_stats(SESSION, "nhl.l.99999.t.1", 1, STAT_CATEGORIES)
-
-    assert result["Goals"] == 10.0
-    assert result["Assists"] == 25.0
-
-
-def test_get_team_week_stats_dash_coerced_to_zero():
-    """stat_id '7' (Shots on Goal) has value '-' in the fixture."""
-    with patch("data.client._get", return_value=load("team_week_stats.json")):
-        result = client.get_team_week_stats(SESSION, "nhl.l.99999.t.1", 1, STAT_CATEGORIES)
-
-    assert result["Shots on Goal"] == 0.0
-
-
-def test_get_team_week_stats_games_played_extracted():
-    """stat_id '0' should become games_played (int), not a stat column."""
-    with patch("data.client._get", return_value=load("team_week_stats.json")):
-        result = client.get_team_week_stats(SESSION, "nhl.l.99999.t.1", 1, STAT_CATEGORIES)
-
-    assert result["games_played"] == 5
-
-
-def test_get_team_week_stats_display_stat_excluded():
-    """Points (stat_id '3') has is_enabled=False and must not appear in the output."""
-    with patch("data.client._get", return_value=load("team_week_stats.json")):
-        result = client.get_team_week_stats(SESSION, "nhl.l.99999.t.1", 1, STAT_CATEGORIES)
-
-    assert "Points" not in result
-
-
-def test_get_team_week_stats_unknown_stat_excluded():
-    """stat_id '99' is in the fixture but not in stat_categories — must be ignored."""
-    with patch("data.client._get", return_value=load("team_week_stats.json")):
-        result = client.get_team_week_stats(SESSION, "nhl.l.99999.t.1", 1, STAT_CATEGORIES)
-
-    # No 'Unknown Stat ID' keys — unlike the notebook, we silently skip unknowns
-    assert not any("Unknown" in str(k) for k in result)
-    assert "99" not in result
-
-
-def test_get_team_week_stats_identity_fields():
-    with patch("data.client._get", return_value=load("team_week_stats.json")):
-        result = client.get_team_week_stats(SESSION, "nhl.l.99999.t.1", 1, STAT_CATEGORIES)
-
-    assert result["team_key"] == "nhl.l.99999.t.1"
-    assert result["week"] == 1
-
-
-def test_get_team_week_stats_calls_correct_url():
-    with patch("data.client._get", return_value=load("team_week_stats.json")) as mock_get:
-        client.get_team_week_stats(SESSION, "nhl.l.99999.t.1", 3, STAT_CATEGORIES)
-
-    url = mock_get.call_args[0][1]
-    assert "/team/nhl.l.99999.t.1/stats" in url
-    assert "week=3" in url
-
-
-def test_get_team_week_stats_single_stat_handled():
-    """
-    If xmltodict collapses the stat list to a single dict (one-stat league,
-    unlikely but theoretically possible), _as_list() must handle it.
-    """
-    single_stat_response = {
-        "fantasy_content": {
-            "team": {
-                "team_key": "nhl.l.99999.t.1",
-                "team_stats": {
-                    "stats": {
-                        "stat": {"stat_id": "1", "value": "7"}
-                    }
-                }
-            }
-        }
-    }
-    with patch("data.client._get", return_value=single_stat_response):
-        result = client.get_team_week_stats(SESSION, "nhl.l.99999.t.1", 1, STAT_CATEGORIES)
-
-    assert result["Goals"] == 7.0
-
-
-def test_get_team_week_stats_none_coerced_to_zero():
-    """stat value of None (not just '-') should be coerced to 0."""
-    response = {
-        "fantasy_content": {
-            "team": {
-                "team_key": "nhl.l.99999.t.1",
-                "team_stats": {
-                    "stats": {
-                        "stat": [
-                            {"stat_id": "0", "value": None},
-                            {"stat_id": "1", "value": None},
-                            {"stat_id": "2", "value": "15"},
-                        ]
-                    }
-                }
-            }
-        }
-    }
-    with patch("data.client._get", return_value=response):
-        result = client.get_team_week_stats(SESSION, "nhl.l.99999.t.1", 1, STAT_CATEGORIES)
-
-    assert result["games_played"] == 0
-    assert result["Goals"] == 0.0
-    assert result["Assists"] == 15.0
 
 
 # ---------------------------------------------------------------------------

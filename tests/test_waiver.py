@@ -17,16 +17,17 @@ Covers:
 
 from __future__ import annotations
 
-import sqlite3
-import time
+from datetime import date
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pytest
+import requests
 
 from fastapi.testclient import TestClient
 
 from db.connection import db_dep
+from tests.helpers import insert_session, make_db
 from web.main import app
 from web.routes.waiver import PAGE_SIZE, _merge_pool
 
@@ -35,34 +36,9 @@ from web.routes.waiver import PAGE_SIZE, _merge_pool
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _make_db() -> sqlite3.Connection:
-    conn = sqlite3.connect(":memory:", check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    conn.executescript("""
-        CREATE TABLE user_sessions (
-            session_id   TEXT PRIMARY KEY,
-            access_token TEXT,
-            refresh_token TEXT,
-            expires_at   REAL,
-            created_at   REAL,
-            league_key   TEXT
-        );
-        CREATE TABLE oauth_states (
-            state TEXT PRIMARY KEY,
-            expires_at REAL
-        );
-    """)
-    return conn
-
 
 def _insert_session(conn, session_id="sid-test", league_key="419.l.11111"):
-    conn.execute(
-        "INSERT INTO user_sessions"
-        " (session_id, access_token, refresh_token, expires_at, created_at, league_key)"
-        " VALUES (?, ?, ?, ?, ?, ?)",
-        (session_id, "acc-token", "ref-token", time.time() + 3600, time.time(), league_key),
-    )
-    conn.commit()
+    insert_session(conn, session_id, league_key)
 
 
 def _make_season_pool(n: int = 30) -> pd.DataFrame:
@@ -102,7 +78,7 @@ def _no_live_week_lookup():
 
 @pytest.fixture()
 def ctx():
-    conn = _make_db()
+    conn = make_db()
 
     def override_db():
         yield conn
@@ -173,11 +149,11 @@ def test_waiver_post_empty_stats_returns_empty_state(ctx):
 
     with (
         patch("web.routes.waiver.make_session", return_value=MagicMock()),
-        patch("web.routes.waiver._get_league_key", return_value="419.l.11111"),
+        patch("web.routes.waiver.get_league_key", return_value="419.l.11111"),
     ):
         response = client.post(
             "/api/waiver/players",
-            data={"stats": [], "position": "All", "period": "Season", "page": "0"},
+            data={"stats": [], "period": "Season", "page": "0"},
             cookies={"session_id": "sid-test"},
         )
 
@@ -199,7 +175,7 @@ def test_waiver_post_with_stats_returns_table(ctx):
 
     with (
         patch("web.routes.waiver.make_session", return_value=MagicMock()),
-        patch("web.routes.waiver._get_league_key", return_value="419.l.11111"),
+        patch("web.routes.waiver.get_league_key", return_value="419.l.11111"),
         patch("web.routes.waiver.get_stat_categories", return_value=_make_stat_categories()),
         patch("web.routes.waiver.cache.is_player_pool_stale", return_value=True),
         patch("web.routes.waiver.fetch_season_pool", return_value=pool_df),
@@ -207,7 +183,7 @@ def test_waiver_post_with_stats_returns_table(ctx):
     ):
         response = client.post(
             "/api/waiver/players",
-            data={"stats": ["Goals"], "position": "All", "period": "Season", "page": "0"},
+            data={"stats": ["Goals"], "period": "Season", "page": "0"},
             cookies={"session_id": "sid-test"},
         )
 
@@ -223,7 +199,7 @@ def test_waiver_post_no_cookie_returns_redirect(ctx):
     _, client = ctx
     response = client.post(
         "/api/waiver/players",
-        data={"stats": ["Goals"], "position": "All", "period": "Season", "page": "0"},
+        data={"stats": ["Goals"], "period": "Season", "page": "0"},
     )
     # RequiresLogin → 302 to /auth/login
     assert response.status_code == 302
@@ -245,7 +221,7 @@ def test_demo_waiver_post_returns_table_no_yahoo_calls(ctx):
     ):
         response = client.post(
             "/demo/api/waiver/players",
-            data={"stats": ["Goals"], "position": "All", "period": "Season", "page": "0"},
+            data={"stats": ["Goals"], "period": "Season", "page": "0"},
         )
 
     assert response.status_code == 200
@@ -264,7 +240,7 @@ def test_waiver_post_pagination_page0_and_page1(ctx):
 
     common_patches = dict(
         make_session=MagicMock(),
-        _get_league_key="419.l.11111",
+        get_league_key="419.l.11111",
         stat_cats=_make_stat_categories(),
         pool=pool_df,
     )
@@ -272,7 +248,7 @@ def test_waiver_post_pagination_page0_and_page1(ctx):
     def _post(page: int):
         with (
             patch("web.routes.waiver.make_session", return_value=MagicMock()),
-            patch("web.routes.waiver._get_league_key", return_value="419.l.11111"),
+            patch("web.routes.waiver.get_league_key", return_value="419.l.11111"),
             patch("web.routes.waiver.get_stat_categories", return_value=_make_stat_categories()),
             patch("web.routes.waiver.cache.is_player_pool_stale", return_value=True),
             patch("web.routes.waiver.fetch_season_pool", return_value=pool_df),
@@ -280,7 +256,7 @@ def test_waiver_post_pagination_page0_and_page1(ctx):
         ):
             return client.post(
                 "/api/waiver/players",
-                data={"stats": ["Goals"], "position": "All", "period": "Season", "page": str(page)},
+                data={"stats": ["Goals"], "period": "Season", "page": str(page)},
                 cookies={"session_id": "sid-test"},
             )
 
@@ -314,7 +290,7 @@ def test_waiver_post_page_clamped_to_last(ctx):
 
     with (
         patch("web.routes.waiver.make_session", return_value=MagicMock()),
-        patch("web.routes.waiver._get_league_key", return_value="419.l.11111"),
+        patch("web.routes.waiver.get_league_key", return_value="419.l.11111"),
         patch("web.routes.waiver.get_stat_categories", return_value=_make_stat_categories()),
         patch("web.routes.waiver.cache.is_player_pool_stale", return_value=True),
         patch("web.routes.waiver.fetch_season_pool", return_value=pool_df),
@@ -322,7 +298,7 @@ def test_waiver_post_page_clamped_to_last(ctx):
     ):
         response = client.post(
             "/api/waiver/players",
-            data={"stats": ["Goals"], "position": "All", "period": "Season", "page": "99"},
+            data={"stats": ["Goals"], "period": "Season", "page": "99"},
             cookies={"session_id": "sid-test"},
         )
 
@@ -345,7 +321,7 @@ def test_waiver_post_cache_hit_skips_api(ctx):
 
     with (
         patch("web.routes.waiver.make_session", return_value=MagicMock()),
-        patch("web.routes.waiver._get_league_key", return_value="419.l.11111"),
+        patch("web.routes.waiver.get_league_key", return_value="419.l.11111"),
         patch("web.routes.waiver.get_stat_categories", return_value=_make_stat_categories()),
         patch("web.routes.waiver.cache.is_player_pool_stale", return_value=False),
         patch("web.routes.waiver.cache.read_player_pool", return_value=pool_df),
@@ -354,7 +330,7 @@ def test_waiver_post_cache_hit_skips_api(ctx):
     ):
         response = client.post(
             "/api/waiver/players",
-            data={"stats": ["Goals"], "position": "All", "period": "Season", "page": "0"},
+            data={"stats": ["Goals"], "period": "Season", "page": "0"},
             cookies={"session_id": "sid-test"},
         )
 
@@ -376,7 +352,7 @@ def test_waiver_post_position_no_matching_rows(ctx):
 
     with (
         patch("web.routes.waiver.make_session", return_value=MagicMock()),
-        patch("web.routes.waiver._get_league_key", return_value="419.l.11111"),
+        patch("web.routes.waiver.get_league_key", return_value="419.l.11111"),
         patch("web.routes.waiver.get_stat_categories", return_value=_make_stat_categories()),
         patch("web.routes.waiver.cache.is_player_pool_stale", return_value=True),
         patch("web.routes.waiver.fetch_season_pool", return_value=pool_df),
@@ -409,7 +385,7 @@ def test_demo_waiver_post_no_cache_writes(ctx):
     ):
         response = client.post(
             "/demo/api/waiver/players",
-            data={"stats": ["Goals"], "position": "All", "period": "Season", "page": "0"},
+            data={"stats": ["Goals"], "period": "Season", "page": "0"},
         )
 
     assert response.status_code == 200
@@ -459,7 +435,7 @@ def test_waiver_post_lastmonth_returns_gp_column_and_footer(ctx):
 
     with (
         patch("web.routes.waiver.make_session", return_value=MagicMock()),
-        patch("web.routes.waiver._get_league_key", return_value="419.l.11111"),
+        patch("web.routes.waiver.get_league_key", return_value="419.l.11111"),
         patch("web.routes.waiver.get_stat_categories", return_value=_make_stat_categories()),
         patch("web.routes.waiver.cache.is_player_pool_stale", return_value=True),
         patch("web.routes.waiver.fetch_season_pool", return_value=season_pool),
@@ -473,7 +449,7 @@ def test_waiver_post_lastmonth_returns_gp_column_and_footer(ctx):
     ):
         response = client.post(
             "/api/waiver/players",
-            data={"stats": ["Goals"], "position": "All", "period": "Last 30 days", "page": "0"},
+            data={"stats": ["Goals"], "period": "Last 30 days", "page": "0"},
             cookies={"session_id": "sid-test"},
         )
 
@@ -498,7 +474,7 @@ def test_waiver_post_season_footer_and_no_gp(ctx):
 
     with (
         patch("web.routes.waiver.make_session", return_value=MagicMock()),
-        patch("web.routes.waiver._get_league_key", return_value="419.l.11111"),
+        patch("web.routes.waiver.get_league_key", return_value="419.l.11111"),
         patch("web.routes.waiver.get_stat_categories", return_value=_make_stat_categories()),
         patch("web.routes.waiver.cache.is_player_pool_stale", return_value=True),
         patch("web.routes.waiver.fetch_season_pool", return_value=pool_df),
@@ -506,7 +482,7 @@ def test_waiver_post_season_footer_and_no_gp(ctx):
     ):
         response = client.post(
             "/api/waiver/players",
-            data={"stats": ["Goals"], "position": "All", "period": "Season", "page": "0"},
+            data={"stats": ["Goals"], "period": "Season", "page": "0"},
             cookies={"session_id": "sid-test"},
         )
 
@@ -525,7 +501,7 @@ def test_waiver_post_season_shows_games_remaining(ctx):
 
     with (
         patch("web.routes.waiver.make_session", return_value=MagicMock()),
-        patch("web.routes.waiver._get_league_key", return_value="419.l.11111"),
+        patch("web.routes.waiver.get_league_key", return_value="419.l.11111"),
         patch("web.routes.waiver.get_stat_categories", return_value=_make_stat_categories()),
         patch("web.routes.waiver.cache.is_player_pool_stale", return_value=True),
         patch("web.routes.waiver.fetch_season_pool", return_value=_make_season_pool(5)),
@@ -554,7 +530,7 @@ def test_week_dates_are_fetched_once_per_day(ctx):
 
     with (
         patch("web.routes.waiver.make_session", return_value=MagicMock()),
-        patch("web.routes.waiver._get_league_key", return_value="419.l.11111"),
+        patch("web.routes.waiver.get_league_key", return_value="419.l.11111"),
         patch("web.routes.waiver.get_stat_categories", return_value=_make_stat_categories()),
         patch("web.routes.waiver.cache.is_player_pool_stale", return_value=True),
         patch("web.routes.waiver.fetch_season_pool", return_value=_make_season_pool(5)),
@@ -648,7 +624,7 @@ def test_demo_waiver_post_lastmonth_no_yahoo_no_cache(ctx):
     ):
         response = client.post(
             "/demo/api/waiver/players",
-            data={"stats": ["Goals"], "position": "All", "period": "Last 30 days", "page": "0"},
+            data={"stats": ["Goals"], "period": "Last 30 days", "page": "0"},
         )
 
     assert response.status_code == 200
@@ -694,7 +670,7 @@ def test_waiver_post_lastmonth_matchups_none_no_500(ctx):
 
     with (
         patch("web.routes.waiver.make_session", return_value=MagicMock()),
-        patch("web.routes.waiver._get_league_key", return_value="419.l.11111"),
+        patch("web.routes.waiver.get_league_key", return_value="419.l.11111"),
         patch("web.routes.waiver.get_stat_categories", return_value=_make_stat_categories()),
         patch("web.routes.waiver.cache.is_player_pool_stale", return_value=True),
         patch("web.routes.waiver.fetch_season_pool", return_value=season_pool),
@@ -706,7 +682,7 @@ def test_waiver_post_lastmonth_matchups_none_no_500(ctx):
     ):
         response = client.post(
             "/api/waiver/players",
-            data={"stats": ["Goals"], "position": "All", "period": "Last 30 days", "page": "0"},
+            data={"stats": ["Goals"], "period": "Last 30 days", "page": "0"},
             cookies={"session_id": "sid-test"},
         )
 
@@ -729,7 +705,7 @@ def test_waiver_post_lastmonth_matchup_raises_no_500(ctx):
 
     with (
         patch("web.routes.waiver.make_session", return_value=MagicMock()),
-        patch("web.routes.waiver._get_league_key", return_value="419.l.11111"),
+        patch("web.routes.waiver.get_league_key", return_value="419.l.11111"),
         patch("web.routes.waiver.get_stat_categories", return_value=_make_stat_categories()),
         patch("web.routes.waiver.cache.is_player_pool_stale", return_value=True),
         patch("web.routes.waiver.fetch_season_pool", return_value=season_pool),
@@ -742,13 +718,38 @@ def test_waiver_post_lastmonth_matchup_raises_no_500(ctx):
     ):
         response = client.post(
             "/api/waiver/players",
-            data={"stats": ["Goals"], "position": "All", "period": "Last 30 days", "page": "0"},
+            data={"stats": ["Goals"], "period": "Last 30 days", "page": "0"},
             cookies={"session_id": "sid-test"},
         )
 
     assert response.status_code == 200
     assert "<table" in response.text
     assert "last 30 days stats" in response.text
+
+
+def test_waiver_post_nhl_schedule_failure_still_renders_table(ctx):
+    """A network error from the NHL schedule API leaves the GR column empty, not a 500."""
+    conn, client = ctx
+    _insert_session(conn)
+
+    with (
+        patch("web.routes.waiver.make_session", return_value=MagicMock()),
+        patch("web.routes.waiver.get_league_key", return_value="419.l.11111"),
+        patch("web.routes.waiver.get_stat_categories", return_value=_make_stat_categories()),
+        patch("web.routes.waiver.cache.is_player_pool_stale", return_value=True),
+        patch("web.routes.waiver.fetch_season_pool", return_value=_make_season_pool(5)),
+        patch("web.routes.waiver.cache.write_player_pool"),
+        patch("web.routes.waiver._current_week_dates", return_value=(date(2026, 3, 23), date(2026, 3, 29))),
+        patch("web.routes.waiver.get_remaining_games", side_effect=requests.ConnectionError("down")),
+    ):
+        response = client.post(
+            "/api/waiver/players",
+            data={"stats": ["Goals"], "period": "Season", "page": "0"},
+            cookies={"session_id": "sid-test"},
+        )
+
+    assert response.status_code == 200
+    assert "<table" in response.text
 
 
 # ---------------------------------------------------------------------------
@@ -763,7 +764,7 @@ def test_waiver_post_lastmonth_empty_lm_pool_falls_back_to_season(ctx):
 
     with (
         patch("web.routes.waiver.make_session", return_value=MagicMock()),
-        patch("web.routes.waiver._get_league_key", return_value="419.l.11111"),
+        patch("web.routes.waiver.get_league_key", return_value="419.l.11111"),
         patch("web.routes.waiver.get_stat_categories", return_value=_make_stat_categories()),
         patch("web.routes.waiver.cache.is_player_pool_stale", return_value=True),
         patch("web.routes.waiver.fetch_season_pool", return_value=season_pool),
@@ -776,7 +777,7 @@ def test_waiver_post_lastmonth_empty_lm_pool_falls_back_to_season(ctx):
     ):
         response = client.post(
             "/api/waiver/players",
-            data={"stats": ["Goals"], "position": "All", "period": "Last 30 days", "page": "0"},
+            data={"stats": ["Goals"], "period": "Last 30 days", "page": "0"},
             cookies={"session_id": "sid-test"},
         )
 
@@ -929,7 +930,7 @@ def test_live_multi_position_fetches_each_position(ctx):
 
     with (
         patch("web.routes.waiver.make_session", return_value=MagicMock()),
-        patch("web.routes.waiver._get_league_key", return_value="419.l.11111"),
+        patch("web.routes.waiver.get_league_key", return_value="419.l.11111"),
         patch("web.routes.waiver.get_stat_categories", return_value=_make_stat_categories()),
         patch("web.routes.waiver.cache.is_player_pool_stale", return_value=True),
         patch("web.routes.waiver.fetch_season_pool", side_effect=fake_fetch) as mock_fetch,

@@ -22,7 +22,7 @@ _COUNTED_GAME_TYPES = frozenset({2, 3})
 _YAHOO_TO_NHL: dict[str, str] = {
     "LA": "LAK",   # Los Angeles Kings
     "NJ": "NJD",   # New Jersey Devils
-    "SJ": "SJS",   # San Jose Sharks (historical; team is now Utah)
+    "SJ": "SJS",   # San Jose Sharks
     "TB": "TBL",   # Tampa Bay Lightning
 }
 

@@ -45,21 +45,30 @@ Never make N per-entity Yahoo API calls when a collection endpoint exists. Examp
 one call. When adding a new fetch, check `data/client.py` and the Yahoo docs for a
 collection endpoint before defaulting to a loop.
 
+### Read parquet through an open file handle, not a path
+
+`cache.read()` opens the file and hands the handle to `pd.read_parquet`. Given a path,
+pyarrow (seen with pandas 3.1 / pyarrow 26) may open the file more than once; if a
+concurrent write's `os.replace()` lands in between, the read sees a mix of two files and
+raises `OSError: Unexpected end of stream`. One handle pins one inode, so atomic replace
+stays safe. `tests/test_cache.py::test_reads_during_concurrent_writes_never_observe_a_partial_file`
+catches a regression.
+
 ### Tests must patch the importing module's namespace
 
 Data modules import helpers by name (`from data.client import _get`), which binds the
 name in the importing module. Patching `data.client._get` has no effect on them — patch
 `data.players._get`, `data.leagues._get`, etc. (See DECISIONS.md 2026-03-03 entry.)
 
-**Exception — the demo route handlers, which import lazily.** The `/demo/*` handlers in
-`web/routes/overview.py` do `from data import demo as demo_module` *inside the function
-body*, then call `demo_module.get_matchups()`. The name is resolved on the `data.demo`
-module object at call time, not bound into the route module at import time, so the rule
+**Exception — the demo data module.** The route modules import `from data import demo as
+demo_module` and call `demo_module.get_matchups()`. The function name is looked up on the
+`data.demo` module object at call time, not bound into the route module, so the rule
 above inverts: patch `data.demo.get_matchups`, **not**
 `web.routes.overview.get_matchups`. Patching the route module for a demo handler fails
 silently — the handler still gets the real snapshot, so a test meant to exercise an
 empty-state branch quietly runs against the populated one and passes while guarding
-nothing. Check whether the import is module-level or in-body before choosing a target.
+nothing. Check whether a route binds the function name or goes through a module object before
+choosing a target.
 (The working pattern is in `tests/test_demo_overview_routes.py` lines 11-12.)
 
 ### Purge `__pycache__` between mutation probes, or CPython replays the previous result

@@ -5,9 +5,10 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import RedirectResponse
 
 from analysis.matchup_sim import tally
-from analysis.projection import _is_rate_stat, compare_projections, project_team_stats
+from analysis.projection import compare_projections, is_rate_stat, project_team_stats
 from analysis.team_scores import lower_is_better_from_categories
 from auth.oauth import make_session
+from data import demo as demo_module
 from data import players as players_module
 from data import roster as roster_module
 from data import schedule as schedule_module
@@ -20,7 +21,7 @@ from data.client import (
 from data.leagues import get_user_hockey_leagues
 from db.connection import db_dep
 from web.middleware.session import CurrentUser, require_user
-from web.routes.common import _get_league_key, shell_context
+from web.routes.common import get_league_key, shell_context
 from web.templates import templates
 
 router = APIRouter()
@@ -33,7 +34,7 @@ def projection_shell(
     current_user: CurrentUser = Depends(require_user),
     db=Depends(db_dep),
 ):
-    league_key = _get_league_key(db, current_user.session_id)
+    league_key = get_league_key(db, current_user.session_id)
     if not league_key:
         return RedirectResponse("/", status_code=302)
     session = make_session(current_user.access_token)
@@ -72,7 +73,7 @@ def _player_breakdown(roster, lastmonth_stats, games_remaining, enabled_stats):
         gp = lm.get("games_played", 0)
         stats = {}
         for stat in enabled_stats:
-            if _is_rate_stat(stat):
+            if is_rate_stat(stat):
                 stats[stat] = lm.get(stat, 0.0)
             else:
                 stats[stat] = (lm.get(stat, 0.0) / gp * remaining) if gp > 0 else 0.0
@@ -258,7 +259,7 @@ def _render_matchup(
             "goalie_columns": goalie_columns,
             "my_breakdown": my_breakdown,
             "opp_breakdown": opp_breakdown,
-            "is_rate_stat": _is_rate_stat,
+            "is_rate_stat": is_rate_stat,
         },
     )
 
@@ -270,7 +271,7 @@ def projection_matchup(
     current_user: CurrentUser = Depends(require_user),
     db=Depends(db_dep),
 ):
-    league_key = _get_league_key(db, current_user.session_id)
+    league_key = get_league_key(db, current_user.session_id)
     if not league_key:
         return RedirectResponse("/", status_code=302)
     selected = team_key
@@ -286,8 +287,6 @@ def projection_matchup(
 
 @public_router.get("/demo/projection")
 def demo_projection_shell(request: Request):
-    from data import demo as demo_module
-
     ctx = demo_module.get_projection_context()
     return templates.TemplateResponse(
         request,
@@ -305,8 +304,6 @@ def demo_projection_matchup(
     request: Request,
     team_key: str | None = None,
 ):
-    from data import demo as demo_module
-
     selected = team_key
     if not selected:
         return RedirectResponse("/demo/projection", status_code=302)
