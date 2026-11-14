@@ -64,15 +64,15 @@ The previous trackers (`docs/ROADMAP.md`, `docs/backlog.md`, `docs/improvements.
 
 ## Test and code tidy-ups
 
-- [ ] Create `tests/conftest.py` with the shared in-memory session DB and client harness
-      (about 13 test files each copy the schema today).
+- [ ] Move the per-file `ctx` fixtures (DB override + `TestClient`) into a shared fixture
+      next to `tests/helpers.py`.
 - [ ] Rename the remaining `*_qa.py` test modules for the feature they cover.
 - [ ] Deduplicate projection route test scaffolding across three test files.
 - [ ] Add direct tests for `optional_user`, including its session-deleting refresh branch.
-- [ ] `cache.append()` has no production callers; remove it.
-- [ ] Stale docstrings: `data/cache.py` (still describes Streamlit caching) and
-      `tests/test_matchups.py` (still describes the append write path).
-- [ ] Stale `position` form field in 14 `tests/test_waiver.py` call sites.
+- [ ] Code audit (2026-11-09) items that wait for a working Yahoo API key: cut Yahoo calls
+      per page (league name lookup, repeated `/settings` calls, previous-week re-fetch,
+      Overview week change), merge the three settings parsers in `data/client.py`,
+      de-duplicate `require_user`/`optional_user`, add timeouts to the token requests.
 
 ## Ideas (not planned)
 

@@ -21,14 +21,13 @@ per docs/DECISIONS.md 2026-03-03 / docs/LEARNINGS.md.
 from __future__ import annotations
 
 import re
-import sqlite3
-import time
 from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 
 from db.connection import db_dep
+from tests.helpers import insert_session, make_db
 from web.main import app
 
 LEAGUE_KEY = "419.l.11111"
@@ -72,29 +71,10 @@ LASTMONTH = {
 GAMES_REMAINING = {"EDM": 3, "BOS": 2}
 
 
-def _make_db() -> sqlite3.Connection:
-    conn = sqlite3.connect(":memory:", check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    conn.executescript(
-        """
-        CREATE TABLE user_sessions (
-            session_id TEXT PRIMARY KEY, access_token TEXT, refresh_token TEXT,
-            expires_at REAL, created_at REAL, league_key TEXT
-        );
-        CREATE TABLE oauth_states (state TEXT PRIMARY KEY, expires_at REAL);
-        """
-    )
-    conn.execute(
-        "INSERT INTO user_sessions VALUES (?, ?, ?, ?, ?, ?)",
-        ("sid-test", "acc", "ref", time.time() + 3600, time.time(), LEAGUE_KEY),
-    )
-    conn.commit()
-    return conn
-
-
 @pytest.fixture()
 def client():
-    conn = _make_db()
+    conn = make_db()
+    insert_session(conn, league_key=LEAGUE_KEY)
 
     def override_db():
         yield conn

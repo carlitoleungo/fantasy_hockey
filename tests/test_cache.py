@@ -110,55 +110,6 @@ def test_write_does_not_affect_other_data_types():
 
 
 # ---------------------------------------------------------------------------
-# append()
-# ---------------------------------------------------------------------------
-
-def test_append_creates_file_when_none_exists():
-    df = matchups_df()
-    cache.append(LEAGUE_KEY, "matchups", df)
-    result = cache.read(LEAGUE_KEY, "matchups")
-    pd.testing.assert_frame_equal(result, df)
-
-
-def test_append_adds_rows_after_existing():
-    week1 = pd.DataFrame({"team_name": ["Ducks"], "week": [1], "goals": [10], "assists": [20]})
-    week2 = pd.DataFrame({"team_name": ["Ducks"], "week": [2], "goals": [8], "assists": [14]})
-    cache.write(LEAGUE_KEY, "matchups", week1)
-    cache.append(LEAGUE_KEY, "matchups", week2)
-    result = cache.read(LEAGUE_KEY, "matchups")
-    assert len(result) == 2
-    assert list(result["week"]) == [1, 2]
-
-
-def test_append_preserves_existing_rows():
-    original = matchups_df()
-    extra = pd.DataFrame({"team_name": ["Senators"], "week": [2], "goals": [5], "assists": [9]})
-    cache.write(LEAGUE_KEY, "matchups", original)
-    cache.append(LEAGUE_KEY, "matchups", extra)
-    result = cache.read(LEAGUE_KEY, "matchups")
-    assert "Mighty Ducks" in result["team_name"].values
-    assert "Maple Leafs" in result["team_name"].values
-    assert "Senators" in result["team_name"].values
-
-
-def test_append_resets_index():
-    cache.write(LEAGUE_KEY, "matchups", matchups_df())
-    extra = pd.DataFrame({"team_name": ["X"], "week": [3], "goals": [1], "assists": [2]})
-    cache.append(LEAGUE_KEY, "matchups", extra)
-    result = cache.read(LEAGUE_KEY, "matchups")
-    assert list(result.index) == list(range(len(result)))
-
-
-def test_append_updates_last_updated_timestamp():
-    cache.write(LEAGUE_KEY, "matchups", matchups_df())
-    before = datetime.now(timezone.utc)
-    extra = pd.DataFrame({"team_name": ["X"], "week": [3], "goals": [1], "assists": [2]})
-    cache.append(LEAGUE_KEY, "matchups", extra)
-    ts = cache.last_updated(LEAGUE_KEY, "matchups")
-    assert ts >= before
-
-
-# ---------------------------------------------------------------------------
 # last_updated()
 # ---------------------------------------------------------------------------
 
@@ -287,42 +238,6 @@ def run_concurrently(targets, timeout=60):
     return errors
 
 
-def test_concurrent_appends_do_not_lose_rows():
-    """N threads appending one row each must leave exactly N rows on disk."""
-    n = 12
-
-    def appender(i):
-        def run():
-            row = pd.DataFrame({"team_name": [f"team_{i}"], "week": [i], "goals": [i], "assists": [i]})
-            cache.append(LEAGUE_KEY, "matchups", row)
-        return run
-
-    errors = run_concurrently([appender(i) for i in range(n)])
-    assert errors == []
-    result = cache.read(LEAGUE_KEY, "matchups")
-    assert len(result) == n
-    assert sorted(result["week"]) == list(range(n))
-
-
-def test_concurrent_appends_onto_seeded_file_preserve_seed_rows():
-    seed = matchups_df()
-    cache.write(LEAGUE_KEY, "matchups", seed)
-    n = 8
-
-    def appender(i):
-        def run():
-            row = pd.DataFrame({"team_name": [f"team_{i}"], "week": [i], "goals": [i], "assists": [i]})
-            cache.append(LEAGUE_KEY, "matchups", row)
-        return run
-
-    errors = run_concurrently([appender(i) for i in range(n)])
-    assert errors == []
-    result = cache.read(LEAGUE_KEY, "matchups")
-    assert len(result) == len(seed) + n
-    assert "Mighty Ducks" in result["team_name"].values
-    assert "Maple Leafs" in result["team_name"].values
-
-
 def test_reads_during_concurrent_writes_never_observe_a_partial_file():
     """
     A reader overlapping a writer sees either the old or the new complete frame,
@@ -416,7 +331,7 @@ def test_upsert_lastmonth_still_replaces_rows_for_the_same_player():
 
 def test_writes_leave_no_temp_files_behind(tmp_path):
     cache.write(LEAGUE_KEY, "matchups", matchups_df())
-    cache.append(LEAGUE_KEY, "matchups", matchups_df())
+    cache.write(LEAGUE_KEY, "matchups", matchups_df())
     names = sorted(p.name for p in (tmp_path / LEAGUE_KEY).iterdir())
     assert names == ["last_updated.json", "matchups.parquet"]
 
@@ -454,13 +369,6 @@ def test_shared_read_returns_none_when_missing():
     assert cache.read(None, "some_type") is None
 
 
-def test_shared_append_round_trips(tmp_path):
-    cache.append(None, "some_type", players_df())
-    cache.append(None, "some_type", players_df())
-    assert (tmp_path / "_shared" / "some_type.parquet").exists()
-    assert len(cache.read(None, "some_type")) == 4
-
-
 def test_shared_metadata_is_tracked(tmp_path):
     cache.write(None, "some_type", players_df())
     assert (tmp_path / "_shared" / "last_updated.json").exists()
@@ -485,17 +393,18 @@ def test_league_keyed_paths_are_unchanged(tmp_path):
     assert cache._meta_path(None) == tmp_path / "_shared" / "last_updated.json"
 
 
-def test_concurrent_shared_appends_do_not_lose_rows():
+def test_concurrent_shared_writes_keep_every_metadata_entry():
+    """Writes of different data types to the shared tier must not drop each other's timestamps."""
     n = 8
 
-    def appender(i):
+    def writer(i):
         def run():
-            cache.append(None, "some_type", pd.DataFrame({"x": [i]}))
+            cache.write(None, f"type_{i}", pd.DataFrame({"x": [i]}))
         return run
 
-    errors = run_concurrently([appender(i) for i in range(n)])
+    errors = run_concurrently([writer(i) for i in range(n)])
     assert errors == []
-    assert sorted(cache.read(None, "some_type")["x"]) == list(range(n))
+    assert all(cache.last_updated(None, f"type_{i}") is not None for i in range(n))
 
 
 # ---------------------------------------------------------------------------

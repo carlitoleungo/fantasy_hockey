@@ -85,6 +85,8 @@ and, if it needs more than a few sentences, a full entry in the history file.
   override; use captured fixtures and demo mode for off-season work (2026-07-03).
 - **Patch the importing module's namespace** (e.g. `data.leagues._get`, not `data.client._get`)
   (2026-03-03). See `docs/LEARNINGS.md` for the demo-route exception.
-- **Test modules are named for the feature they cover; the shared session-DB/client harness
-  belongs in `tests/conftest.py`** (2026-07-26). The conftest has not been created yet (see
-  `docs/TODO.md`).
+- **Test modules are named for the feature they cover; the shared session-DB harness lives in
+  `tests/helpers.py`** (2026-07-26, location changed 2026-11-14). It is a plain module rather
+  than `conftest.py` because tests import its functions directly (`make_db()` applies the
+  real `db/schema.sql`; `insert_session()` seeds a valid session), and conftest is not meant
+  to be imported.

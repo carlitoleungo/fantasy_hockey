@@ -8,7 +8,6 @@ API calls are made.
 
 from __future__ import annotations
 
-import sqlite3
 import time
 from unittest.mock import MagicMock, patch
 
@@ -16,30 +15,13 @@ import pytest
 from fastapi.testclient import TestClient
 
 from db.connection import db_dep
+from tests.helpers import make_db
 from web.main import app
 
 
 # ---------------------------------------------------------------------------
 # In-memory DB fixture
 # ---------------------------------------------------------------------------
-
-def _make_in_memory_db():
-    conn = sqlite3.connect(":memory:", check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    conn.executescript("""
-        CREATE TABLE oauth_states (
-            state TEXT PRIMARY KEY,
-            expires_at REAL
-        );
-        CREATE TABLE user_sessions (
-            session_id TEXT PRIMARY KEY,
-            access_token TEXT,
-            refresh_token TEXT,
-            expires_at REAL,
-            created_at REAL
-        );
-    """)
-    return conn
 
 
 @pytest.fixture()
@@ -49,7 +31,7 @@ def db_and_client():
     The same connection is shared by the test body and route handlers so we
     can inspect DB state after route calls.
     """
-    conn = _make_in_memory_db()
+    conn = make_db()
 
     def override_db():
         yield conn

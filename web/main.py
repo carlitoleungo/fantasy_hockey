@@ -55,7 +55,7 @@ def http_error_handler(request: Request, exc: requests.HTTPError):
         request,
         "error.html",
         {
-            "detail": "Yahoo API request failed. Please try again.",
+            "detail": "Couldn't load data from Yahoo or the NHL schedule. Please try again.",
             **unknown_auth_shell_context(),
         },
         status_code=502,

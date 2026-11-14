@@ -39,7 +39,7 @@ def test_http_error_returns_html(client):
 
 def test_http_error_contains_yahoo_message(client):
     resp = client.get("/test/http-error")
-    assert "Yahoo API request failed" in resp.text
+    assert "load data from Yahoo or the NHL schedule" in resp.text
 
 
 def test_500_handler_fires_for_bare_exception(client):

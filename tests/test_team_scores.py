@@ -32,7 +32,14 @@ Sort order: Team A first (best avg_rank), Team C last.
 import pandas as pd
 import pytest
 
-from analysis.team_scores import LOWER_IS_BETTER, avg_ranks, lower_is_better_from_categories, stat_columns, weekly_scores
+from analysis.team_scores import (
+    LOWER_IS_BETTER,
+    avg_ranks,
+    category_winner,
+    lower_is_better_from_categories,
+    stat_columns,
+    weekly_scores,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -272,3 +279,24 @@ def test_lower_is_better_from_categories_empty_list():
 def test_lower_is_better_from_categories_returns_frozenset():
     result = lower_is_better_from_categories([])
     assert isinstance(result, frozenset)
+
+
+# ---------------------------------------------------------------------------
+# category_winner
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize(
+    "a, b, lower, expected",
+    [
+        (5.0, 3.0, False, "a"),
+        (3.0, 5.0, False, "b"),
+        (2.1, 2.8, True, "a"),
+        (2.8, 2.1, True, "b"),
+        (4.0, 4.0, False, "tie"),
+        (4.0, 4.0, True, "tie"),
+        (float("nan"), 3.0, False, "tie"),
+        (3.0, float("nan"), True, "tie"),
+    ],
+)
+def test_category_winner(a, b, lower, expected):
+    assert category_winner(a, b, lower) == expected

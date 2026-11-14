@@ -18,26 +18,13 @@ from fastapi.responses import RedirectResponse
 from fastapi.testclient import TestClient
 
 from db.connection import db_dep
+from tests.helpers import insert_session, make_db
 from web.middleware.session import CurrentUser, RequiresLogin, require_user
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-def _make_db() -> sqlite3.Connection:
-    conn = sqlite3.connect(":memory:", check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    conn.executescript("""
-        CREATE TABLE user_sessions (
-            session_id TEXT PRIMARY KEY,
-            access_token TEXT,
-            refresh_token TEXT,
-            expires_at REAL,
-            created_at REAL
-        );
-    """)
-    return conn
 
 
 def _make_app(conn: sqlite3.Connection) -> FastAPI:
@@ -72,12 +59,9 @@ def _make_app(conn: sqlite3.Connection) -> FastAPI:
 
 
 def _insert_session(conn, session_id, expires_at, access_token="acc", refresh_token="ref"):
-    conn.execute(
-        "INSERT INTO user_sessions (session_id, access_token, refresh_token, expires_at, created_at)"
-        " VALUES (?, ?, ?, ?, ?)",
-        (session_id, access_token, refresh_token, expires_at, time.time()),
+    insert_session(
+        conn, session_id, access_token=access_token, refresh_token=refresh_token, expires_at=expires_at
     )
-    conn.commit()
 
 
 def _fresh_token_response(access_token="new_acc", refresh_token="new_ref"):
@@ -96,7 +80,7 @@ def ctx(monkeypatch):
     monkeypatch.setenv("YAHOO_CLIENT_ID", "test_cid")
     monkeypatch.setenv("YAHOO_CLIENT_SECRET", "test_csecret")
     monkeypatch.setenv("YAHOO_REDIRECT_URI", "http://localhost/auth/callback")
-    conn = _make_db()
+    conn = make_db()
     app = _make_app(conn)
     client = TestClient(app, follow_redirects=False)
     yield conn, client

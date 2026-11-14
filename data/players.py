@@ -6,7 +6,7 @@ Two API calls per page of 25 players:
      (out=stats always returns season totals regardless of sort_type)
   2. /players;player_keys={keys}/stats;type=lastmonth — lastmonth stats as a batch
 
-Returns two DataFrames with identical structure:
+Player DataFrames (season pool and last-month batch) share this structure:
     player_key        str
     player_name       str
     team_abbr         str
@@ -16,7 +16,8 @@ Returns two DataFrames with identical structure:
     <stat_name>       float  one column per enabled scoring category, same names
                              as the matchups DataFrame so LOWER_IS_BETTER etc. work
 
-Available players change constantly — never cache this data.
+The waiver route caches season pools and last-month stats for 24 hours via
+data/cache.py; nothing in this module caches.
 """
 
 from __future__ import annotations
@@ -24,68 +25,6 @@ from __future__ import annotations
 import pandas as pd
 
 from data.client import BASE_URL, _as_list, _coerce, _get, get_stat_categories
-
-
-def get_available_players(
-    session,
-    league_key: str,
-    max_players: int = 100,
-    position: str | None = None,
-) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """
-    Fetch available (unrostered) players sorted by overall rank.
-
-    Parameters
-    ----------
-    position : Yahoo position code to pre-filter at the API level (e.g. "G",
-               "D", "C"). When None, fetches all positions (top max_players by
-               overall rank). Use this for position-specific filters so that
-               the top-N results are drawn from that position, not from the
-               overall pool where some positions may be underrepresented.
-
-    Returns (season_df, lastmonth_df). Both DataFrames have the same rows and
-    metadata columns; stat values reflect the respective time period.
-    lastmonth_df also includes a games_played column.
-    """
-    stat_categories = get_stat_categories(session, league_key)
-    id_to_name = {
-        cat["stat_id"]: cat["stat_name"]
-        for cat in stat_categories
-        if cat["is_enabled"]
-    }
-
-    season_rows: list[dict] = []
-    lastmonth_rows: list[dict] = []
-    start = 0
-
-    while len(season_rows) < max_players:
-        page_season, page_keys = _fetch_page_season(
-            session, league_key, id_to_name, start,
-            position=position, sort_stat_id="OR", count=25,
-        )
-        if not page_season:
-            break
-
-        # {player_key: stats_dict} — metadata comes from page_season
-        lm_stats_by_key = _fetch_page_lastmonth(session, page_keys, id_to_name)
-
-        season_rows.extend(page_season)
-        for row in page_season:
-            lm_row = {
-                "player_key": row["player_key"],
-                "player_name": row["player_name"],
-                "team_abbr": row["team_abbr"],
-                "display_position": row["display_position"],
-                "status": row["status"],
-            }
-            lm_row.update(lm_stats_by_key.get(row["player_key"], {}))
-            lastmonth_rows.append(lm_row)
-
-        if len(page_season) < 25:
-            break
-        start += 25
-
-    return pd.DataFrame(season_rows), pd.DataFrame(lastmonth_rows)
 
 
 def get_players_lastmonth_stats(
@@ -96,8 +35,7 @@ def get_players_lastmonth_stats(
     """
     Fetch last-30-day stats for an explicit list of player keys (e.g. a roster).
 
-    Unlike get_available_players(), this does not paginate through waiver wire
-    players — it fetches stats for a known set of keys in batches of 25.
+    Fetches stats for a known set of keys in batches of 25.
 
     Returns:
         {player_key: {stat_name: float, ..., games_played: int}}

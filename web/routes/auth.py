@@ -8,7 +8,7 @@ Callback: validates the state nonce (one-time use), exchanges the code for
 tokens, writes the session to user_sessions, sets a session_id cookie, and
 redirects to /.
 
-Token refresh is out of scope — see ticket 005.
+Token refresh happens per request in web/middleware/session.py.
 """
 
 from __future__ import annotations

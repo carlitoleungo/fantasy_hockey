@@ -2,8 +2,8 @@
 Rank available players by performance in selected stat categories.
 
 All functions are pure pandas — no API calls, no Streamlit, no cache I/O.
-They accept DataFrames produced by data.players.get_available_players() and
-return plain DataFrames ready for the UI to display.
+They accept player DataFrames produced by data.players (season pools and
+last-month batches) and return plain DataFrames ready for the UI to display.
 
 Player DataFrame schema (from data.players):
     player_key        str
@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import pandas as pd
 
+from analysis.projection import is_rate_stat
 from analysis.team_scores import LOWER_IS_BETTER
 
 # Metadata columns that are never stat categories.
@@ -169,14 +170,12 @@ def project_rest_of_week(
     A team missing from games_remaining is unknown: its projections are NaN and
     the player ranks last. A player with 0 games played projects to 0.
     """
-    from analysis.projection import _is_rate_stat
-
     out = df.copy()
     gr = out["team_abbr"].map(games_remaining).astype(float)
     gp = pd.to_numeric(out.get("games_played", pd.Series(0, index=out.index)), errors="coerce").fillna(0)
     per_game_scale = (gr / gp.where(gp > 0)).fillna(0).where(gr.notna())
     for col in categories:
-        if col not in out.columns or _is_rate_stat(col):
+        if col not in out.columns or is_rate_stat(col):
             continue
         out[col] = pd.to_numeric(out[col], errors="coerce").fillna(0) * per_game_scale
     out["games_remaining"] = gr

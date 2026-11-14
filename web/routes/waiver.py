@@ -1,10 +1,12 @@
+import logging
 from datetime import date
 
 import pandas as pd
+import requests
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import RedirectResponse
 
-from analysis.projection import _is_rate_stat
+from analysis.projection import is_rate_stat
 from analysis.team_scores import stat_columns
 from analysis.waiver_ranking import (
     filter_by_position,
@@ -14,6 +16,7 @@ from analysis.waiver_ranking import (
 )
 from auth.oauth import make_session
 from data import cache
+from data import demo as demo_module
 from data.client import get_stat_categories
 from data.leagues import get_user_hockey_leagues
 from data.matchups import get_matchups
@@ -22,8 +25,10 @@ from data.schedule import get_remaining_games
 from data.scoreboard import get_current_matchup
 from db.connection import db_dep
 from web.middleware.session import CurrentUser, require_user
-from web.routes.common import _get_league_key, shell_context
+from web.routes.common import get_league_key, shell_context
 from web.templates import templates
+
+logger = logging.getLogger(__name__)
 
 PAGE_SIZE = 25
 
@@ -94,7 +99,7 @@ def waiver_shell(
     current_user: CurrentUser = Depends(require_user),
     db=Depends(db_dep),
 ):
-    league_key = _get_league_key(db, current_user.session_id)
+    league_key = get_league_key(db, current_user.session_id)
     if not league_key:
         return RedirectResponse("/", status_code=302)
     session = make_session(current_user.access_token)
@@ -124,8 +129,6 @@ def waiver_shell(
 
 @public_router.get("/demo/waiver")
 def demo_waiver_shell(request: Request):
-    from data import demo as demo_module
-
     matchups_df = demo_module.get_matchups()
     stat_cols = stat_columns(matchups_df) if matchups_df is not None and not matchups_df.empty else []
     raw_cats = demo_module.get_stat_categories()
@@ -199,7 +202,6 @@ def _waiver_post_impl(
         )
 
     if demo:
-        from data import demo as demo_module
         season_pool = demo_module.load_season_pool()
         cats = demo_module.get_stat_categories()
     else:
@@ -243,7 +245,6 @@ def _waiver_post_impl(
 
     if period in _LASTMONTH_PERIODS:
         if demo:
-            from data import demo as demo_module
             lm_pool = demo_module.load_lastmonth_pool()
         else:
             pool_keys = set(season_pool["player_key"]) if not season_pool.empty else set()
@@ -278,10 +279,10 @@ def _waiver_post_impl(
     else:
         base_df = season_pool
 
-    # Games remaining this week, shown in every period; falls back to an empty map
-    # (em dashes in the GR column) on any error.
+    # Games remaining this week, shown in every period. If Yahoo's scoreboard or
+    # the NHL schedule fails or returns something unexpected, fall back to an
+    # empty map (em dashes in the GR column) rather than failing the whole table.
     if demo:
-        from data import demo as demo_module
         games_remaining_map = demo_module.get_games_remaining()
     else:
         try:
@@ -289,7 +290,8 @@ def _waiver_post_impl(
             team_abbrs = base_df["team_abbr"].unique().tolist() if not base_df.empty else []
             if week and team_abbrs:
                 games_remaining_map = get_remaining_games(team_abbrs, week[0], week[1])
-        except Exception:
+        except (requests.RequestException, ValueError, KeyError):
+            logger.warning("games remaining unavailable for %s", league_key, exc_info=True)
             games_remaining_map = {}
 
     # Rest of week: last-30 per-game pace x games left. Without last-30 data or games
@@ -360,7 +362,7 @@ def _waiver_post_impl(
             "current_page": page,
             "page_size": PAGE_SIZE,
             "form_action": form_action,
-            "is_rate_stat": _is_rate_stat,
+            "is_rate_stat": is_rate_stat,
             "shades": page_shades,
             "stat_abbrev": stat_abbrev,
             "projection_unavailable": projection_unavailable,
@@ -382,7 +384,7 @@ def waiver_players(
     current_user: CurrentUser = Depends(require_user),
     db=Depends(db_dep),
 ):
-    league_key = _get_league_key(db, current_user.session_id)
+    league_key = get_league_key(db, current_user.session_id)
     if not league_key:
         return RedirectResponse("/", status_code=302)
     session = make_session(current_user.access_token)
