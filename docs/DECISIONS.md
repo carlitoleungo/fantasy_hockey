@@ -76,6 +76,11 @@ and, if it needs more than a few sentences, a full entry in the history file.
   alongside. Same reasoning as the fonts and Tailwind: no third-party calls at page load, exact
   versions, and headless browsers without internet access can click-test the app. To upgrade,
   replace the file, rename it with the new version and update `base.html`.
+- **The phone Leaderboard uses the Waiver Wire's two-line layout, not a sideways-scrolling
+  table** (2026-11-15). The 2026-11-05 mockup showed a pinned team column with "swipe for
+  more", but the owner later rejected sideways scrolling on the phone Waiver Wire because the
+  stats are the point of the screen, so the Leaderboard follows suit: team line, then every
+  category on one shaded line (`.pg-xtight` drops numbers to 10 px at 13+ categories).
 - **The selected league is stored in the session (`user_sessions.league_key`); routes stay
   bare (`/overview`, `/waiver`, `/projection`)** (2026-04-19).
 
@@ -83,6 +88,12 @@ and, if it needs more than a few sentences, a full entry in the history file.
 
 - **Ties rank with `method='min'` (both tied teams get the better rank)** (2026-03-03).
 - **`LOWER_IS_BETTER` lists both full stat names and abbreviations** (2026-03-03).
+- **Leaderboard shading is by league position, not percentile** (2026-11-15).
+  `team_scores.rank_shade_levels`: the column leader(s) get `s4`, everyone else is placed by
+  `(rank - 1) / (teams - 1)` using the *average* rank of a tied group, and a column where
+  every team is tied gets no shade. A percentile cut (as on the Waiver Wire, which ranks a pool
+  of hundreds) would leave the leader of an 8-team league un-bolded, and `min` ranks would
+  shade nine teams tied on 0 shutouts as if they were near the top.
 
 ## Testing
 

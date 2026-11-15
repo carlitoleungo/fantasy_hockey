@@ -3,8 +3,8 @@ QA-targeted tests for ticket 015 — gaps not covered by the engineer's test fil
 
 Covers:
   - Row order (sorted by avg_rank ascending)
-  - Positional correctness of bg-green-100 / bg-red-100 per cell
-  - team_name and avg_rank cells must NOT carry color classes
+  - Positional correctness of the rank shading (s4 … none) per cell
+  - team_name and avg_rank cells are never shaded
   - Actual stat values appear in rendered HTML
   - HTMX attributes (hx-get / hx-target) present in shell template
 """
@@ -103,107 +103,70 @@ def test_table_rows_sorted_by_avg_rank_ascending(ctx):
 # QA-TC2 — Stat values appear in rendered HTML (not just column headers)
 # ---------------------------------------------------------------------------
 
+def _week2_fragment(ctx) -> str:
+    conn, client = ctx
+    _insert_session(conn, league_key="419.l.11111")
+    df = _make_matchups_df()
+
+    with (
+        patch("web.routes.overview.make_session", return_value=MagicMock()),
+        patch("web.routes.overview.get_user_hockey_leagues", return_value=[LEAGUE_A]),
+        patch("web.routes.overview.get_matchups", return_value=df),
+    ):
+        response = client.get("/overview/table?week=2", cookies={"session_id": "sid-qa"})
+    assert response.status_code == 200
+    return response.text
+
+
 def test_table_renders_stat_values(ctx):
-    """Actual numeric values from the fixture must appear in the fragment."""
-    conn, client = ctx
-    _insert_session(conn, league_key="419.l.11111")
-    df = _make_matchups_df()
-
-    with (
-        patch("web.routes.overview.make_session", return_value=MagicMock()),
-        patch("web.routes.overview.get_user_hockey_leagues", return_value=[LEAGUE_A]),
-        patch("web.routes.overview.get_matchups", return_value=df),
-    ):
-        response = client.get("/overview/table?week=2", cookies={"session_id": "sid-qa"})
-
-    body = response.text
-    assert "8.0" in body    # Alpha Goals / Assists
-    assert "28.0" in body   # Alpha Shots
-    assert "5.0" in body    # Beta Goals
-    assert "3.0" in body    # Gamma Goals / Assists
+    """Weekly totals render as integers (counting stats), not 8.0."""
+    body = _week2_fragment(ctx)
+    assert '<td class="s4">8</td>' in body     # Alpha Goals / Assists
+    assert '<td class="s4">28</td>' in body    # Alpha Shots
+    assert '<td class="s2">5</td>' in body     # Beta Goals
+    assert "<td>3</td>" in body                # Gamma Goals / Assists (last: no shade)
+    assert "8.0<" not in body
 
 
 # ---------------------------------------------------------------------------
-# QA-TC3 — Correct cells get color classes (positional check, week 2)
+# QA-TC3 — Shade levels land on the right rows (week 2)
 # ---------------------------------------------------------------------------
 
-def test_table_color_classes_correct_position(ctx):
+def test_table_shading_correct_position(ctx):
     """
-    Week 2: Alpha wins every stat (rank 1 → bg-green-100), Gamma loses every
-    stat (rank 3 == team_count → bg-red-100). Alpha's row must appear before
-    the first bg-green-100; Gamma's team name must appear before bg-red-100.
+    Week 2: Alpha leads every stat (s4, bold), Beta is second (s2), Gamma is
+    last (no shade). Rows are ordered by avg rank, so Alpha's s4 cells come
+    first and Gamma's row has no shaded cells.
     """
-    conn, client = ctx
-    _insert_session(conn, league_key="419.l.11111")
-    df = _make_matchups_df()
-
-    with (
-        patch("web.routes.overview.make_session", return_value=MagicMock()),
-        patch("web.routes.overview.get_user_hockey_leagues", return_value=[LEAGUE_A]),
-        patch("web.routes.overview.get_matchups", return_value=df),
-    ):
-        response = client.get("/overview/table?week=2", cookies={"session_id": "sid-qa"})
-
-    body = response.text
-
-    # Alpha's team_name cell comes before bg-green-100 (its stat cells)
-    assert body.index("Alpha") < body.index("bg-green-100"), (
-        "bg-green-100 should appear after Alpha's team-name cell"
-    )
-    # Gamma's team_name cell comes before bg-red-100 (its stat cells)
-    assert body.index("Gamma") < body.index("bg-red-100"), (
-        "bg-red-100 should appear after Gamma's team-name cell"
-    )
-    # Alpha row (green) renders before Gamma row (red) since sorted ascending
-    assert body.index("bg-green-100") < body.index("bg-red-100"), (
-        "Alpha row (green) should render before Gamma row (red)"
-    )
+    body = _week2_fragment(ctx)
+    desktop = body[: body.index('class="pg-head"')]
+    alpha, beta, gamma = (desktop.index(n) for n in ("Alpha", "Beta", "Gamma"))
+    assert alpha < beta < gamma
+    assert desktop[alpha:beta].count('class="s4"') == 3
+    assert desktop[beta:gamma].count('class="s2"') == 3
+    gamma_row = desktop[gamma: desktop.index("</tr>", gamma)]
+    assert 'class="s' not in gamma_row
 
 
 # ---------------------------------------------------------------------------
-# QA-TC4 — team_name cells must NOT carry any bg-green / bg-red class
+# QA-TC4 — team name cells are never shaded
 # ---------------------------------------------------------------------------
 
-def test_team_name_cell_not_color_coded(ctx):
-    """The team_name <td> must not receive a rank_color class."""
-    conn, client = ctx
-    _insert_session(conn, league_key="419.l.11111")
-    df = _make_matchups_df()
-
-    with (
-        patch("web.routes.overview.make_session", return_value=MagicMock()),
-        patch("web.routes.overview.get_user_hockey_leagues", return_value=[LEAGUE_A]),
-        patch("web.routes.overview.get_matchups", return_value=df),
-    ):
-        response = client.get("/overview/table?week=2", cookies={"session_id": "sid-qa"})
-
-    body = response.text
-    # Color class must not appear on the team_name cell itself
-    assert 'bg-green-100">Alpha' not in body, "team_name cell for Alpha must not have bg-green-100"
-    assert 'bg-red-100">Gamma' not in body, "team_name cell for Gamma must not have bg-red-100"
+def test_team_name_cell_not_shaded(ctx):
+    body = _week2_fragment(ctx)
+    assert '<td class="l sticky-col"><span class="lb-team">Alpha</span></td>' in body
 
 
 # ---------------------------------------------------------------------------
-# QA-TC5 — avg_rank cells must NOT carry any bg-green / bg-red class
+# QA-TC5 — avg_rank cells are never shaded; leader gets the accent block
 # ---------------------------------------------------------------------------
 
-def test_avg_rank_cell_not_color_coded(ctx):
-    """The avg_rank final column must never get a rank_color class."""
-    conn, client = ctx
-    _insert_session(conn, league_key="419.l.11111")
-    df = _make_matchups_df()
-
-    with (
-        patch("web.routes.overview.make_session", return_value=MagicMock()),
-        patch("web.routes.overview.get_user_hockey_leagues", return_value=[LEAGUE_A]),
-        patch("web.routes.overview.get_matchups", return_value=df),
-    ):
-        response = client.get("/overview/table?week=2", cookies={"session_id": "sid-qa"})
-
-    body = response.text
+def test_avg_rank_cell_not_shaded(ctx):
+    body = _week2_fragment(ctx)
     # avg_rank values for the 3-team fixture (week 2): 1.00, 2.00, 3.00
-    assert 'bg-green-100">1.00' not in body, "avg_rank cell must not carry bg-green-100"
-    assert 'bg-red-100">3.00' not in body, "avg_rank cell must not carry bg-red-100"
+    assert '<td class="avg">1.00</td>' in body
+    assert '<td class="avg">3.00</td>' in body
+    assert '<span class="pos pos-top">1</span>' in body
 
 
 # ---------------------------------------------------------------------------

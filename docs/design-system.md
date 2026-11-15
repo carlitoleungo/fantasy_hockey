@@ -119,7 +119,11 @@ copied from `@fontsource` by `web/styles/copy-fonts.mjs`.
 | **Week strip** | 7 boxes (M–S), 12 × 14 px. Grey = game, accent = off-night game, past days 30 % opacity, `out` text when injured. Header letters mark today (underline) and off-nights (accent). Needs specs 047–049. |
 | **Verdict blocks** (Projection) | Three panels with 58 px condensed numbers: my wins (accent block), ties (outlined), their wins (position-block colours). Largest numbers in the app. |
 | **Win / lose cells** (H2H, Projection) | Winner `s3` + bold; loser `--dim`. H2H adds ◀ ▶ pointing at the winner; Projection adds a centred "who leads" bar and a `CLOSE` tag for margins under 10 %. |
-| **Buttons** | Primary = accent fill; secondary = panel + border. 4 px radius, sans 600 14 px. |
+| **Buttons** | Primary = accent fill; secondary = panel + border. 4 px radius, sans 600 14 px. Classes `.btn`, `.btn-primary`; `.back-link` for "← Leaderboard"-style back links. |
+| **Select** | Native `<select class="select">` styled like a chip with a drawn ▾ caret (Head-to-Head team and week pickers). |
+| **Week stepper** | `‹ [Week 14] ›` inside a `.seg`: `.seg-btn` arrows step, the `.seg-select` in the middle (accent fill) jumps. Arrows disable at the ends (Alpine). |
+| **Leaderboard** | Position block (blue for #1), team, one shaded cell per category, bold Avg Rk after a divider. Rows 32 px. Shading by league position (`team_scores.rank_shade_levels`). Phone uses the two-line phone grid, every category on one line. |
+| **Scoreboard** (H2H) | `.vs` bar: A's wins in an accent block, ties and week range in the middle, B's wins in a position-colour block. Names truncate. |
 | **Empty / loading** | Plain sentence in `--muted` inside the grid panel; loading uses the same panel with a mono "Loading…" status bar. |
 
 ## Wiring

@@ -25,6 +25,7 @@ from data.schedule import get_remaining_games
 from data.scoreboard import get_current_matchup
 from db.connection import db_dep
 from web.middleware.session import CurrentUser, require_user
+from web.routes.common import STAT_FALLBACK_ABBREV as _STAT_FALLBACK_ABBREV
 from web.routes.common import get_league_key, shell_context
 from web.templates import templates
 
@@ -63,34 +64,6 @@ def _current_week_dates(session, league_key: str) -> tuple[date, date] | None:
 
 router = APIRouter()
 public_router = APIRouter()
-
-_STAT_FALLBACK_ABBREV: dict[str, str] = {
-    "Goals": "G",
-    "Assists": "A",
-    "Points": "Pts",
-    "Plus/Minus": "+/-",
-    "Penalty Minutes": "PIM",
-    "Power Play Goals": "PPG",
-    "Powerplay Goals": "PPG",
-    "Power Play Assists": "PPA",
-    "Powerplay Assists": "PPA",
-    "Power Play Points": "PPP",
-    "Powerplay Points": "PPP",
-    "Short Handed Goals": "SHG",
-    "Short Handed Assists": "SHA",
-    "Short Handed Points": "SHP",
-    "Shots on Goal": "SOG",
-    "Hits": "HIT",
-    "Blocked Shots": "BLK",
-    "Blocks": "BLK",
-    "Wins": "W",
-    "Save Percentage": "SV%",
-    "Goals Against Average": "GAA",
-    "Saves": "SV",
-    "Shutouts": "SO",
-    "Goals Against": "GA",
-    "Faceoffs Won": "FOW",
-}
 
 
 @router.get("/waiver")
