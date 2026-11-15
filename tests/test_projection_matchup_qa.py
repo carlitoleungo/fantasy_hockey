@@ -1,10 +1,10 @@
 """
 QA supplementary tests for GET /projection/matchup (ticket 030).
 
-The Engineer's tests (test_projection_matchup_route.py) assert that bg-green-100
+The Engineer's tests (test_projection_matchup_route.py) assert that the winner cell is shaded (class="win")
 appears somewhere in the category table for the my-team-wins case. These tests
 close the gap: they verify the winner highlight lands on the CORRECT column for
-the opponent-win case and that a tie applies no green highlight to either cell.
+the opponent-win case and that a tie applies no win/lose class to either cell.
 
 All data-layer functions are mocked — no live Yahoo/NHL API calls.
 """
@@ -93,7 +93,7 @@ def _category_row(body: str, category: str) -> str:
     """Return the <tr> for a given category row in the comparison table."""
     # The comparison table rows contain two <td> cells after the category cell.
     m = re.search(
-        r"<tr[^>]*>\s*<td[^>]*>\s*" + re.escape(category) + r"\s*</td>(.*?)</tr>",
+        r'<tr data-category="' + re.escape(category) + r'">\s*<td.*?</td>(.*?)</tr>',
         body,
         re.S,
     )
@@ -102,7 +102,7 @@ def _category_row(body: str, category: str) -> str:
 
 
 def test_opponent_win_highlights_opponent_column(ctx):
-    """When the opponent wins a category, the green highlight is on the opponent
+    """When the opponent wins a category, the win shading is on the opponent
     cell and the my-team cell is greyed — not the reverse."""
     _, client = ctx
     # My proj Goals = 5 + 0/10*3 = 5.0 ; Opp proj = 5 + 100/10*2 = 25.0 -> opp wins
@@ -113,16 +113,17 @@ def test_opponent_win_highlights_opponent_column(ctx):
     resp = _run(client, lastmonth)
     assert resp.status_code == 200
     row = _category_row(resp.text, "Goals")
+    # value, value, then the "who leads" bar
     cells = re.findall(r"<td[^>]*>.*?</td>", row, re.S)
-    assert len(cells) == 2, row
-    my_cell, opp_cell = cells
+    assert len(cells) == 3, row
+    my_cell, opp_cell = cells[:2]
     # my cell shows 5.0 and is greyed; opp cell shows 25.0 and is highlighted
-    assert "5.0" in my_cell and "text-gray-400" in my_cell and "bg-green-100" not in my_cell
-    assert "25.0" in opp_cell and "bg-green-100" in opp_cell
+    assert "5.0" in my_cell and 'class="lose"' in my_cell and 'class="win"' not in my_cell
+    assert "25.0" in opp_cell and 'class="win"' in opp_cell
 
 
-def test_tie_category_has_no_green_highlight(ctx):
-    """A tied category greys/neutralises both cells; neither gets bg-green-100."""
+def test_tie_category_has_no_win_shading(ctx):
+    """A tied category greys/neutralises both cells; neither gets win or lose."""
     _, client = ctx
     # Both project to 5 + 50/10*rem: my = 5+15=20 (rem 3), opp = 5+10=15 (rem 2)?
     # To force an exact tie, zero out contributions so both stay at current 5.0.
@@ -133,7 +134,8 @@ def test_tie_category_has_no_green_highlight(ctx):
     resp = _run(client, lastmonth)
     assert resp.status_code == 200
     row = _category_row(resp.text, "Goals")
-    assert "bg-green-100" not in row
+    assert 'class="win"' not in row and 'class="lose"' not in row
+    assert "CLOSE" not in row  # a tie is not "close", it's level
     cells = re.findall(r"<td[^>]*>.*?</td>", row, re.S)
-    assert len(cells) == 2
+    assert len(cells) == 3
     assert "5.0" in cells[0] and "5.0" in cells[1]

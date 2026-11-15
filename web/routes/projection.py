@@ -5,7 +5,12 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import RedirectResponse
 
 from analysis.matchup_sim import tally
-from analysis.projection import compare_projections, is_rate_stat, project_team_stats
+from analysis.projection import (
+    CLOSE_MARGIN,
+    compare_projections,
+    is_rate_stat,
+    project_team_stats,
+)
 from analysis.team_scores import lower_is_better_from_categories
 from auth.oauth import make_session
 from data import demo as demo_module
@@ -175,6 +180,36 @@ def _matchup_impl(request: Request, session, league_key: str, my_team_key: str):
     )
 
 
+def _fmt_stat(name: str, value) -> str:
+    """Projected totals: counting stats one decimal, GAA-style rates two, SV% three."""
+    v = float(value) + 0.0  # + 0.0 turns -0.0 into 0.0
+    if not is_rate_stat(name):
+        if round(v, 1) == 0:
+            v = 0.0  # a tiny negative projection would print as "-0.0"
+        return f"{v:.1f}"
+    lower = name.lower()
+    if "%" in name or "percentage" in lower:
+        return f"{v:.3f}"
+    return f"{v:.2f}"
+
+
+def _week_dates(week_start: str, week_end: str, today: date | None = None) -> dict:
+    """Display pieces for the matchup line: 'Jan 5 – Jan 11' and, mid-week, days left."""
+    start = date.fromisoformat(week_start)
+    end = date.fromisoformat(week_end)
+    today = today or date.today()
+
+    def short(d: date) -> str:
+        return f"{d:%b} {d.day}"
+
+    days_left = (end - today).days + 1 if start <= today <= end else None
+    return {
+        "week_range": f"{short(start)} – {short(end)}",
+        "days_left": days_left,
+        "today_label": f"{today:%a}",
+    }
+
+
 def _render_matchup(
     request: Request,
     *,
@@ -241,14 +276,18 @@ def _render_matchup(
     skater_columns = [c for c in enabled_categories if c["group"] != "goaltending"]
     goalie_columns = [c for c in enabled_categories if c["group"] == "goaltending"]
 
+    abbr = {c["stat_name"]: c.get("abbreviation", c["stat_name"]) for c in stat_categories}
+
     return templates.TemplateResponse(
         request,
         "projection/_matchup.html",
         {
             "has_matchup": True,
             "current_week": current_week,
-            "week_start": week_start,
-            "week_end": week_end,
+            **_week_dates(week_start, week_end),
+            "abbr": abbr,
+            "fmt": _fmt_stat,
+            "close_pct": round(CLOSE_MARGIN * 100),
             "my_team_name": my_team_name,
             "opponent_name": opponent_name,
             "my_wins": counts[my_team_name],
@@ -259,7 +298,6 @@ def _render_matchup(
             "goalie_columns": goalie_columns,
             "my_breakdown": my_breakdown,
             "opp_breakdown": opp_breakdown,
-            "is_rate_stat": is_rate_stat,
         },
     )
 
