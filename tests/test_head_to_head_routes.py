@@ -100,9 +100,9 @@ def test_head_to_head_returns_200_with_selectors(ctx):
     assert body.count("Alpha") >= 2
     assert body.count("Beta") >= 2
     assert body.count("Gamma") >= 2
-    # From/to week selectors
-    assert "Week 1" in body
-    assert "Week 3" in body
+    # From/to week selectors, defaulting to the whole season
+    assert '<option value="1" selected>1</option>' in body
+    assert '<option value="3" selected>3</option>' in body
     # Initial comparison table present
     assert "<table" in body
 
@@ -138,7 +138,7 @@ def test_head_to_head_table_returns_fragment(ctx):
 def test_head_to_head_table_winner_highlighting(ctx):
     """
     Weeks 1–3: Alpha averages Goals=(10+8+6)/3=8.0, Beta=(7+5+9)/3=7.0 → Alpha wins Goals.
-    Confirms bg-green-100 appears on winner cells and tally row is present.
+    Confirms the winner cell is shaded (win), the loser dimmed, and the scoreboard is present.
     """
     conn, client = ctx
     _insert_session(conn, league_key="419.l.11111")
@@ -155,9 +155,11 @@ def test_head_to_head_table_winner_highlighting(ctx):
 
     assert response.status_code == 200
     body = response.text
-    assert "bg-green-100" in body
-    # Tally row present
-    assert "wins" in body
+    # Goals row: Alpha's 8.00 is the winning cell, Beta's 7.00 the losing one
+    assert '<td class="win">8.00</td>' in body
+    assert '<td class="l lose">7.00</td>' in body
+    # Scoreboard present
+    assert 'aria-label="Alpha wins"' in body
     assert "ties" in body
 
 
@@ -199,13 +201,13 @@ def test_head_to_head_table_matches_sim_output(ctx):
 
 
 # ---------------------------------------------------------------------------
-# TC5 — bg-gray-100 appears on tied categories
+# TC5 — tied categories are neither shaded nor dimmed
 # ---------------------------------------------------------------------------
 
 def test_head_to_head_table_tie_cells_gray(ctx):
     """
     Build a fixture where one category is exactly tied between the two teams,
-    and verify bg-gray-100 appears in the rendered fragment.
+    and verify neither side is marked as winner or loser on that row.
     """
     conn, client = ctx
     _insert_session(conn, league_key="419.l.11111")
@@ -230,8 +232,10 @@ def test_head_to_head_table_tie_cells_gray(ctx):
 
     assert response.status_code == 200
     body = response.text
-    assert "bg-gray-100" in body
-    assert "Tie" in body
+    assert '<td class="">5.00</td>' in body
+    assert '<td class="l ">5.00</td>' in body
+    assert 'aria-label="Tie"' in body
+    assert "1 tie<" in body
 
 
 # ---------------------------------------------------------------------------

@@ -1,33 +1,52 @@
+{% from "overview/_macros.html" import stat_value %}
 {% if sim is not none and not sim.empty %}
-<div class="overflow-x-auto">
-  <table class="text-sm border-collapse w-full">
+{% set ties = tally["Tie"] %}
+{% set weeks_label = ("week " ~ from_week) if from_week == to_week else ("weeks " ~ from_week ~ "–" ~ to_week) %}
+<div class="vs">
+  <div class="vs-side">
+    <span class="vs-big vs-a" aria-label="{{ team_a }} wins">{{ tally[team_a] }}</span>
+    <span class="vs-name">{{ team_a }}</span>
+  </div>
+  <div class="vs-mid">{{ ties }} tie{{ "" if ties == 1 else "s" }}<br>{{ weeks_label }}</div>
+  <div class="vs-side vs-r">
+    <span class="vs-name">{{ team_b }}</span>
+    <span class="vs-big vs-b" aria-label="{{ team_b }} wins">{{ tally[team_b] }}</span>
+  </div>
+</div>
+<div class="grid-panel">
+  <table class="dt dt-h2h">
     <thead>
-      <tr class="bg-gray-50 text-gray-700">
-        <th class="px-2 py-2 text-left font-medium border-b">Category</th>
-        <th class="px-2 py-2 text-right font-medium border-b">{{ team_a }}</th>
-        <th class="px-2 py-2 text-right font-medium border-b">{{ team_b }}</th>
-        <th class="px-2 py-2 text-right font-medium border-b">Winner</th>
+      <tr>
+        <th class="l" scope="col">Category</th>
+        <th scope="col"><span class="h2h-team" title="{{ team_a }}">{{ team_a }}</span></th>
+        <th class="c" scope="col"><span class="sr-only">Winner</span></th>
+        <th class="l" scope="col"><span class="h2h-team" title="{{ team_b }}">{{ team_b }}</span></th>
       </tr>
     </thead>
     <tbody>
       {% for row in sim.itertuples() %}
-        <tr class="border-b hover:bg-gray-50">
-          <td class="px-2 py-1 text-gray-800">{{ row.category }}</td>
-          <td class="px-2 py-1 text-right {% if row.winner == team_a %}bg-green-100{% elif row.winner == 'Tie' %}bg-gray-100{% endif %}">
-            {{ "%.2f" | format(row.team_a) }}
+        {% set a_wins = row.winner == team_a %}
+        {% set b_wins = row.winner == team_b %}
+        {% set decided = a_wins or b_wins %}
+        <tr>
+          <td class="l">
+            <span class="h2h-cat">{{ row.category }}</span>
+            {%- if row.category in lower_is_better %} <span class="text-dim text-[11px] font-mono" title="Lower is better">↓</span>{% endif %}
           </td>
-          <td class="px-2 py-1 text-right {% if row.winner == team_b %}bg-green-100{% elif row.winner == 'Tie' %}bg-gray-100{% endif %}">
-            {{ "%.2f" | format(row.team_b) }}
-          </td>
-          <td class="px-2 py-1 text-right text-gray-600">{{ row.winner }}</td>
+          <td class="{% if a_wins %}win{% elif decided %}lose{% endif %}">{{ stat_value(row.category, row.team_a, is_rate_stat, average=true) }}</td>
+          <td class="c h2h-arrow">{% if a_wins %}<span aria-label="{{ team_a }} wins">◀</span>{% elif b_wins %}<span aria-label="{{ team_b }} wins">▶</span>{% else %}<span class="text-dim" aria-label="Tie">=</span>{% endif %}</td>
+          <td class="l {% if b_wins %}win{% elif decided %}lose{% endif %}">{{ stat_value(row.category, row.team_b, is_rate_stat, average=true) }}</td>
         </tr>
       {% endfor %}
     </tbody>
   </table>
+  <div class="grid-bar border-t border-line">
+    <span>Weekly averages, {{ weeks_label }}</span>
+    <span>◀ ▶ point at the winner</span>
+  </div>
 </div>
-<p class="mt-3 text-sm text-gray-600">
-  {{ team_a }}: {{ tally[team_a] }} wins &middot; {{ team_b }}: {{ tally[team_b] }} wins &middot; {{ tally["Tie"] }} ties
-</p>
 {% else %}
-<p class="text-gray-500 text-sm">No data available.</p>
+<div class="grid-panel">
+  <p class="px-4 py-8 text-sm text-muted text-center">No data available.</p>
+</div>
 {% endif %}

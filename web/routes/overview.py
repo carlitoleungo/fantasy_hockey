@@ -3,14 +3,20 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import RedirectResponse
 
 from analysis.matchup_sim import simulate, tally
-from analysis.team_scores import LOWER_IS_BETTER, stat_columns, weekly_scores_ranked
+from analysis.projection import is_rate_stat
+from analysis.team_scores import (
+    LOWER_IS_BETTER,
+    rank_shade_levels,
+    stat_columns,
+    weekly_scores_ranked,
+)
 from auth.oauth import make_session
 from data import demo as demo_module
 from data.leagues import get_user_hockey_leagues
 from data.matchups import get_matchups
 from db.connection import db_dep
 from web.middleware.session import CurrentUser, require_user
-from web.routes.common import get_league_key, shell_context
+from web.routes.common import STAT_FALLBACK_ABBREV, get_league_key, shell_context
 from web.templates import templates
 
 router = APIRouter()
@@ -23,28 +29,31 @@ _DEMO_PREFIX = "/demo"
 # Shared compute + render (live and demo routes both call these)
 # ---------------------------------------------------------------------------
 
-def _compute_cell_ranks(ranked_df: pd.DataFrame, stat_cols: list[str]) -> pd.DataFrame:
-    ranks = pd.DataFrame(index=ranked_df.index)
-    for col in stat_cols:
-        ranks[col] = ranked_df[col].rank(
-            method="min", ascending=(col in LOWER_IS_BETTER),
-        )
-    return ranks
-
-
 def _has_data(df: pd.DataFrame | None) -> bool:
     return df is not None and not df.empty
+
+
+def _format_helpers() -> dict:
+    """Template helpers shared by the Leaderboard and Head-to-Head tables."""
+    return {
+        "stat_abbrev": STAT_FALLBACK_ABBREV,
+        "is_rate_stat": is_rate_stat,
+        "lower_is_better": LOWER_IS_BETTER,
+    }
 
 
 def _week_table_context(df: pd.DataFrame, week: int) -> dict:
     """The ranked-table keys shared by the full page and the week fragment."""
     ranked = weekly_scores_ranked(df, week)
     cols = stat_columns(df)
+    shades = rank_shade_levels(ranked[cols])
     return {
         "ranked": ranked,
-        "cell_ranks": _compute_cell_ranks(ranked, cols),
+        "shades": shades.to_dict("index"),
         "stat_cols": cols,
         "team_count": len(ranked),
+        "week": week,
+        **_format_helpers(),
     }
 
 
@@ -68,7 +77,7 @@ def _render_overview(request: Request, df: pd.DataFrame | None, *, prefix: str, 
 
 def _render_overview_table(request: Request, df: pd.DataFrame | None, week: int):
     if not _has_data(df):
-        context = {"ranked": None, "cell_ranks": None, "stat_cols": [], "team_count": 0}
+        context = {"ranked": None, "shades": {}, "stat_cols": [], "team_count": 0, "week": week}
     else:
         context = _week_table_context(df, week)
     return templates.TemplateResponse(request, "overview/_table.html", context)
@@ -78,6 +87,7 @@ def _render_head_to_head(request: Request, df: pd.DataFrame | None, *, prefix: s
     context = {
         "table_url": f"{prefix}/overview/head-to-head/table",
         "overview_url": f"{prefix}/overview",
+        **_format_helpers(),
         **shell,
     }
     teams = sorted(df["team_name"].unique().tolist()) if _has_data(df) else []
@@ -110,14 +120,19 @@ def _render_head_to_head_table(
     from_week: int,
     to_week: int,
 ):
-    context = {"team_a": team_a, "team_b": team_b}
+    context = {"team_a": team_a, "team_b": team_b, **_format_helpers()}
     if not _has_data(df):
         context.update({"sim": None, "tally": None})
     else:
         if from_week > to_week:
             from_week, to_week = to_week, from_week
         sim = simulate(df, team_a, team_b, from_week, to_week)
-        context.update({"sim": sim, "tally": tally(sim, team_a, team_b)})
+        context.update({
+            "sim": sim,
+            "tally": tally(sim, team_a, team_b),
+            "from_week": from_week,
+            "to_week": to_week,
+        })
     return templates.TemplateResponse(request, "overview/_head_to_head_table.html", context)
 
 

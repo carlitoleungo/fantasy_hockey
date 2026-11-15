@@ -28,8 +28,8 @@ The previous trackers (`docs/ROADMAP.md`, `docs/backlog.md`, `docs/improvements.
 - [ ] Add CI: a GitHub Action that runs `pytest` and deploys to Fly on push to `main`.
 - [ ] UI redesign, one page at a time, per `docs/ui-brief.md` (what each page does) and
       `docs/design-system.md` (how it looks). Waiver Wire, the app shell and the built
-      stylesheet are done; next Overview/Leaderboard, Head-to-Head, Projection, landing and
-      league picker. Then drop the `data-theme="light"` default from `base.html`.
+      stylesheet are done, plus Leaderboard, Head-to-Head and Projection (2026-11-15); next
+      landing and league picker. Then drop the `data-theme="light"` default from `base.html`.
 
 ## Next features
 
@@ -54,8 +54,9 @@ The previous trackers (`docs/ROADMAP.md`, `docs/backlog.md`, `docs/improvements.
       leave a truncated parquet; stale `.tmp` files are never swept.
 - [ ] Waiver ranking: mixing a skater-only and a goalie-only stat buries one position group,
       because NaN composites sink to the bottom (`analysis/waiver_ranking.py`).
-- [ ] Leaderboard: weeks with no activity show all-zero rows; tied "worst" cells may not get
-      the red highlight.
+- [ ] Leaderboard: weeks with no activity still list every team with all-zero rows (now unshaded).
+      The "you" highlight from the mockup needs the user's own team key, which Overview doesn't
+      fetch yet.
 - [ ] Goalie breakdown table on the projection page omits shared categories like Assists.
 - [ ] Error page "Back to home" link doesn't look clickable.
 - [ ] Yahoo tokens are stored unencrypted in SQLite and expired sessions are never pruned.

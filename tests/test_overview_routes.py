@@ -102,10 +102,11 @@ def test_overview_returns_200_with_leaderboard(ctx):
     assert "Alpha" in body
     assert "Beta" in body
     assert "Gamma" in body
-    assert "Goals" in body
-    assert "Assists" in body
+    # Column headers show the short label with the full Yahoo name on hover
+    assert 'title="Goals">G<' in body
+    assert 'title="Assists">A<' in body
     assert "Shots" in body
-    assert "avg_rank" in body.lower() or "Avg Rank" in body
+    assert "Avg Rk" in body
 
 
 # ---------------------------------------------------------------------------
@@ -134,7 +135,7 @@ def test_overview_table_returns_fragment(ctx):
 
 
 # ---------------------------------------------------------------------------
-# TC3 — Fragment contains bg-green-100 and bg-red-100 in expected positions
+# TC3 — Fragment shades cells by rank (s4 = best) and shows the legend
 # ---------------------------------------------------------------------------
 
 def test_overview_table_has_color_classes(ctx):
@@ -154,8 +155,9 @@ def test_overview_table_has_color_classes(ctx):
 
     assert response.status_code == 200
     body = response.text
-    assert "bg-green-100" in body
-    assert "bg-red-100" in body
+    assert 'class="s4"' in body
+    assert 'class="legend"' in body
+    assert "bg-green-100" not in body and "bg-red-100" not in body
 
 
 # ---------------------------------------------------------------------------
@@ -247,12 +249,12 @@ def test_head_to_head_back_link_targets_authenticated_route(ctx):
     # Scope to the "Back to Leaderboard" anchor — base.html's nav also links
     # to /overview, so a bare href="/overview" substring is ambiguous.
     back_link = (
-        'href="/overview" class="text-sm text-gray-500 hover:text-gray-700">'
-        "&larr; Back to Leaderboard"
+        'href="/overview" class="back-link">← Leaderboard'
+
     )
     demo_back_link = (
-        'href="/demo/overview" class="text-sm text-gray-500 hover:text-gray-700">'
-        "&larr; Back to Leaderboard"
+        'href="/demo/overview" class="back-link">← Leaderboard'
+
     )
     assert back_link in body
     assert demo_back_link not in body

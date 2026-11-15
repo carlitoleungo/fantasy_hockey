@@ -166,3 +166,43 @@ def avg_ranks(
     )
 
     return result
+
+
+
+def rank_shade_levels(
+    values: pd.DataFrame,
+    lower_is_better: frozenset[str] | None = None,
+) -> pd.DataFrame:
+    """
+    Shade levels for the Leaderboard, one int column per stat column in
+    `values` (one row per team): 4 = best in the column, 0 = no shade.
+
+    Teams at the top of a column (ties included) get 4. Everyone else is placed
+    by f = (rank - 1) / (teams - 1), using the *average* rank of a tied group:
+    f < .3 → 3, f < .6 → 2, f < .85 → 1, and the bottom ~15 % get no shade.
+    Averaging ties stops a block of zeros (say nine teams with no shutouts)
+    from all inheriting the high "min" rank that sits just below the leaders.
+    The f scale keeps the leader bold in an 8-team league as well as a
+    14-team one (a percentile cut like the Waiver Wire's would not).
+
+    A column where every team is tied (a week with no games yet) gets no
+    shading at all, rather than every cell looking like the best. Missing
+    values get 0.
+    """
+    if lower_is_better is None:
+        lower_is_better = LOWER_IS_BETTER
+
+    out = pd.DataFrame(index=values.index)
+    for col in values.columns:
+        v = pd.to_numeric(values[col], errors="coerce")
+        n = v.notna().sum()
+        if n < 2 or v.nunique(dropna=True) <= 1:
+            out[col] = 0
+            continue
+        ascending = col in lower_is_better
+        top = v.rank(method="min", ascending=ascending) == 1
+        f = (v.rank(method="average", ascending=ascending) - 1) / (n - 1)
+        level = pd.Series(0, index=values.index)
+        level = level.mask(f < 0.85, 1).mask(f < 0.6, 2).mask(f < 0.3, 3).mask(top, 4)
+        out[col] = level.where(v.notna(), 0).astype(int)
+    return out

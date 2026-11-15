@@ -1,30 +1,70 @@
+{% from "overview/_macros.html" import stat_value, stat_label %}
 {% if ranked is not none and not ranked.empty %}
-<div class="overflow-x-auto">
-  <table class="text-sm border-collapse w-full">
-    <thead>
-      <tr class="bg-gray-50 text-gray-700">
-        <th class="px-2 py-2 text-left font-medium border-b">Team</th>
-        {% for col in stat_cols %}
-          <th class="px-2 py-2 text-right font-medium border-b">{{ col }}</th>
-        {% endfor %}
-        <th class="px-2 py-2 text-right font-medium border-b">Avg Rank</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for idx, row in ranked.iterrows() %}
-        <tr class="border-b hover:bg-gray-50">
-          <td class="px-2 py-1 text-gray-800">{{ row["team_name"] }}</td>
+{% set n = stat_cols | length %}
+{% set flipped = [] %}
+{% for col in stat_cols if col in lower_is_better %}{% set _ = flipped.append(stat_abbrev.get(col, col)) %}{% endfor %}
+<div class="grid-panel">
+  <div class="grid-bar border-b border-line">
+    <span><b>{{ team_count }}</b> teams · week <b>{{ week }}</b> totals</span>
+    <span class="legend" aria-label="Cell shading: darker ranks higher in the league">worse <i class="s1"></i><i class="s2"></i><i class="s3"></i><i class="s4"></i> better</span>
+  </div>
+  {# Desktop: one row per team. Phones get the two-line layout below, so no sideways scrolling. #}
+  <div class="hidden md:block overflow-x-auto">
+    <table class="dt dt-lb">
+      <thead>
+        <tr>
+          <th class="l" scope="col">Pos</th>
+          <th class="l sticky-col" scope="col">Team</th>
           {% for col in stat_cols %}
-            <td class="px-2 py-1 text-right {{ cell_ranks[col][idx] | rank_color(team_count) }}">
-              {{ row[col] }}
-            </td>
+            <th scope="col">{{ stat_label(col, stat_abbrev) }}</th>
           {% endfor %}
-          <td class="px-2 py-1 text-right text-gray-600">{{ "%.2f"|format(row["avg_rank"]) }}</td>
+          <th class="avg" scope="col" title="Average category rank, lower is better">Avg Rk</th>
         </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+        {% for idx, row in ranked.iterrows() %}
+          {% set row_shades = shades.get(idx, {}) %}
+          <tr>
+            <td class="l"><span class="pos{% if loop.first %} pos-top{% endif %}">{{ loop.index }}</span></td>
+            <td class="l sticky-col"><span class="lb-team">{{ row["team_name"] }}</span></td>
+            {% for col in stat_cols %}
+              {% set lvl = row_shades.get(col, 0) %}
+              <td{% if lvl %} class="s{{ lvl }}"{% endif %}>{{ stat_value(col, row[col], is_rate_stat) }}</td>
+            {% endfor %}
+            <td class="avg">{{ "%.2f" | format(row["avg_rank"]) }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="md:hidden{% if n >= 13 %} pg-xtight{% elif n >= 9 %} pg-tight{% endif %}" style="--n: {{ n }}">
+    <div class="pg-head">
+      {% for col in stat_cols %}{{ stat_label(col, stat_abbrev) }}{% endfor %}
+    </div>
+    {% for idx, row in ranked.iterrows() %}
+      {% set row_shades = shades.get(idx, {}) %}
+      <div class="pg-row">
+        <div class="pg-top">
+          <span class="pos{% if loop.first %} pos-top{% endif %}">{{ loop.index }}</span>
+          <span class="pg-name font-semibold text-[13.5px] text-strong">{{ row["team_name"] }}</span>
+          <span class="ml-auto flex-none font-mono text-[11px] text-muted whitespace-nowrap" title="Average category rank, lower is better">avg rk <span class="text-strong font-semibold">{{ "%.2f" | format(row["avg_rank"]) }}</span></span>
+        </div>
+        <div class="pg-cells">
+          {% for col in stat_cols %}
+            {% set lvl = row_shades.get(col, 0) %}
+            <span{% if lvl %} class="s{{ lvl }}"{% endif %}>{{ stat_value(col, row[col], is_rate_stat) }}</span>
+          {% endfor %}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+  <div class="grid-bar border-t border-line">
+    <span>{% if flipped %}{{ flipped | join(", ") }}: lower is better, shading flips. {% endif %}Ties share a rank.</span>
+    <span>Avg Rk = mean category rank</span>
+  </div>
 </div>
 {% else %}
-<p class="text-gray-500 text-sm">No data for this week.</p>
+<div class="grid-panel">
+  <p class="px-4 py-8 text-sm text-muted text-center">No data for this week.</p>
+</div>
 {% endif %}

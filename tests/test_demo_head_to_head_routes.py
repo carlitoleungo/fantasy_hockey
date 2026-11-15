@@ -90,8 +90,8 @@ def test_demo_head_to_head_week_selectors_populated(client):
     body = response.text
     assert 'name="from_week"' in body
     assert 'name="to_week"' in body
-    assert "Week 1" in body
-    assert "Week 2" in body
+    assert '<option value="1" selected>1</option>' in body
+    assert '<option value="2" selected>2</option>' in body
 
 
 # ---------------------------------------------------------------------------
@@ -155,12 +155,14 @@ def test_demo_head_to_head_table_tally_present(client):
         )
 
     body = response.text
-    assert "wins" in body
-    assert "ties" in body
+    # Scoreboard: each side's win count plus the tie count
+    assert 'aria-label="Alpha wins"' in body
+    assert 'aria-label="Beta wins"' in body
+    assert " tie" in body
 
 
 # ---------------------------------------------------------------------------
-# TC-D08 — Fragment contains winner highlighting (bg-green-100)
+# TC-D08 — Fragment contains winner highlighting (win / lose cells)
 # ---------------------------------------------------------------------------
 
 def test_demo_head_to_head_table_has_winner_cells(client):
@@ -171,7 +173,8 @@ def test_demo_head_to_head_table_has_winner_cells(client):
             "?team_a=Alpha&team_b=Beta&from_week=1&to_week=2"
         )
 
-    assert "bg-green-100" in response.text
+    assert 'class="win"' in response.text or 'class="l win"' in response.text
+    assert "lose" in response.text
 
 
 # ---------------------------------------------------------------------------
@@ -289,12 +292,12 @@ def test_demo_head_to_head_back_link_targets_demo_route(client):
     # Scope to the "Back to Leaderboard" anchor — base.html's nav also links
     # to /overview, so a bare href="/overview" substring is ambiguous.
     demo_back_link = (
-        'href="/demo/overview" class="text-sm text-gray-500 hover:text-gray-700">'
-        "&larr; Back to Leaderboard"
+        'href="/demo/overview" class="back-link">← Leaderboard'
+
     )
     auth_back_link = (
-        'href="/overview" class="text-sm text-gray-500 hover:text-gray-700">'
-        "&larr; Back to Leaderboard"
+        'href="/overview" class="back-link">← Leaderboard'
+
     )
     assert demo_back_link in body
     assert auth_back_link not in body

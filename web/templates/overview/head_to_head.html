@@ -1,64 +1,62 @@
 {% extends "base.html" %}
 
+{% block theme_attr %}{% endblock %}
 {% block title %}Head-to-Head{% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto mt-8 px-4">
-  <div class="mb-4">
-    <a href="{{ overview_url }}" class="text-sm text-gray-500 hover:text-gray-700">&larr; Back to Leaderboard</a>
+<main class="max-w-4xl mx-auto px-4 pt-5 pb-10 flex flex-col gap-4">
+  <div>
+    <a href="{{ overview_url }}" class="back-link">← Leaderboard</a>
+    <h1 class="mt-1 text-[22px] leading-tight font-bold text-strong">Head-to-Head</h1>
+    <p class="mt-1 text-[13.5px] text-muted max-w-3xl">Average weekly stats for two teams over a range of weeks, and who would win each category.</p>
   </div>
-  <h1 class="text-2xl font-bold text-gray-800 mb-6">Head-to-Head Comparison</h1>
 
   {% if not_enough_data %}
-    <p class="text-gray-600">Not enough team data yet. Check back once the season starts.</p>
+    <div class="grid-panel">
+      <p class="px-4 py-8 text-sm text-muted text-center">Not enough team data yet. Check back once the season starts.</p>
+    </div>
   {% else %}
-    <form
+    <form id="h2h-filters"
+      class="flex flex-wrap items-center gap-x-5 gap-y-3"
       hx-get="{{ table_url }}"
       hx-target="#head-to-head-table"
-      hx-trigger="change">
-      <div class="mb-6 flex flex-wrap items-end gap-4">
-        <div>
-          <label class="block text-sm text-gray-600 font-medium mb-1">Team A</label>
-          <select name="team_a"
-            class="border border-gray-300 rounded px-2 py-1 text-sm">
-            {% for t in teams %}
-              <option value="{{ t }}" {% if t == team_a %}selected{% endif %}>{{ t }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div>
-          <label class="block text-sm text-gray-600 font-medium mb-1">Team B</label>
-          <select name="team_b"
-            class="border border-gray-300 rounded px-2 py-1 text-sm">
-            {% for t in teams %}
-              <option value="{{ t }}" {% if t == team_b %}selected{% endif %}>{{ t }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div>
-          <label class="block text-sm text-gray-600 font-medium mb-1">From Week</label>
-          <select name="from_week"
-            class="border border-gray-300 rounded px-2 py-1 text-sm">
-            {% for w in weeks %}
-              <option value="{{ w }}" {% if w == from_week %}selected{% endif %}>Week {{ w }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div>
-          <label class="block text-sm text-gray-600 font-medium mb-1">To Week</label>
-          <select name="to_week"
-            class="border border-gray-300 rounded px-2 py-1 text-sm">
-            {% for w in weeks %}
-              <option value="{{ w }}" {% if w == to_week %}selected{% endif %}>Week {{ w }}</option>
-            {% endfor %}
-          </select>
-        </div>
+      hx-trigger="change"
+      hx-indicator="#head-to-head-table">
+      <div class="flex items-center gap-2 min-w-0 max-w-full">
+        <label for="h2h-team-a" class="label-cond text-xs text-dim">Team A</label>
+        <select id="h2h-team-a" name="team_a" class="select min-w-0 max-w-[14rem]">
+          {% for t in teams %}
+            <option value="{{ t }}" {% if t == team_a %}selected{% endif %}>{{ t }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="flex items-center gap-2 min-w-0 max-w-full">
+        <label for="h2h-team-b" class="label-cond text-xs text-dim">vs</label>
+        <select id="h2h-team-b" name="team_b" class="select min-w-0 max-w-[14rem]">
+          {% for t in teams %}
+            <option value="{{ t }}" {% if t == team_b %}selected{% endif %}>{{ t }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="flex items-center gap-2">
+        <label for="h2h-from" class="label-cond text-xs text-dim">Weeks</label>
+        <select id="h2h-from" name="from_week" class="select" aria-label="From week">
+          {% for w in weeks %}
+            <option value="{{ w }}" {% if w == from_week %}selected{% endif %}>{{ w }}</option>
+          {% endfor %}
+        </select>
+        <label for="h2h-to" class="label-cond text-xs text-dim">to</label>
+        <select id="h2h-to" name="to_week" class="select" aria-label="To week">
+          {% for w in weeks %}
+            <option value="{{ w }}" {% if w == to_week %}selected{% endif %}>{{ w }}</option>
+          {% endfor %}
+        </select>
       </div>
     </form>
 
-    <div id="head-to-head-table">
+    <div id="head-to-head-table" class="flex flex-col gap-4 [&.htmx-request]:opacity-60 transition-opacity">
       {% include "overview/_head_to_head_table.html" %}
     </div>
   {% endif %}
-</div>
+</main>
 {% endblock %}

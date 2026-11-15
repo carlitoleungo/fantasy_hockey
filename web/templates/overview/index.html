@@ -1,35 +1,54 @@
 {% extends "base.html" %}
 
-{% block title %}League Overview{% endblock %}
+{% block theme_attr %}{% endblock %}
+{% block title %}Weekly Leaderboard{% endblock %}
 
 {% block content %}
-<div class="max-w-6xl mx-auto mt-8 px-4">
-  <h1 class="text-2xl font-bold text-gray-800 mb-6">Weekly Leaderboard</h1>
+<main class="max-w-6xl mx-auto px-4 pt-5 pb-10 flex flex-col gap-4">
+  <div class="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+    <div>
+      <h1 class="text-[22px] leading-tight font-bold text-strong">Weekly Leaderboard</h1>
+      <p class="mt-1 text-[13.5px] text-muted max-w-3xl">Every team against every category for one week. Darker cells rank higher in the league; pale cells are weak spots.</p>
+    </div>
+    {% if weeks %}
+      <div class="flex flex-wrap items-center gap-3">
+        {# ‹ › step through weeks; the select jumps straight to one. All three fire the
+           select's change event, which htmx turns into the fragment swap. #}
+        <div class="flex items-center gap-2"
+          x-data="{ i: {{ weeks | length - 1 }}, last: {{ weeks | length - 1 }} }">
+          <label for="week-select" class="label-cond text-xs text-dim">Week</label>
+          <div class="seg seg-step">
+            <button type="button" class="seg-btn" aria-label="Previous week"
+              :disabled="i === 0"
+              @click="$refs.week.selectedIndex = --i; $refs.week.dispatchEvent(new Event('change'))">‹</button>
+            <select id="week-select" name="week" class="seg-select" x-ref="week"
+              @change="i = $el.selectedIndex"
+              hx-get="{{ table_url }}"
+              hx-target="#leaderboard-table"
+              hx-trigger="change"
+              hx-indicator="#leaderboard-table">
+              {% for w in weeks %}
+                <option value="{{ w }}" {% if w == selected_week %}selected{% endif %}>Week {{ w }}</option>
+              {% endfor %}
+            </select>
+            <button type="button" class="seg-btn" aria-label="Next week" disabled
+              :disabled="i === last"
+              @click="$refs.week.selectedIndex = ++i; $refs.week.dispatchEvent(new Event('change'))">›</button>
+          </div>
+        </div>
+        <a href="{{ head_to_head_url }}" class="btn">Head-to-Head →</a>
+      </div>
+    {% endif %}
+  </div>
 
   {% if weeks %}
-    <div class="mb-4">
-      <a href="{{ head_to_head_url }}" class="text-sm text-gray-500 hover:text-gray-700">Compare two teams &rarr;</a>
-    </div>
-
-    <div class="mb-4 flex items-center gap-3">
-      <label for="week-select" class="text-sm text-gray-600 font-medium">Week:</label>
-      <select id="week-select"
-        class="border border-gray-300 rounded px-2 py-1 text-sm"
-        hx-get="{{ table_url }}"
-        hx-target="#leaderboard-table"
-        hx-trigger="change"
-        name="week">
-        {% for w in weeks %}
-          <option value="{{ w }}" {% if w == selected_week %}selected{% endif %}>Week {{ w }}</option>
-        {% endfor %}
-      </select>
-    </div>
-
-    <div id="leaderboard-table">
+    <div id="leaderboard-table" class="[&.htmx-request]:opacity-60 transition-opacity">
       {% include "overview/_table.html" %}
     </div>
   {% else %}
-    <p class="text-gray-600">No matchup data available yet. Check back once the season starts.</p>
+    <div class="grid-panel">
+      <p class="px-4 py-8 text-sm text-muted text-center">No matchup data available yet. Check back once the season starts.</p>
+    </div>
   {% endif %}
-</div>
+</main>
 {% endblock %}

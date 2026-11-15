@@ -1,0 +1,17 @@
+{# Number formatting for the Leaderboard and Head-to-Head tables (docs/design-system.md, Type).
+   Counting stats are integers as weekly totals and two decimals as weekly averages; GAA
+   shows two decimals and SV% three (".921"); plus/minus carries its sign; missing is a dash.
+   Callers pass the route's is_rate_stat helper. #}
+{% macro stat_value(stat, v, is_rate_stat, average=false) -%}
+  {%- if v is none or v != v -%}<span class="dash">—</span>
+  {%- elif "percent" in stat | lower or "%" in stat -%}{{ ("%.3f" | format(v)) | replace("0.", ".", 1) if v < 1 else "%.3f" | format(v) }}
+  {%- elif is_rate_stat(stat) -%}{{ "%.2f" | format(v) }}
+  {%- elif average -%}{{ ("+" if stat == "Plus/Minus" and v > 0 else "") ~ ("%.2f" | format(v)) }}
+  {%- else -%}{{ ("+" if stat == "Plus/Minus" and v > 0 else "") ~ ("%.0f" | format(v)) }}
+  {%- endif -%}
+{%- endmacro %}
+
+{# Abbreviated column label, with the full Yahoo name on hover. #}
+{% macro stat_label(stat, stat_abbrev) -%}
+  <span title="{{ stat }}">{{ stat_abbrev.get(stat, stat) }}</span>
+{%- endmacro %}
