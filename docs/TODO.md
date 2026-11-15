@@ -28,7 +28,7 @@ The previous trackers (`docs/ROADMAP.md`, `docs/backlog.md`, `docs/improvements.
 - [ ] Add CI: a GitHub Action that runs `pytest` and deploys to Fly on push to `main`.
 - [ ] UI redesign, one page at a time, per `docs/ui-brief.md` (what each page does) and
       `docs/design-system.md` (how it looks). Waiver Wire, the app shell and the built
-      stylesheet are done, and Leaderboard and Head-to-Head (2026-11-15); next Projection,
+      stylesheet are done, plus Leaderboard, Head-to-Head and Projection (2026-11-15); next
       landing and league picker. Then drop the `data-theme="light"` default from `base.html`.
 
 ## Next features

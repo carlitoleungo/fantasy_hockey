@@ -110,7 +110,7 @@ def _sections(body: str) -> list[tuple[str, str]]:
     """[(section_label, table_html)] for every roster-breakdown table."""
     tail = body.split("Roster Breakdown", 1)[1]
     return re.findall(
-        r'<p[^>]*>(Skaters|Goalies)</p>\s*<div[^>]*>\s*(<table.*?</table>)', tail, re.S
+        r'data-section="(Skaters|Goalies)".*?(<table.*?</table>)', tail, re.S
     )
 
 

@@ -1,37 +1,45 @@
 {% extends "base.html" %}
 
+{% block theme_attr %}{% endblock %}
 {% block title %}Week Projection{% endblock %}
 
 {% block content %}
-<div class="max-w-6xl mx-auto mt-8 px-4">
-  <h1 class="text-2xl font-bold text-gray-800 mb-2">Week Projection</h1>
-  <p class="text-sm text-gray-600 mb-1">See how your current matchup is likely to end.</p>
-  <p class="text-sm text-gray-500 mb-6">Select your team. Each category is projected using rostered players' last-30-day per-game averages multiplied by their remaining NHL games this week.</p>
+<main class="max-w-6xl mx-auto px-4 pt-5 pb-10 flex flex-col gap-4">
+  <div class="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+    <div class="min-w-0">
+      <h1 class="text-[22px] leading-tight font-bold text-strong">Week Projection</h1>
+      <p class="mt-1 text-[13.5px] text-muted max-w-3xl">How this week's matchup is likely to end. Each player's last-30-day per-game average × their remaining NHL games this week, added to what's already banked.</p>
+    </div>
+    {% if teams %}
+      <label class="flex items-center gap-2 min-w-0 max-w-full">
+        <span class="label-cond text-xs text-dim whitespace-nowrap">My team</span>
+        <select id="team-select" name="team_key" class="select min-w-0"
+          hx-get="{{ matchup_url }}"
+          hx-target="#projection-matchup"
+          hx-trigger="change"
+          hx-indicator="#projection-matchup">
+          {% for team in teams %}
+            <option value="{{ team.team_key }}" {% if loop.first %}selected{% endif %}>{{ team.team_name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    {% endif %}
+  </div>
 
   {% if not teams %}
-    <p class="text-sm text-yellow-700 bg-yellow-50 border border-yellow-200 rounded px-3 py-2 mb-4">
+    <p class="text-sm text-dtd border border-line bg-panel rounded px-3 py-2">
       No league data available yet — the season may not have started.
     </p>
   {% else %}
-    <div class="mb-4 flex items-center gap-3">
-      <label for="team-select" class="text-sm text-gray-600 font-medium">My team:</label>
-      <select id="team-select"
-        class="border border-gray-300 rounded px-2 py-1 text-sm"
-        hx-get="{{ matchup_url }}"
-        hx-target="#projection-matchup"
-        hx-trigger="change"
-        name="team_key">
-        {% for team in teams %}
-          <option value="{{ team.team_key }}" {% if loop.first %}selected{% endif %}>{{ team.team_name }}</option>
-        {% endfor %}
-      </select>
-    </div>
-
     <div id="projection-matchup"
+      class="flex flex-col gap-4 [&.htmx-request]:opacity-60 transition-opacity"
       hx-get="{{ matchup_url }}?team_key={{ teams[0].team_key }}"
       hx-trigger="load">
-      <p class="text-sm text-gray-500 text-center my-6">Loading matchup projection…</p>
+      <div class="grid-panel">
+        <div class="grid-bar border-b border-line"><span>Loading…</span></div>
+        <p class="px-4 py-8 text-sm text-muted text-center">Loading matchup projection…</p>
+      </div>
     </div>
   {% endif %}
-</div>
+</main>
 {% endblock %}
