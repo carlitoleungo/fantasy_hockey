@@ -151,10 +151,10 @@ def test_demo_projection_matchup_returns_fragment(client):
     assert "<html" not in body
     assert "<!DOCTYPE" not in body
     # Tally cards
-    assert "Projected Wins" in body
+    assert "My wins" in body
     # Category comparison table headers
-    assert f"{MY_NAME} (Proj)" in body
-    assert f"{OPP_NAME} (Proj)" in body
+    assert f'title="{MY_NAME}"' in body
+    assert f'title="{OPP_NAME}"' in body
     # Roster breakdown section + both players present
     assert "Roster Breakdown" in body
     assert "Alpha Skater" in body
@@ -197,8 +197,8 @@ def test_demo_projection_matchup_shows_projected_numbers(client):
     assert "1.5" in body
     # A projected win count of 0 for a shut-out category would still render,
     # so assert the tally cards carry the win/tie counts (all three present).
-    assert body.count("Projected Wins") == 2  # my + opponent card
-    assert "Categories" in body  # the "Tied" card
+    assert "My wins" in body and "Their wins" in body  # my + opponent card
+    assert "Tied" in body and "categories" in body
 
 
 def test_demo_projection_matchup_swaps_orderings(client):
@@ -260,7 +260,7 @@ def test_demo_projection_matchup_splits_skaters_and_goalies(client):
     assert ">Skaters<" in body
     assert ">Goalies<" in body
     tables = re.findall(
-        r'<p[^>]*>(Skaters|Goalies)</p>\s*<div[^>]*>\s*(<table.*?</table>)', body, re.S
+        r'data-section="(Skaters|Goalies)".*?(<table.*?</table>)', body, re.S
     )
     labels = [label for label, _ in tables]
     assert labels == ["Skaters", "Goalies", "Skaters"]
@@ -285,7 +285,7 @@ def test_demo_projection_matchup_abbreviates_headers_and_names(client):
         response = client.get(f"/demo/projection/matchup?team_key={MY_KEY}")
     body = response.text
     tables = re.findall(
-        r'<p[^>]*>(Skaters|Goalies)</p>\s*<div[^>]*>\s*(<table.*?</table>)', body, re.S
+        r'data-section="(Skaters|Goalies)".*?(<table.*?</table>)', body, re.S
     )
     headers = [
         h

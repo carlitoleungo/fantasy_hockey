@@ -137,10 +137,10 @@ def test_matchup_context_line_and_tally_cards(ctx):
     body = resp.text
     assert "base.html" not in body
     assert "<html" not in body.lower()  # bare fragment, no full page
-    assert "Week 14 vs Beta · 2026-03-23 – 2026-03-29" in body
+    assert "Week 14 vs <b>Beta</b> · Mar 23 – Mar 29" in body
     # Three tally cards: my wins, ties, opp wins
-    assert "Projected Wins" in body
-    assert body.count("Projected Wins") == 2  # my team + opponent
+    assert "My wins" in body
+    assert "My wins" in body and "Their wins" in body  # my team + opponent
     assert "Tied" in body
 
 
@@ -156,7 +156,7 @@ def test_matchup_category_table_winner_highlight(ctx):
     assert "Goals" in body
     assert "Goals Against Average" in body
     # My team wins both categories -> highlight class applied on my column
-    assert "bg-green-100" in body
+    assert 'class="win"' in body
     # My projected Goals = 5 + 20/10*3 = 11.0, opp = 5 + 5/10*2 = 6.0
     assert "11.0" in body
     assert "6.0" in body
@@ -285,7 +285,7 @@ def _breakdown_sections(body: str) -> list[tuple[str, str]]:
     """Return [(section_label, table_html)] for every roster-breakdown table."""
     tail = body.split("Roster Breakdown", 1)[1]
     return re.findall(
-        r'<p[^>]*>(Skaters|Goalies)</p>\s*<div[^>]*>\s*(<table.*?</table>)',
+        r'data-section="(Skaters|Goalies)".*?(<table.*?</table>)',
         tail,
         re.S,
     )
@@ -379,5 +379,5 @@ def test_breakdown_values_unchanged_from_ticket_030(ctx):
     # Rate stat still 2dp in the comparison table
     assert "2.50" in body
     # Tally cards untouched
-    assert body.count("Projected Wins") == 2
+    assert "My wins" in body and "Their wins" in body
     assert "Tied" in body

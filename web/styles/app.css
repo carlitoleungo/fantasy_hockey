@@ -141,3 +141,71 @@
   .pager-btn:disabled { opacity: .35; cursor: default; }
   .pager-btn:not(:disabled):hover { border-color: var(--muted); }
 }
+
+/* ---------- projection ----------
+   Week Projection page (docs/design-system.md "Verdict blocks", "Win / lose cells").
+   `.select`, `.win` and `.lose` are shared with Head-to-Head; keep one copy if both land. */
+@layer components {
+  [x-cloak] { display: none !important; }
+
+  /* styled native <select> */
+  .select { appearance: none; -webkit-appearance: none; max-width: 100%; padding: 4px 28px 4px 10px;
+    border: 1px solid var(--line); border-radius: 4px; color: var(--fg); font: 500 13px theme("fontFamily.sans");
+    background: var(--panel) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0h10L5 6z' fill='%238190a6'/%3E%3C/svg%3E") no-repeat right 10px center;
+    cursor: pointer; text-overflow: ellipsis; }
+  .select:hover { border-color: var(--muted); }
+  .select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* win / lose cells: winner gets the s3 shade + bold, loser is dimmed */
+  .dt td.win { background: var(--h3); color: var(--strong); font-weight: 600; }
+  .dt td.lose { color: var(--dim); }
+  .dt tbody tr:hover td.win { background: var(--h3); }
+
+  .pj-matchline { font: 500 13px theme("fontFamily.mono"); color: var(--muted); }
+  .pj-matchline b { font: 600 13.5px theme("fontFamily.sans"); color: var(--strong); }
+  .pj-pill { display: inline-block; padding: 0 8px; border: 1px solid var(--line); border-radius: 99px;
+    font: 600 11px/18px theme("fontFamily.cond"); letter-spacing: .1em; text-transform: uppercase; color: var(--fg); }
+
+  /* verdict blocks */
+  .pj-verdict { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .pj-vb { display: flex; align-items: center; gap: 14px; min-width: 0; padding: 12px 14px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 6px; }
+  .pj-n { flex: none; display: inline-grid; place-items: center; min-width: 64px; height: 58px; padding: 0 8px;
+    border-radius: 3px; font: 700 46px/1 theme("fontFamily.cond"); font-variant-numeric: tabular-nums; }
+  .pj-me .pj-n { background: var(--accent); color: #fff; }
+  .pj-tie .pj-n { border: 2px solid var(--line); color: var(--fg); }
+  .pj-opp .pj-n { background: var(--pos-bg); color: var(--pos-fg); }
+  .pj-t { font: 600 13px theme("fontFamily.cond"); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+  .pj-w { font: 600 15px theme("fontFamily.sans"); color: var(--strong); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  @media (max-width: 767px) {
+    .pj-verdict { gap: 6px; }
+    .pj-vb { flex-direction: column; align-items: flex-start; gap: 6px; padding: 8px; }
+    .pj-n { min-width: 44px; height: 40px; font-size: 32px; }
+    .pj-w { font-size: 12.5px; max-width: 100%; }
+  }
+
+  /* CLOSE tag and the centred "who leads" bar */
+  .pj-close { display: inline-block; padding: 0 5px; border: 1px solid var(--accent); border-radius: 2px; color: var(--accent);
+    font: 700 11px/16px theme("fontFamily.cond"); letter-spacing: .1em; vertical-align: middle; }
+  .pj-bar { position: relative; display: inline-block; width: 140px; height: 10px; vertical-align: middle;
+    background: var(--line-2); border-radius: 2px; }
+  .pj-bar::before { content: ""; position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: var(--dim); }
+  .pj-bar i { position: absolute; top: 0; bottom: 0; border-radius: 2px; }
+  .pj-bar-me { background: var(--accent); }
+  .pj-bar-opp { background: var(--muted); }
+  .pj-cmp td { height: 34px; }
+
+  /* roster breakdown: projections aren't ranked, so no accent underline; idle = 0 games left */
+  .pj-roster .pg-head span { color: var(--muted); box-shadow: none; }
+  .pj-idle td, .pj-idle .pg-cells span, .pj-idle .pg-top > span:last-child { color: var(--dim); }
+
+  /* tabs: condensed caps with a mono count, active = strong + accent underline */
+  .tabs { display: flex; gap: 18px; border-bottom: 1px solid var(--line); min-width: 0; }
+  .tab { display: flex; align-items: baseline; gap: 5px; min-width: 0; padding: 6px 0; color: var(--muted); cursor: pointer;
+    font: 600 13px theme("fontFamily.cond"); letter-spacing: .1em; text-transform: uppercase; }
+  .tab:hover { color: var(--fg); }
+  .tab[aria-selected="true"] { color: var(--strong); box-shadow: inset 0 -2px 0 var(--accent); }
+  .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .tab-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tab-n { flex: none; font: 500 11px theme("fontFamily.mono"); letter-spacing: 0; color: var(--dim); }
+}

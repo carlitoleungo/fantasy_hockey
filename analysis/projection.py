@@ -22,6 +22,22 @@ def is_rate_stat(name: str) -> bool:
     return "average" in lower or "percentage" in lower or "%" in lower
 
 
+# A category whose projected totals differ by less than this share of the larger total is
+# "close": still winnable with a roster move. A guess to tune (docs/design-system.md).
+CLOSE_MARGIN = 0.10
+
+
+def lead_margin(a: float, b: float) -> float:
+    """Relative gap between two projected totals: |a - b| / max(|a|, |b|), in 0..1.
+
+    0.0 when both are zero. Direction-free, so it works the same for lower-is-better stats.
+    """
+    biggest = max(abs(a), abs(b))
+    if biggest == 0:
+        return 0.0
+    return abs(a - b) / biggest
+
+
 def project_team_stats(
     current_stats: dict[str, float],
     roster: list[dict],
@@ -103,7 +119,9 @@ def compare_projections(
             "category": str,
             "team_a":   float,
             "team_b":   float,
-            "winner":   "team_a" | "team_b" | "Tie"
+            "winner":   "team_a" | "team_b" | "Tie",
+            "margin":   float,   # lead_margin(team_a, team_b)
+            "close":    bool,    # not a tie, and margin < CLOSE_MARGIN
         }
     """
     if lower_is_better is None:
@@ -119,6 +137,14 @@ def compare_projections(
         outcome = category_winner(a_val, b_val, stat in lower_is_better)
         winner = {"a": "team_a", "b": "team_b", "tie": "Tie"}[outcome]
 
-        rows.append({"category": stat, "team_a": a_val, "team_b": b_val, "winner": winner})
+        margin = lead_margin(a_val, b_val)
+        rows.append({
+            "category": stat,
+            "team_a": a_val,
+            "team_b": b_val,
+            "winner": winner,
+            "margin": margin,
+            "close": winner != "Tie" and margin < CLOSE_MARGIN,
+        })
 
     return rows

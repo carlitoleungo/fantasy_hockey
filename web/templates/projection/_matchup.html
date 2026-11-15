@@ -1,133 +1,173 @@
 {% from "_components.html" import pos_chips %}
+{# Swapped into #projection-matchup (a flex column) by htmx, so every top-level element
+   here is one block of the page. #}
 {% if not has_matchup %}
-  <p class="text-sm text-yellow-700 bg-yellow-50 border border-yellow-200 rounded px-3 py-2 my-6">
-    {{ my_team_name }} has no matchup this week (bye week).
-  </p>
+  <div class="grid-panel">
+    <p class="px-4 py-8 text-sm text-muted text-center">{{ my_team_name }} has no matchup this week (bye week).</p>
+  </div>
 {% else %}
-  <p class="text-sm text-gray-600 mb-4">
-    Week {{ current_week }} vs {{ opponent_name }} · {{ week_start }} – {{ week_end }}
+  <p class="pj-matchline">
+    Week {{ current_week }} vs <b>{{ opponent_name }}</b> · {{ week_range }}
+    {%- if days_left %} · <span class="pj-pill">{{ today_label }} · {{ days_left }} day{{ "" if days_left == 1 else "s" }} left</span>{% endif %}
   </p>
 
-  {# ------------------------------------------------------------------ #}
-  {# Tally cards: my projected wins, ties, opponent projected wins       #}
-  {# ------------------------------------------------------------------ #}
-  <div class="grid grid-cols-3 gap-3 mb-6">
-    <div class="rounded-lg border border-gray-200 bg-white px-4 py-3 text-center border-l-4 border-l-green-500">
-      <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 truncate">{{ my_team_name }}</p>
-      <p class="text-3xl font-bold text-green-600">{{ my_wins }}</p>
-      <p class="text-xs text-gray-500">Projected Wins</p>
+  {# Verdict: the largest numbers in the app. Mine in accent, ties outlined, theirs in
+     position-block colours. #}
+  <div class="pj-verdict" aria-label="Projected category result">
+    <div class="pj-vb pj-me">
+      <span class="pj-n">{{ my_wins }}</span>
+      <div class="min-w-0"><div class="pj-t">My wins</div><div class="pj-w" title="{{ my_team_name }}">{{ my_team_name }}</div></div>
     </div>
-    <div class="rounded-lg border border-gray-200 bg-white px-4 py-3 text-center border-l-4 border-l-gray-300">
-      <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Tied</p>
-      <p class="text-3xl font-bold text-gray-700">{{ ties }}</p>
-      <p class="text-xs text-gray-500">Categories</p>
+    <div class="pj-vb pj-tie">
+      <span class="pj-n">{{ ties }}</span>
+      <div class="min-w-0"><div class="pj-t">Tied</div><div class="pj-w">categories</div></div>
     </div>
-    <div class="rounded-lg border border-gray-200 bg-white px-4 py-3 text-center border-l-4 border-l-orange-400">
-      <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 truncate">{{ opponent_name }}</p>
-      <p class="text-3xl font-bold text-orange-500">{{ opp_wins }}</p>
-      <p class="text-xs text-gray-500">Projected Wins</p>
+    <div class="pj-vb pj-opp">
+      <span class="pj-n">{{ opp_wins }}</span>
+      <div class="min-w-0"><div class="pj-t">Their wins</div><div class="pj-w" title="{{ opponent_name }}">{{ opponent_name }}</div></div>
     </div>
   </div>
 
-  {# ------------------------------------------------------------------ #}
-  {# Category comparison table with per-cell winner highlighting          #}
-  {# ------------------------------------------------------------------ #}
-  <div class="overflow-x-auto rounded-lg border border-gray-200 mb-8">
-    <table class="w-full text-sm">
-      <thead class="bg-gray-50 border-b border-gray-200">
+  {# Category comparison: winner shaded + bold, loser dimmed, CLOSE on margins under 10 %. #}
+  <div class="grid-panel" id="pj-categories">
+    <div class="grid-bar border-b border-line">
+      <span><b>{{ comparison | length }}</b> categories · projected week totals</span>
+      <span><span class="pj-close">CLOSE</span> = within {{ close_pct }}%, worth a roster move</span>
+    </div>
+    <table class="dt pj-cmp">
+      <thead>
         <tr>
-          <th class="px-4 py-2 text-left font-semibold text-gray-600">Category</th>
-          <th class="px-4 py-2 text-right font-semibold text-gray-600">{{ my_team_name }} (Proj)</th>
-          <th class="px-4 py-2 text-right font-semibold text-gray-600">{{ opponent_name }} (Proj)</th>
+          <th class="l" scope="col">Category</th>
+          <th scope="col" title="{{ my_team_name }}"><span class="md:hidden">Me</span><span class="hidden md:inline">{{ my_team_name }}</span></th>
+          <th scope="col" title="{{ opponent_name }}"><span class="md:hidden">Opp</span><span class="hidden md:inline">{{ opponent_name }}</span></th>
+          <th class="l hidden md:table-cell" scope="col">Who leads</th>
         </tr>
       </thead>
       <tbody>
         {% for r in comparison %}
-          {% set fmt = "%.2f" if is_rate_stat(r.category) else "%.1f" %}
-          {% if r.winner == "team_a" %}
-            {% set my_cls = "bg-green-100 text-green-800 font-semibold" %}
-            {% set opp_cls = "text-gray-400" %}
-          {% elif r.winner == "team_b" %}
-            {% set my_cls = "text-gray-400" %}
-            {% set opp_cls = "bg-green-100 text-green-800 font-semibold" %}
-          {% else %}
-            {% set my_cls = "text-gray-700" %}
-            {% set opp_cls = "text-gray-700" %}
-          {% endif %}
-          <tr class="border-b border-gray-100">
-            <td class="px-4 py-2 text-gray-700">{{ r.category }}</td>
-            <td class="px-4 py-2 text-right {{ my_cls }}">{{ fmt|format(r.team_a|float) }}</td>
-            <td class="px-4 py-2 text-right {{ opp_cls }}">{{ fmt|format(r.team_b|float) }}</td>
+          {% set a_cls = "win" if r.winner == "team_a" else ("lose" if r.winner == "team_b" else "") %}
+          {% set b_cls = "win" if r.winner == "team_b" else ("lose" if r.winner == "team_a" else "") %}
+          {% set width = [50, r.margin * 160] | min %}
+          <tr data-category="{{ r.category }}">
+            <td class="l">
+              <span class="label-cond text-[14px] text-strong" title="{{ r.category }}">{{ abbr.get(r.category, r.category) }}</span>
+              {%- if abbr.get(r.category, r.category) != r.category %}<span class="hidden sm:inline font-sans text-[12.5px] text-muted ml-2">{{ r.category }}</span>{% endif %}
+              {%- if r.close %} <span class="pj-close ml-1.5">CLOSE</span>{% endif %}
+            </td>
+            <td class="{{ a_cls }}">{{ fmt(r.category, r.team_a) }}</td>
+            <td class="{{ b_cls }}">{{ fmt(r.category, r.team_b) }}</td>
+            <td class="l hidden md:table-cell">
+              <span class="pj-bar" aria-hidden="true">
+                {%- if r.winner == "team_a" %}<i class="pj-bar-me" style="right:50%;width:{{ '%.1f' | format(width) }}%"></i>
+                {%- elif r.winner == "team_b" %}<i class="pj-bar-opp" style="left:50%;width:{{ '%.1f' | format(width) }}%"></i>{% endif -%}
+              </span>
+              <span class="sr-only">{% if r.winner == "team_a" %}{{ my_team_name }} leads{% elif r.winner == "team_b" %}{{ opponent_name }} leads{% else %}Tied{% endif %}</span>
+            </td>
           </tr>
         {% endfor %}
       </tbody>
     </table>
+    <div class="grid-bar border-t border-line">
+      <span>Shaded = projected winner · dimmed = trailing</span>
+      <span class="hidden md:inline">Bar: ◀ {{ my_team_name }} leads · {{ opponent_name }} leads ▶</span>
+    </div>
   </div>
 
   {# ------------------------------------------------------------------ #}
-  {# Per-team roster breakdown (both teams)                              #}
+  {# Roster breakdowns: one tab per team, skaters and goalies split so   #}
+  {# neither shows the other's columns.                                   #}
   {# ------------------------------------------------------------------ #}
-  {% macro roster_table(rows, columns) %}
-    <div class="overflow-x-auto rounded-lg border border-gray-200">
-      <table class="w-full text-sm whitespace-nowrap">
-        <thead class="bg-gray-50 border-b border-gray-200">
-          <tr>
-            <th class="px-3 py-2 text-left font-semibold text-gray-600 sticky left-0 bg-gray-50">Player</th>
-            <th class="px-3 py-2 text-right font-semibold text-gray-600" title="Games Remaining">GR</th>
-            {% for c in columns %}
-              <th class="px-3 py-2 text-right font-semibold text-gray-600" title="{{ c.name }}">{{ c.abbr }}</th>
-            {% endfor %}
-          </tr>
-        </thead>
-        <tbody>
-          {% for p in rows %}
-            {% set parts = p.player_name.split(' ', 1) %}
-            <tr class="border-b border-gray-100">
-              <td class="px-3 py-2 sticky left-0 bg-white" title="{{ p.player_name }}">
-                <span class="font-medium text-gray-800">
-                  {%- if parts|length > 1 -%}
-                    {{ parts[0][0] }}. {{ parts[1] }}
-                  {%- else -%}
-                    {{ p.player_name }}
-                  {%- endif -%}
-                </span>
-                <span class="flex items-center gap-1.5 mt-0.5 text-xs text-gray-400">{{ pos_chips(p.position) }}{{ p.team_abbr }}</span>
-              </td>
-              <td class="px-3 py-2 text-right text-gray-700">{{ p.games_left }}</td>
+  {% macro short_name(name) -%}
+    {%- set parts = name.split(' ', 1) -%}
+    {%- if parts | length > 1 -%}{{ parts[0][0] }}. {{ parts[1] }}{%- else -%}{{ name }}{%- endif -%}
+  {%- endmacro %}
+
+  {% macro roster_grid(label, rows, columns) %}
+    <div class="grid-panel pj-roster" data-section="{{ label }}">
+      <div class="grid-bar border-b border-line">
+        <span><b>{{ label }}</b> · {{ rows | length }} · projected rest of week</span>
+        <span class="hidden md:inline">GR = games left</span>
+      </div>
+      {# Desktop and tablet: one row per player. #}
+      <div class="hidden md:block overflow-x-auto">
+        <table class="dt">
+          <thead>
+            <tr>
+              <th class="l sticky-col" scope="col">Player</th>
+              <th scope="col" title="Games remaining this week">GR</th>
               {% for c in columns %}
-                {% set v = p.stats[c.name] %}
-                {% if is_rate_stat(c.name) %}
-                  <td class="px-3 py-2 text-right text-gray-700">{{ "%.2f"|format(v|float) }}</td>
-                {% else %}
-                  <td class="px-3 py-2 text-right text-gray-700">{{ "%.1f"|format(v|float) }}</td>
-                {% endif %}
+                <th scope="col" title="{{ c.name }}">{{ c.abbr }}</th>
               {% endfor %}
             </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {% for p in rows %}
+              <tr{% if not p.games_left %} class="pj-idle"{% endif %}>
+                <td class="l sticky-col" title="{{ p.player_name }}">
+                  <span class="font-sans font-semibold text-sm text-strong">{{ short_name(p.player_name) }}</span>
+                  <span class="label-cond text-[13px] text-muted ml-1.5">{{ p.team_abbr }}</span>
+                  <span class="ml-1.5">{{ pos_chips(p.position) }}</span>
+                </td>
+                <td>{{ p.games_left }}</td>
+                {% for c in columns %}
+                  <td>{{ fmt(c.name, p.stats[c.name]) }}</td>
+                {% endfor %}
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {# Phones: layout B2, name line then every stat on one line, no sideways scroll. #}
+      <div class="md:hidden{% if columns | length >= 9 %} pg-tight{% endif %}" style="--n: {{ [columns | length, 1] | max }}">
+        {% if columns %}
+          <div class="pg-head">
+            {% for c in columns %}<span title="{{ c.name }}">{{ c.abbr }}</span>{% endfor %}
+          </div>
+        {% endif %}
+        {% for p in rows %}
+          <div class="pg-row{% if not p.games_left %} pj-idle{% endif %}">
+            <div class="pg-top">
+              <span class="pg-name font-semibold text-[13.5px] text-strong" title="{{ p.player_name }}">{{ short_name(p.player_name) }}</span>
+              <span class="label-cond text-[12px] text-muted flex-none">{{ p.team_abbr }}</span>
+              <span class="flex-none">{{ pos_chips(p.position) }}</span>
+              <span class="ml-auto flex-none font-mono text-[11px] whitespace-nowrap" title="Games remaining this week">{{ p.games_left }} left</span>
+            </div>
+            {% if columns %}
+              <div class="pg-cells">
+                {% for c in columns %}<span>{{ fmt(c.name, p.stats[c.name]) }}</span>{% endfor %}
+              </div>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
     </div>
   {% endmacro %}
 
-  {# Skaters and goalies get their own table so neither shows the other's columns #}
   {% macro team_breakdown(rows) %}
     {% set skaters = rows | rejectattr("is_goalie") | list %}
     {% set goalies = rows | selectattr("is_goalie") | list %}
-    {% if skaters %}
-      <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">Skaters</p>
-      {{ roster_table(skaters, skater_columns) }}
-    {% endif %}
-    {% if goalies %}
-      <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 mt-4 mb-1">Goalies</p>
-      {{ roster_table(goalies, goalie_columns) }}
+    {% if skaters %}{{ roster_grid("Skaters", skaters, skater_columns) }}{% endif %}
+    {% if goalies %}{{ roster_grid("Goalies", goalies, goalie_columns) }}{% endif %}
+    {% if not rows %}
+      <div class="grid-panel"><p class="px-4 py-8 text-sm text-muted text-center">No rostered players found.</p></div>
     {% endif %}
   {% endmacro %}
 
-  <h2 class="text-lg font-semibold text-gray-800 mb-3">Roster Breakdown</h2>
-
-  <h3 class="text-sm font-semibold text-gray-700 mb-2">{{ my_team_name }}</h3>
-  {{ team_breakdown(my_breakdown) }}
-
-  <h3 class="text-sm font-semibold text-gray-700 mt-6 mb-2">{{ opponent_name }}</h3>
-  {{ team_breakdown(opp_breakdown) }}
+  <section class="flex flex-col gap-3 mt-2" x-data="{ tab: 'me' }" aria-labelledby="pj-breakdown-h">
+    <h2 id="pj-breakdown-h" class="label-cond text-[15px] text-strong">Roster Breakdown</h2>
+    <div class="tabs" role="tablist">
+      <button type="button" role="tab" class="tab" aria-selected="true" :aria-selected="(tab === 'me').toString()" @click="tab = 'me'">
+        <span class="tab-name">{{ my_team_name }}</span><span class="tab-n">{{ my_breakdown | length }}</span>
+      </button>
+      <button type="button" role="tab" class="tab" aria-selected="false" :aria-selected="(tab === 'opp').toString()" @click="tab = 'opp'">
+        <span class="tab-name">{{ opponent_name }}</span><span class="tab-n">{{ opp_breakdown | length }}</span>
+      </button>
+    </div>
+    <div class="flex flex-col gap-3" data-team="me" role="tabpanel" x-show="tab === 'me'">
+      {{ team_breakdown(my_breakdown) }}
+    </div>
+    <div class="flex flex-col gap-3" data-team="opp" role="tabpanel" x-show="tab === 'opp'" x-cloak>
+      {{ team_breakdown(opp_breakdown) }}
+    </div>
+  </section>
 {% endif %}
